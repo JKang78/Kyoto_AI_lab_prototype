@@ -36,7 +36,7 @@
   "mapNextRewardPreview": "Coupon preview",
   "mapProgressAction": "Sample progress. Open Rewards preview",
   "mapSearchLabel": "Search curated walks or places",
-  "mapSearchPlaceholder": "Search destination or route…",
+  "mapSearchPlaceholder": "Place, theme, or time…",
   "mapSearchPreviewTitle": "Curated walks",
   "mapSearchPreviewBody": "Choose a mapped walk or search a place name.",
   "mapSearchNoResults": "No mapped walk matches that search. Try Yasaka, river, or Maruyama.",
@@ -132,5 +132,12 @@
   "routesAccessNotes": "Access notes",
   "routesCommunityNotConsulted": "Community representatives have not reviewed this place entry. Respect current signs and local access rules.",
   "placeMapSource": "View mapped feature on OpenStreetMap",
-  "placeBackToStops": "Back to stops"
+  "placeBackToStops": "Back to stops",
+  "routesSearchHint": "Try “river under 10 minutes” or a place name. Suggestions use only stored walks.",
+  "routesSearchMatched": "Stored walks matching your place, theme, or time terms.",
+  "routesSearchFallback": "No verified walk matches every part of that request. These are the available map-checked walks; check their details before choosing.",
+  "routesReasonPlace": "Route or place name match",
+  "routesReasonTheme": "Theme match",
+  "routesReasonTime": "Within time budget · map estimate",
+  "routesReasonAvailable": "Available mapped walk"
 }

@@ -36,7 +36,7 @@
   "mapNextRewardPreview": "クーポン予告",
   "mapProgressAction": "サンプル進捗。特典プレビューを開く",
   "mapSearchLabel": "散策ルートや場所を検索",
-  "mapSearchPlaceholder": "行き先やルートを検索…",
+  "mapSearchPlaceholder": "場所・テーマ・所要時間…",
   "mapSearchPreviewTitle": "京都の散策ルート",
   "mapSearchPreviewBody": "地図上で確認した散策ルートを選ぶか、場所の名前で検索できます。",
   "mapSearchNoResults": "一致する散策ルートがありません。八坂、鴨川、円山などでお試しください。",
@@ -132,5 +132,12 @@
   "routesAccessNotes": "アクセス上の注意",
   "routesCommunityNotConsulted": "この場所の情報は地域の方々に確認していません。現地の案内と立ち入りルールを守ってください。",
   "placeMapSource": "OpenStreetMapで地図上の場所を見る",
-  "placeBackToStops": "立ち寄り地点に戻る"
+  "placeBackToStops": "立ち寄り地点に戻る",
+  "routesSearchHint": "「10分以内の川沿い」や場所名で検索できます。候補は登録済みのルートのみです。",
+  "routesSearchMatched": "場所・テーマ・時間の条件に一致する登録済みルートです。",
+  "routesSearchFallback": "条件すべてに一致する確認済みルートはありません。地図上で確認したルートを表示しています。選ぶ前に詳細を確認してください。",
+  "routesReasonPlace": "ルート名・地点名が一致",
+  "routesReasonTheme": "テーマが一致",
+  "routesReasonTime": "時間内の地図上の目安",
+  "routesReasonAvailable": "登録済みの散策ルート"
 }

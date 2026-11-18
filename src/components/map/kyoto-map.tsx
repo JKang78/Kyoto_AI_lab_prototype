@@ -9,6 +9,7 @@ import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, type SampleCongestionCue } from "@/data/sample-congestion";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { classifyFix, DEMO_POSITION, locationModeText, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
+import { discoverRoutes, type MatchReason, type RouteFilter } from "@/lib/route-discovery";
 import type { CuratedPlace, CuratedWalk } from "@/types/routes";
 
 const KYOTO_CENTER: [number, number] = [135.7677, 35.0034];
@@ -16,7 +17,6 @@ const MAP_ZOOM = 13.9;
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
 type RoutePanel = "results" | "details" | "stops" | "place" | "more" | null;
-type RouteFilter = CuratedWalk["theme"] | "nature" | "cafes" | "bike" | "hidden" | "luggage" | "seasonal" | null;
 const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[] = [
   { label: "mapCategoryCulture", icon: Landmark, filter: "culture" },
   { label: "mapCategoryRiverside", icon: Waves, filter: "riverside" },
@@ -32,30 +32,17 @@ const moreCategories: { label: MessageKey; filter: RouteFilter }[] = [
   { label: "mapCategorySeasonal", filter: "seasonal" },
 ];
 const routeColors: Record<CuratedWalk["theme"], string> = { culture: "#a2477e", riverside: "#387d94", park: "#668153" };
+const reasonKeys: Record<Exclude<MatchReason, null>, MessageKey> = { place: "routesReasonPlace", theme: "routesReasonTheme", time: "routesReasonTime", available: "routesReasonAvailable" };
 const placeThemes: Record<string, CuratedWalk["theme"]> = {
   "shijo-kawaramachi": "culture", "shijo-ohashi": "riverside", "yasaka-west-view": "culture",
   "kawabata-riverside": "riverside", "sanjo-ohashi": "riverside",
   "maruyama-cherry-path": "park", "chionin-south-gate-path": "park",
 };
 
-function filteredWalks(query: string, filter: RouteFilter): readonly CuratedWalk[] {
-  const term = query.trim().toLocaleLowerCase();
-  return CURATED_WALKS.filter((walk) => {
-    const themeMatches = !filter || walk.theme === filter || (filter === "nature" && (walk.theme === "riverside" || walk.theme === "park"));
-    if (!themeMatches) return false;
-    if (!term) return true;
-    const places = walk.placeIds.flatMap((id) => {
-      const place = CURATED_PLACES.find((item) => item.id === id);
-      return place ? [place.name.en, place.name.ja, place.description.en, place.description.ja] : [];
-    });
-    return [walk.name.en, walk.name.ja, walk.description.en, walk.description.ja, ...places].some((value) => value.toLocaleLowerCase().includes(term));
-  });
-}
-
-function WalkOption({ walk, locale, onSelect }: { walk: CuratedWalk; locale: Locale; onSelect: () => void }) {
+function WalkOption({ walk, locale, reason, onSelect }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; onSelect: () => void }) {
   return <button type="button" className={`map-route-option map-route-option--${walk.theme}`} onClick={onSelect}>
     <span className="map-route-option-icon" aria-hidden="true">{walk.theme === "culture" ? <Landmark size={20} /> : walk.theme === "riverside" ? <Waves size={20} /> : <Trees size={20} />}</span>
-    <span className="map-route-option-copy"><strong>{walk.name[locale]}</strong><small>{walk.description[locale]}</small><em>{translate(locale, "routesDemoEstimate", { minutes: String(walk.estimatedMinutes), meters: String(walk.estimatedMeters) })}</em></span>
+    <span className="map-route-option-copy"><strong>{walk.name[locale]}</strong><small>{walk.description[locale]}</small>{reason && <span className="map-route-option-reason">{translate(locale, reasonKeys[reason])}</span>}<em>{translate(locale, "routesDemoEstimate", { minutes: String(walk.estimatedMinutes), meters: String(walk.estimatedMeters) })}</em></span>
     <ChevronRight size={18} aria-hidden="true" />
   </button>;
 }
@@ -90,8 +77,8 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
   const liveTracking = location.mode === "live" && ["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const selectedWalk = CURATED_WALKS.find((walk) => walk.id === selectedWalkId) ?? null;
   const focusedPlace = CURATED_PLACES.find((place) => place.id === focusedPlaceId) ?? null;
-  const results = filteredWalks(query, routeFilter);
-  const searchResults = filteredWalks(query, null);
+  const results = discoverRoutes(query, routeFilter, CURATED_WALKS, CURATED_PLACES);
+  const searchResults = discoverRoutes(query, null, CURATED_WALKS, CURATED_PLACES);
 
   const stopWatch = useCallback(() => {
     watchVersionRef.current += 1;
@@ -420,12 +407,13 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       <div className="map-search-wrap">
         <div className="map-search-bar">
           <Search size={21} aria-hidden="true" />
-          <input type="search" aria-label={t("mapSearchLabel")} placeholder={t("mapSearchPlaceholder")} value={query} onChange={(event) => { setQuery(event.target.value); setRouteFilter(null); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); if (event.key === "Enter" && searchResults[0]) selectWalk(searchResults[0]); }} />
+          <input type="search" aria-label={t("mapSearchLabel")} placeholder={t("mapSearchPlaceholder")} value={query} onChange={(event) => { setQuery(event.target.value); setRouteFilter(null); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); if (event.key === "Enter" && searchResults.suggestions[0]) selectWalk(searchResults.suggestions[0].walk); }} />
           <button type="button" className="map-recenter" onClick={recenter} disabled={state !== "ready" || (location.mode === "live" && !location.fix)} aria-label={t(location.mode === "live" ? "mapRecenterLive" : location.mode === "demo" ? "mapRecenterDemo" : "mapRecenterSample")}><LocateFixed size={20} aria-hidden="true" /></button>
         </div>
         {searchOpen && <div className="map-search-preview" role="region" aria-label={t("mapSearchPreviewTitle")}>
           <div className="map-search-heading"><strong>{t("mapSearchPreviewTitle")}</strong><button type="button" onClick={() => setSearchOpen(false)} aria-label={t("close")}><X size={18} /></button></div>
-          <div className="map-search-results">{searchResults.length ? searchResults.map((walk) => <WalkOption key={walk.id} walk={walk} locale={locale} onSelect={() => selectWalk(walk)} />) : <p>{t("mapSearchNoResults")}</p>}</div>
+          <p className="map-search-hint">{t(!query.trim() ? "routesSearchHint" : searchResults.fallback ? "routesSearchFallback" : "routesSearchMatched")}</p>
+          <div className="map-search-results">{searchResults.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div>
         </div>}
       </div>
 
@@ -457,7 +445,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
     {state !== "ready" && <div className="kyoto-map-status" role="status">{state === "loading" ? t("mapLoading") : t("mapLoadError")}</div>}
 
     <BottomSheet open={panel !== null} onClose={() => { setPanel(null); setFocusedPlaceId(null); }} title={sheetTitle} closeLabel={t("close")}>
-      {panel === "results" && <div className="route-sheet-content"><p className="route-sheet-intro">{t("routesMapChecked")}</p>{results.length ? <div className="route-sheet-options">{results.map((walk) => <WalkOption key={walk.id} walk={walk} locale={locale} onSelect={() => selectWalk(walk)} />)}</div> : <div className="route-empty"><p>{t("routesEmpty")}</p><button type="button" onClick={() => showResults()}>{t("routesShowAll")}</button></div>}<RouteDataCredit locale={locale} /></div>}
+      {panel === "results" && <div className="route-sheet-content"><p className="route-sheet-intro">{t(results.fallback ? "routesSearchFallback" : "routesMapChecked")}</p>{results.suggestions.length ? <div className="route-sheet-options">{results.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div> : <div className="route-empty"><p>{t("routesEmpty")}</p><button type="button" onClick={() => showResults()}>{t("routesShowAll")}</button></div>}<RouteDataCredit locale={locale} /></div>}
       {panel === "details" && selectedWalk && <div className="route-sheet-content"><p className="route-sheet-intro">{selectedWalk.description[locale]}</p><Pill>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</Pill><h3>{t("routesStops")}</h3><ol className="route-stop-list">{selectedWalk.placeIds.map((id) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <li key={id}>{place.name[locale]}</li> : null; })}</ol><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("stops")}>{t("routesSeeStops")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
       {panel === "stops" && selectedWalk && <div className="route-sheet-content"><div className="route-place-list">{selectedWalk.placeIds.map((id, index) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <button type="button" className="route-place-card" key={id} onClick={() => openPlace(place, "stops")} aria-label={t("mapOpenPlace", { name: place.name[locale] })}><span>{index + 1}</span><div><h3>{place.name[locale]}</h3><p>{place.description[locale]}</p><small>{place.accessNotes[locale]}</small></div><ChevronRight size={18} aria-hidden="true" /></button> : null; })}</div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("details")}>{t("routesDetails")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
       {panel === "place" && focusedPlace && <div className="route-sheet-content"><p className="route-sheet-intro">{focusedPlace.description[locale]}</p><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{focusedPlace.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesAccessNotes")}</strong><p>{focusedPlace.accessNotes[locale]}</p></div><p className="route-community-status">{t("routesCommunityNotConsulted")}</p><a className="route-place-source" href={focusedPlace.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a><div className="route-sheet-actions"><button type="button" onClick={backFromPlace}>{t(placeReturnPanel === "stops" ? "placeBackToStops" : placeReturnPanel === "details" ? "routesDetails" : "routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}

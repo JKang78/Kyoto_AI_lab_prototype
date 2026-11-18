@@ -153,6 +153,7 @@ button:disabled { cursor: not-allowed; }
 
 /* Phase 2 curated walk discovery */
 .map-search-preview { max-height: min(55dvh, 385px); padding: 10px; display: flex; flex-direction: column; }
+.map-search-preview .map-search-hint { margin: 5px 3px 7px; color: #765d66; font-size: 11px; line-height: 1.4; }
 .map-search-preview > .map-search-results { display: grid; gap: 8px; overflow-y: auto; justify-content: stretch; padding: 5px 2px 2px; }
 .map-search-preview .map-route-option { display: flex; width: 100%; height: auto; min-height: 72px; border-radius: 14px; background: #fffaf6; }
 .map-categories button[aria-pressed="true"] { background: var(--kyoto-purple); border-color: var(--kyoto-purple); color: white; }
@@ -167,6 +168,7 @@ button:disabled { cursor: not-allowed; }
 .map-route-option-copy { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .map-route-option-copy strong { font-size: 13px; line-height: 1.25; }
 .map-route-option-copy small { color: #765d66; font-size: 11px; line-height: 1.3; }
+.map-route-option-reason { width: fit-content; padding: 3px 7px; border-radius: 99px; background: #f0e4d4; color: #68414f; font-size: 10px; font-weight: 800; line-height: 1.2; }
 .map-route-option-copy em { color: #8a4d6e; font-size: 10px; font-style: normal; font-weight: 800; }
 .map-route-option > svg { flex: none; }
 .map-route-option:focus-visible, .map-selected-callout button:focus-visible, .map-more-pills button:focus-visible, .route-sheet-actions button:focus-visible, .route-empty button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
