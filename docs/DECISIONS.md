@@ -23,6 +23,14 @@ The local proof of concept renders a real MapLibre map centered near Gion-Shijo,
 
 Sources checked 2026-11-18: [OpenFreeMap usage, attribution and license](https://openfreemap.org/), [OpenFreeMap terms](https://openfreemap.org/tos/), [OpenFreeMap MapLibre quick start](https://openfreemap.org/quick_start/), [MapLibre GL JS documentation](https://maplibre.org/maplibre-gl-js/docs/), [Google API setup](https://developers.google.com/maps/documentation/javascript/get-api-key), [Google usage and billing](https://developers.google.com/maps/documentation/javascript/usage-and-billing), [Google styling setup](https://developers.google.com/maps/documentation/javascript/cloud-customization/setup), and [Google attribution policies](https://developers.google.com/maps/documentation/javascript/policies).
 
-The map foundation contains no route geometry, GPS position, fox avatar, rewards, place data, or live traffic. These require separately scoped work and, for routes and places, verified data and licensing.
+The initial map foundation contained no route geometry, GPS position, fox avatar, rewards, place data, or live traffic. Phase 1 location behavior now adds opt-in GPS and a separate simulated position; route and place data still require verified fixtures and licensing.
 
 Production-build check: headless Chrome at 360 × 800, 390 × 800, and 430 × 800 px rendered the tiles, showed the attribution and zoom controls, panned successfully, reported no page/request errors, and had no horizontal overflow. Attribution wraps to two lines at 360 px. These are desktop browser emulations; low-end phone and real-device performance remain unmeasured.
+
+## Phase 1 location behavior
+
+Browser geolocation starts only after **Use My Location**. The Map tab owns the watcher, clears it on mode change, tab exit, and page hiding, and does not persist coordinates. Leaving Map pauses a live session; returning requires another explicit tap. Live fixes stay at their reported coordinates, including outside Kyoto. The broad 34.93–35.12° N, 135.67–135.84° E rectangle is a prototype *context hint*, not a city boundary or safety geofence. Fixes with reported accuracy worse than 100 m are labelled imprecise before any Kyoto-area classification. Permission denial, timeout, and unavailability are exposed without substituting a Kyoto point.
+
+Demo Mode uses a separate fixed sample at 35.0003° N, 135.7662° E near Gion-Shijo and the Kamo River. Its marker and Settings status visibly say it is simulated and GPS is off. Recenter targets the active mode. The marker still uses the replaceable mascot asset shell.
+
+No dotted route geometry is drawn in Phase 1. A route line would imply a safe walking path; Phase 2 must first supply validated route fixtures with reviewed path coordinates and licensing. No demo walking, check-ins, coins, or coupons are implemented here.
