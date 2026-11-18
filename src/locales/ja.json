@@ -22,8 +22,8 @@
   "exploreMap": "マップ画面を見る",
   "homeValueTitle": "街にやさしい歩き方",
   "homeValueBody": "地図上で確認した3つの散策ルートから、主要な歩行経路、周辺の場所、アクセス上の注意を見られます。",
-  "homeComingTitle": "次にできること",
-  "homeComingBody": "次は地図上の場所カードとデモ用混雑表示です。チェックインと特典は後の段階で追加します。",
+  "homeComingTitle": "マップでできること",
+  "homeComingBody": "地図上の場所カードとサンプルの混雑表示を利用できます。チェックインと特典は後の段階で追加します。",
   "mapEyebrow": "体験の中心となる場所",
   "mapTitle": "自分のペースで、京都へ。",
   "mapBody": "操作できる京都の地図で、GPS現在地またはデモ地点を選んで探索できます。",
@@ -123,5 +123,14 @@
   "routesShowAll": "すべてのルートを見る",
   "routesMapChecked": "これらのルートは地図上の歩行経路を確認しています。歩く前に現地の案内と状況を確認してください。",
   "routesDataCredit": "散策経路データ：",
-  "routesFixMap": "地図を修正する"
+  "routesFixMap": "地図を修正する",
+  "mapOpenPlace": "場所を開く：{name}",
+  "mapSampleBusy": "サンプル：混雑",
+  "mapSampleModerate": "サンプル：やや混雑",
+  "mapSampleCongestionAt": "{place}付近の{level}",
+  "mapSampleCongestionLegend": "混雑表示は例示のみ・リアルタイムではありません",
+  "routesAccessNotes": "アクセス上の注意",
+  "routesCommunityNotConsulted": "この場所の情報は地域の方々に確認していません。現地の案内と立ち入りルールを守ってください。",
+  "placeMapSource": "OpenStreetMapで地図上の場所を見る",
+  "placeBackToStops": "立ち寄り地点に戻る"
 }

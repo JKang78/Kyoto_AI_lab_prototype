@@ -6,15 +6,16 @@ import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { Bike, ChevronLeft, ChevronRight, Coffee, Ellipsis, Flower2, Landmark, List, LocateFixed, MapPinned, Navigation, Search, Ticket, Trees, Waves, X, type LucideIcon } from "lucide-react";
 import { BottomSheet, MarkerPlaceholder, Pill } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
+import { SAMPLE_CONGESTION_CUES, type SampleCongestionCue } from "@/data/sample-congestion";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { classifyFix, DEMO_POSITION, locationModeText, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
-import type { CuratedWalk } from "@/types/routes";
+import type { CuratedPlace, CuratedWalk } from "@/types/routes";
 
 const KYOTO_CENTER: [number, number] = [135.7677, 35.0034];
 const MAP_ZOOM = 13.9;
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
-type RoutePanel = "results" | "details" | "stops" | "more" | null;
+type RoutePanel = "results" | "details" | "stops" | "place" | "more" | null;
 type RouteFilter = CuratedWalk["theme"] | "nature" | "cafes" | "bike" | "hidden" | "luggage" | "seasonal" | null;
 const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[] = [
   { label: "mapCategoryCulture", icon: Landmark, filter: "culture" },
@@ -31,6 +32,11 @@ const moreCategories: { label: MessageKey; filter: RouteFilter }[] = [
   { label: "mapCategorySeasonal", filter: "seasonal" },
 ];
 const routeColors: Record<CuratedWalk["theme"], string> = { culture: "#a2477e", riverside: "#387d94", park: "#668153" };
+const placeThemes: Record<string, CuratedWalk["theme"]> = {
+  "shijo-kawaramachi": "culture", "shijo-ohashi": "riverside", "yasaka-west-view": "culture",
+  "kawabata-riverside": "riverside", "sanjo-ohashi": "riverside",
+  "maruyama-cherry-path": "park", "chionin-south-gate-path": "park",
+};
 
 function filteredWalks(query: string, filter: RouteFilter): readonly CuratedWalk[] {
   const term = query.trim().toLocaleLowerCase();
@@ -63,6 +69,10 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<MapLibreMarker | null>(null);
   const markerRootRef = useRef<Root | null>(null);
+  const placeMarkerRefs = useRef<Map<string, MapLibreMarker>>(new Map());
+  const congestionMarkerRefs = useRef<{ cue: SampleCongestionCue; marker: MapLibreMarker }[]>([]);
+  const initialLocaleRef = useRef(locale);
+  const selectedWalkIdRef = useRef<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const watchVersionRef = useRef(0);
   const settingsRecenterHandledRef = useRef(false);
@@ -74,9 +84,12 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
   const [panel, setPanel] = useState<RoutePanel>(null);
   const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
   const [selectedWalkId, setSelectedWalkId] = useState<string | null>(null);
+  const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
+  const [placeReturnPanel, setPlaceReturnPanel] = useState<"results" | "details" | "stops">("results");
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const liveTracking = location.mode === "live" && ["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const selectedWalk = CURATED_WALKS.find((walk) => walk.id === selectedWalkId) ?? null;
+  const focusedPlace = CURATED_PLACES.find((place) => place.id === focusedPlaceId) ?? null;
   const results = filteredWalks(query, routeFilter);
   const searchResults = filteredWalks(query, null);
 
@@ -104,6 +117,8 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const placeMarkers = placeMarkerRefs.current;
+    const congestionMarkers = congestionMarkerRefs.current;
 
     let disposed = false;
     let resizeObserver: ResizeObserver | undefined;
@@ -164,6 +179,36 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
               paint: { "line-color": routeColors[walk.theme], "line-width": 4, "line-opacity": 0.78, "line-dasharray": [0.2, 1.8] },
             }, firstLabel);
           }
+          for (const place of CURATED_PLACES) {
+            const pin = document.createElement("button");
+            pin.type = "button";
+            pin.className = `map-place-pin map-place-pin--${placeThemes[place.id] ?? "culture"}`;
+            pin.dataset.placeId = place.id;
+            pin.textContent = "✦";
+            pin.setAttribute("aria-label", translate(initialLocaleRef.current, "mapOpenPlace", { name: place.name[initialLocaleRef.current] }));
+            pin.addEventListener("click", (event) => {
+              event.stopPropagation();
+              setSearchOpen(false);
+              setFocusedPlaceId(place.id);
+              setPlaceReturnPanel(selectedWalkIdRef.current ? "details" : "results");
+              setPanel("place");
+              map.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, 90], duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500 });
+            });
+            placeMarkers.set(place.id, new maplibregl.Marker({ element: pin, anchor: "bottom" }).setLngLat([...place.location]).addTo(map));
+          }
+          for (const cue of SAMPLE_CONGESTION_CUES) {
+            const place = CURATED_PLACES.find((item) => item.id === cue.placeId);
+            if (!place) continue;
+            const label = document.createElement("div");
+            label.className = `map-congestion-cue map-congestion-cue--${cue.level}`;
+            const level = translate(initialLocaleRef.current, cue.level === "busy" ? "mapSampleBusy" : "mapSampleModerate");
+            label.textContent = level;
+            label.setAttribute("role", "img");
+            label.setAttribute("aria-label", translate(initialLocaleRef.current, "mapSampleCongestionAt", { level, place: place.name[initialLocaleRef.current] }));
+            const offset: [number, number] = cue.level === "moderate" ? [-100, 8] : [0, -37];
+            const marker = new maplibregl.Marker({ element: label, anchor: "bottom", offset }).setLngLat([...place.location]).addTo(map);
+            congestionMarkers.push({ cue, marker });
+          }
           setState("ready");
         });
         map.on("error", () => {
@@ -183,6 +228,10 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       resizeObserver?.disconnect();
       markerRef.current?.remove();
       markerRootRef.current?.unmount();
+      for (const marker of placeMarkers.values()) marker.remove();
+      placeMarkers.clear();
+      for (const { marker } of congestionMarkers) marker.remove();
+      congestionMarkers.length = 0;
       markerRef.current = null;
       markerRootRef.current = null;
       mapRef.current?.remove();
@@ -211,6 +260,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
   }, [locale, location, state]);
 
   useEffect(() => {
+    selectedWalkIdRef.current = selectedWalkId;
     const map = mapRef.current;
     if (!map || state !== "ready") return;
     for (const walk of CURATED_WALKS) {
@@ -221,6 +271,27 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       map.setPaintProperty(layer, "line-opacity", selectedWalkId && selectedWalkId !== walk.id ? 0.22 : 0.82);
     }
   }, [selectedWalkId, state]);
+
+  useEffect(() => {
+    if (state !== "ready") return;
+    for (const place of CURATED_PLACES) {
+      const pin = placeMarkerRefs.current.get(place.id)?.getElement();
+      if (!pin) continue;
+      const stopIndex = selectedWalk?.placeIds.indexOf(place.id) ?? -1;
+      pin.style.display = selectedWalk && stopIndex === -1 ? "none" : "";
+      pin.textContent = stopIndex >= 0 ? String(stopIndex + 1) : "✦";
+      pin.setAttribute("aria-label", translate(locale, "mapOpenPlace", { name: place.name[locale] }));
+      pin.setAttribute("aria-pressed", String(panel === "place" && focusedPlaceId === place.id));
+    }
+    for (const { cue, marker } of congestionMarkerRefs.current) {
+      const place = CURATED_PLACES.find((item) => item.id === cue.placeId);
+      const label = marker.getElement();
+      const level = translate(locale, cue.level === "busy" ? "mapSampleBusy" : "mapSampleModerate");
+      label.textContent = level;
+      label.style.display = selectedWalk && !selectedWalk.placeIds.includes(cue.placeId) ? "none" : "";
+      if (place) label.setAttribute("aria-label", translate(locale, "mapSampleCongestionAt", { level, place: place.name[locale] }));
+    }
+  }, [focusedPlaceId, locale, panel, selectedWalk, state]);
 
   const focusMap = useCallback((coordinates: [number, number]) => {
     mapRef.current?.easeTo({ center: coordinates, offset: [0, 115], zoom: MAP_ZOOM, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
@@ -305,6 +376,19 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
     focusWalk(walk);
   }
 
+  function openPlace(place: CuratedPlace, returnPanel: "results" | "details" | "stops") {
+    setFocusedPlaceId(place.id);
+    setPlaceReturnPanel(returnPanel);
+    setSearchOpen(false);
+    setPanel("place");
+    mapRef.current?.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, 90], duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500 });
+  }
+
+  function backFromPlace() {
+    setFocusedPlaceId(null);
+    setPanel(placeReturnPanel);
+  }
+
   function backToResults() {
     setSelectedWalkId(null);
     setPanel("results");
@@ -319,6 +403,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
 
   const sheetTitle = panel === "details" && selectedWalk ? selectedWalk.name[locale]
     : panel === "stops" ? t("routesStops")
+      : panel === "place" && focusedPlace ? focusedPlace.name[locale]
       : panel === "more" ? t("mapCategoryMore") : t("routesTitle");
   return <section className="kyoto-map" aria-label={t("mapCanvasLabel")}>
     <div ref={containerRef} className="kyoto-map-canvas" />
@@ -358,6 +443,8 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       <button type="button" onClick={exploreDemo} disabled={state !== "ready"} aria-pressed={location.mode === "demo"} className={location.mode === "demo" ? "selected" : ""}><MapPinned size={17} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>
     </div>
 
+    {state === "ready" && <div className="map-congestion-legend" role="note">{t("mapSampleCongestionLegend")}</div>}
+
     <div className="map-bottom-ui">
       <button type="button" className="map-recommended" onClick={() => selectedWalk ? setPanel("details") : showResults()}>
         <span className="map-recommended-icon">{selectedWalk ? <Landmark size={22} aria-hidden="true" /> : <Waves size={22} aria-hidden="true" />}</span>
@@ -369,10 +456,11 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
 
     {state !== "ready" && <div className="kyoto-map-status" role="status">{state === "loading" ? t("mapLoading") : t("mapLoadError")}</div>}
 
-    <BottomSheet open={panel !== null} onClose={() => setPanel(null)} title={sheetTitle} closeLabel={t("close")}>
+    <BottomSheet open={panel !== null} onClose={() => { setPanel(null); setFocusedPlaceId(null); }} title={sheetTitle} closeLabel={t("close")}>
       {panel === "results" && <div className="route-sheet-content"><p className="route-sheet-intro">{t("routesMapChecked")}</p>{results.length ? <div className="route-sheet-options">{results.map((walk) => <WalkOption key={walk.id} walk={walk} locale={locale} onSelect={() => selectWalk(walk)} />)}</div> : <div className="route-empty"><p>{t("routesEmpty")}</p><button type="button" onClick={() => showResults()}>{t("routesShowAll")}</button></div>}<RouteDataCredit locale={locale} /></div>}
       {panel === "details" && selectedWalk && <div className="route-sheet-content"><p className="route-sheet-intro">{selectedWalk.description[locale]}</p><Pill>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</Pill><h3>{t("routesStops")}</h3><ol className="route-stop-list">{selectedWalk.placeIds.map((id) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <li key={id}>{place.name[locale]}</li> : null; })}</ol><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("stops")}>{t("routesSeeStops")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
-      {panel === "stops" && selectedWalk && <div className="route-sheet-content"><div className="route-place-list">{selectedWalk.placeIds.map((id, index) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <article className="route-place-card" key={id}><span>{index + 1}</span><div><h3>{place.name[locale]}</h3><p>{place.description[locale]}</p><small>{place.accessNotes[locale]}</small></div></article> : null; })}</div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("details")}>{t("routesDetails")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
+      {panel === "stops" && selectedWalk && <div className="route-sheet-content"><div className="route-place-list">{selectedWalk.placeIds.map((id, index) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <button type="button" className="route-place-card" key={id} onClick={() => openPlace(place, "stops")} aria-label={t("mapOpenPlace", { name: place.name[locale] })}><span>{index + 1}</span><div><h3>{place.name[locale]}</h3><p>{place.description[locale]}</p><small>{place.accessNotes[locale]}</small></div><ChevronRight size={18} aria-hidden="true" /></button> : null; })}</div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("details")}>{t("routesDetails")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
+      {panel === "place" && focusedPlace && <div className="route-sheet-content"><p className="route-sheet-intro">{focusedPlace.description[locale]}</p><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{focusedPlace.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesAccessNotes")}</strong><p>{focusedPlace.accessNotes[locale]}</p></div><p className="route-community-status">{t("routesCommunityNotConsulted")}</p><a className="route-place-source" href={focusedPlace.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a><div className="route-sheet-actions"><button type="button" onClick={backFromPlace}>{t(placeReturnPanel === "stops" ? "placeBackToStops" : placeReturnPanel === "details" ? "routesDetails" : "routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
       {panel === "more" && <div className="route-sheet-content"><p className="route-sheet-intro">{t("mapCategoryPreviewBody")}</p><div className="map-more-pills">{moreCategories.map(({ label, filter }) => <button type="button" key={label} onClick={() => showResults(filter)}>{t(label)}</button>)}</div></div>}
     </BottomSheet>
   </section>;

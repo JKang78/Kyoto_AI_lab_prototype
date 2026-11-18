@@ -22,8 +22,8 @@
   "exploreMap": "Explore the map",
   "homeValueTitle": "A gentler way through the city",
   "homeValueBody": "Three map-checked walks now show public corridors, nearby places, and access considerations.",
-  "homeComingTitle": "Coming next",
-  "homeComingBody": "Map-linked place cards and sample congestion cues come next; check-ins and rewards follow later.",
+  "homeComingTitle": "Now on the map",
+  "homeComingBody": "Map-linked place cards and sample congestion cues are available. Check-ins and rewards follow later.",
   "mapEyebrow": "The heart of the experience",
   "mapTitle": "Kyoto, at your pace.",
   "mapBody": "Explore Kyoto on a real, interactive map. Choose live GPS or a simulated Kyoto point.",
@@ -123,5 +123,14 @@
   "routesShowAll": "Show all walks",
   "routesMapChecked": "These walks follow map-checked pedestrian ways. Check current signs and conditions before walking.",
   "routesDataCredit": "Walk geometry:",
-  "routesFixMap": "Fix the map"
+  "routesFixMap": "Fix the map",
+  "mapOpenPlace": "Open place: {name}",
+  "mapSampleBusy": "Sample: busy",
+  "mapSampleModerate": "Sample: moderate",
+  "mapSampleCongestionAt": "{level} near {place}",
+  "mapSampleCongestionLegend": "Illustrative congestion only · not live",
+  "routesAccessNotes": "Access notes",
+  "routesCommunityNotConsulted": "Community representatives have not reviewed this place entry. Respect current signs and local access rules.",
+  "placeMapSource": "View mapped feature on OpenStreetMap",
+  "placeBackToStops": "Back to stops"
 }
