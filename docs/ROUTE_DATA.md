@@ -1,0 +1,32 @@
+# Phase 2 route data foundation
+
+**Reviewed 2026-11-18.** These are curated, map-checked prototype walks. They are not field-audited navigation instructions, accessibility certifications, resident endorsements, or live congestion data. The current app does not draw or select them yet.
+
+| Walk | Ordered public-facing stops | OSM foot-router estimate | Path review |
+|---|---|---:|---|
+| Shijō to Yasaka | Shijō Kawaramachi → Shijō Bridge → public sidewalk by Yasaka west gate | 798 m, 11 min | 58/58 nonzero route segments matched OSM ways within 10 m; maximum match error 0.1 m; no mapped steps. Ends **before** the west-gate stairs. |
+| Kamo riverside sidewalk | Shijō Bridge → Kawabata riverside sidewalk → Sanjō Bridge | 639 m, 9 min | 37/37 segments matched; maximum match error 0.1 m; no mapped steps. This follows the road-side sidewalk and marked crossings, **not** the lower riverbed. |
+| Yasaka and Maruyama Park | Yasaka west-gate approach → park path near weeping cherry → Chion-in south-gate side of park | 666 m, 9 min | 85/85 segments matched within 10 m; maximum match error 6.8 m near routing snaps; three mapped stair segments and park service paths. The tree waypoint is on a path about 9 m from the mapped tree. |
+
+The route geometry in `src/data/kyoto-walks.ts` is the full GeoJSON `LineString` returned by the **pedestrian** OSRM profile at [OpenStreetMap Germany routing](https://routing.openstreetmap.de/about.html). The exact three request URLs, output coordinates, and date are retained on each fixture. The service's URL uses `/route/v1/driving/` as its OSRM API path, but the host path `/routed-foot/` selects the pedestrian routing instance. No runtime request to that public server is needed. Distances and times are router estimates, rounded for display; actual walking conditions vary.
+
+## Geographic evidence and method
+
+- Place identity and relationships: [Kyoto City Tourism's Gion access guide](https://www.kyoto.travel/en/getting-around/comfortable-access-to-gion-yasaka-jinja-shrine/) confirms the public Shijō Street walk to Yasaka Shrine and its relation to Maruyama Park. [Maruyama Park](https://kyoto.travel/en/destinations/maruyama-park/) and [Chion-in Temple](https://kyoto.travel/en/destinations/chionin-temple/) pages confirm the adjoining sites. [Kyoto City Tourism's area guide](https://kyoto.travel/en/travel-inspiration/choosing-accommodation-key-features-of-each-area/) supports the Kamo River walking context. Place descriptions in the fixture are original short summaries; no tourism-page text or photos were copied.
+- Coordinate evidence: [OpenStreetMap API](https://wiki.openstreetmap.org/wiki/API_v0.6) extracts were fetched for bounding boxes `135.764,34.998,135.773,35.010` and `135.772,34.999,135.785,35.008` on 2026-11-18. Each place fixture links its OSM node or way. Coordinates are pedestrian approach points rather than building/park centroids.
+- Path check: consecutive router vertices were compared with segments from those OSM extracts using endpoint distance; all nonzero segments were within 10 m of a mapped way (see table). Matched ways were checked for `highway`, `foot`, and `access` tags; no matched segment carried `foot=no`, `foot=private`, `access=no`, or `access=private`. Where OSM maps a road centerline or cycleway near an intersection, follow the actual sidewalk and marked crossing on site. This check establishes map coherence, not legal access or present-day safety.
+- Route 1 includes mapped Shijō footways and crossings; route 2 includes mapped Kawabata footways and crossings. Route 3 includes mapped `highway=steps`, `highway=path`, and `highway=service` segments. Two stair ways are tagged with 19 and 7 steps; another stair segment has no count. Park service-path tags have no explicit private restriction but require local access review.
+
+## License and attribution
+
+All OSM-derived coordinates and geometry are from **OpenStreetMap contributors**, licensed under the [Open Database License (ODbL) 1.0](https://www.openstreetmap.org/copyright). The [OSM Foundation attribution guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines) require visible OpenStreetMap credit and an ODbL link for a distributed derived database. Keep the existing MapLibre/OpenFreeMap map attribution visible, and show route-data attribution where walks appear outside the map. If the fixture database is redistributed or modified, review ODbL share-alike obligations. The official tourism pages are cited for facts only; their prose and imagery are not licensed into this repository. No Google Places/Routes content is used.
+
+## Resident and accessibility review before a public walk
+
+- These walks stay on the main Shijō corridor, Kawabata sidewalk, shrine grounds, and park paths; they do not direct visitors into quiet residential lanes to avoid crowds. Every fixture says `communityInputStatus: "not-consulted"`. [Kyoto's visitor guidelines](https://kyoto.travel/en/news/sightseeing-guidelines/) and [Southern Gion residents' message](https://kyoto.travel/en/responsible-travel/gion-manner-message-from-southern-gionmachi) call for keeping streets clear, respecting private property, and avoiding intrusive photography. Do not label these walks resident-approved or low-congestion.
+- Shijō and Kawabata have no mapped stair segments, but crossings, curb ramps, tactile paving, width, roadworks, and surfaces have **not** been checked in person. They are not certified step-free routes. The Maruyama walk has mapped stairs and should not be offered as wheelchair accessible; an alternative step-free route requires separate surveying. Shrine/temple rules and temporary closures can change. Walkers must follow current signs and staff directions.
+- Before user-facing route guidance, inspect the paths on site, confirm open access and current restrictions, check accessible alternatives and crossing details, consult community representatives, and repeat the route review if OSM data changes materially.
+
+## Next Phase 2 task
+
+Connect these fixtures to the Map tab's category/search results, route-selected detail state, and place sheet. Render only the stored lines, retain attribution, label estimates and accessibility limits, and keep a back-to-results flow. Do not infer a line from endpoints or treat a mapped way as a live safety guarantee.
