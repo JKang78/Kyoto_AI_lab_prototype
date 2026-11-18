@@ -1,6 +1,6 @@
 # Phase 0 handoff
 
-**Status:** Complete in this fresh clone. The Phase 0 implementation commit is `69fb92f` (`Implement Phase 0 app shell and onboarding`).
+**Status:** Complete. The Phase 0 implementation is published on GitHub as `bc45b9a` (`Implement Phase 0 app shell and onboarding`). The equivalent original commit in this checkout is `69fb92f`.
 
 ## What is ready
 
