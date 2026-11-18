@@ -29,3 +29,5 @@ npm run build
 - `references/` — visual references, retained from the starter kit
 
 The manifest provides app identity and standalone display metadata. Install icons, service worker/offline shell, and device-level PWA testing remain in Phase 4. This preview makes no claims of live location, map data, rewards, or partnerships.
+
+For the verified Phase 0 scope and the starting point for Phase 1, see [`docs/PHASE_0_HANDOFF.md`](docs/PHASE_0_HANDOFF.md).
