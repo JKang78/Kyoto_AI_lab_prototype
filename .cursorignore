@@ -1,0 +1,15 @@
+# Keep irrelevant build outputs and sensitive files out of AI context.
+# This is NOT a security boundary for terminal tools; never put secrets in the repository.
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.log
+**/.env
+**/.env.*
+**/credentials.json
+**/secrets.json
+**/*.pem
+**/*.key
+# Do not ignore references/ or docs/: Cursor needs them to follow the design.
