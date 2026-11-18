@@ -353,6 +353,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
     setSearchOpen(false);
     setQuery("");
     setRouteFilter(filter);
+    setSelectedWalkId(null);
     setPanel("results");
   }
 
@@ -423,7 +424,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       </div>
     </div>
 
-    {selectedWalk ? <div className="map-intro-callout map-selected-callout" role="status"><Flower2 size={19} aria-hidden="true" /><strong>{selectedWalk.name[locale]}</strong><p>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</p><p className="map-selected-location">{locationModeText(locale, location.mode)} · {locationStatusText(locale, location)}</p><button type="button" onClick={backToResults}><ChevronLeft size={15} aria-hidden="true" />{t("routesBack")}</button></div>
+    {selectedWalk ? <div className="map-intro-callout map-selected-callout" role="status"><Flower2 size={19} aria-hidden="true" /><strong>{selectedWalk.name[locale]}</strong><p>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</p><p className="map-selected-location">{locationStatusText(locale, location)}</p><button type="button" onClick={backToResults} aria-label={t("routesBack")} title={t("routesBack")}><ChevronLeft size={18} aria-hidden="true" /></button></div>
       : <div className="map-intro-callout" role="status"><Flower2 size={19} aria-hidden="true" /><strong>{location.mode === "unselected" ? t("mapIntroTitle") : locationModeText(locale, location.mode)}</strong><p>{locationStatusText(locale, location)}</p></div>}
 
     <div className="map-location-actions" role="group" aria-label={t("locationActionsLabel")}>

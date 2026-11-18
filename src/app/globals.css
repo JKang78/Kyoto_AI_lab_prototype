@@ -157,10 +157,13 @@ button:disabled { cursor: not-allowed; }
 .map-search-preview > .map-search-results { display: grid; gap: 8px; overflow-y: auto; justify-content: stretch; padding: 5px 2px 2px; }
 .map-search-preview .map-route-option { display: flex; width: 100%; height: auto; min-height: 72px; border-radius: 14px; background: #fffaf6; }
 .map-categories button[aria-pressed="true"] { background: var(--kyoto-purple); border-color: var(--kyoto-purple); color: white; }
-.map-selected-callout { pointer-events: auto; width: min(250px, calc(100% - 30px)); }
-.map-selected-callout strong { font-size: 18px; }
-.map-selected-callout .map-selected-location { padding-top: 6px; border-top: 1px solid #ead9dd; font-size: 10px; }
-.map-selected-callout button { display: inline-flex; align-items: center; gap: 3px; min-height: 34px; margin-top: 7px; padding: 4px 8px; border: 1px solid #d7bcc6; border-radius: 10px; background: #f8edf0; color: var(--kyoto-purple); font-size: 11px; font-weight: 800; }
+.map-selected-callout { top: 196px; pointer-events: auto; width: min(250px, calc(100% - 30px)); padding: 9px 11px 10px; border-radius: 18px; }
+.map-selected-callout > svg { display: none; }
+.map-selected-callout strong { padding-right: 44px; font-size: 15px; line-height: 1.2; }
+.map-selected-callout p { margin-top: 3px; font-size: 10px; }
+.map-selected-callout .map-selected-location { margin-top: 5px; padding-top: 5px; border-top: 1px solid #ead9dd; font-size: 10px; line-height: 1.3; }
+.map-selected-callout button { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 1px solid #d7bcc6; border-radius: 50%; background: #f8edf0; color: var(--kyoto-purple); }
+.map-selected-callout button svg { position: static; fill: none; }
 .map-route-option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 88px; padding: 11px; border: 1px solid #dcc4cb; border-radius: 16px; background: #fffaf6; color: var(--kyoto-purple); text-align: left; box-shadow: 0 3px 10px rgb(93 47 70 / 7%); }
 .map-route-option-icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: #f6e3ec; }
 .map-route-option--riverside .map-route-option-icon { background: #dff0f2; color: #24697f; }
