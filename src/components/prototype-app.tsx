@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowRight, Compass, Flower2, Gift, Globe2, Info, MapPin, Save, Sparkles, Ticket } from "lucide-react";
+import { ArrowRight, Flower2, Gift, Globe2, Info, MapPin, Save, Sparkles, Ticket } from "lucide-react";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
+import { KyotoMap } from "@/components/map/kyoto-map";
 import { BottomSheet, Button, Card, MarkerPlaceholder, Pill } from "@/components/ui";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
@@ -34,18 +35,6 @@ function Welcome({ locale, onLocale, onStart }: { locale: Locale; onLocale: (loc
 
 function SectionHeader({ eyebrow, title, body }: { eyebrow?: string; title: string; body: string }) {
   return <div className="section-header">{eyebrow && <Pill>{eyebrow}</Pill>}<h1>{title}</h1><p>{body}</p></div>;
-}
-
-function MapScreen({ locale }: { locale: Locale }) {
-  const t = (key: MessageKey) => translate(locale, key);
-  return <div className="map-screen">
-    <div className="map-intro"><Pill>{t("prototypeBadge")}</Pill><h1>{t("mapTitle")}</h1><p>{t("mapBody")}</p></div>
-    <div className="map-stage" aria-label={t("mapCanvasLabel")}>
-      <span className="map-stage-orbit orbit-one" aria-hidden="true" /><span className="map-stage-orbit orbit-two" aria-hidden="true" />
-      <div className="map-stage-content"><MarkerPlaceholder size="large" /><span className="map-stage-eyebrow">{t("mapEyebrow")}</span><h2>{t("mapCanvasLabel")}</h2><p>{t("mapCanvasCaption")}</p></div>
-    </div>
-    <Card className="map-footnote"><span className="footnote-icon"><Compass size={20} /></span><span>{t("mapNext")}</span></Card>
-  </div>;
 }
 
 function HomeScreen({ locale, name, onMap }: { locale: Locale; name: string; onMap: () => void }) {
@@ -103,7 +92,7 @@ export function PrototypeApp() {
     <header className="app-header"><span className="brand-seal"><Flower2 size={20} /></span><div><strong>KYOTO AI LAB</strong><small>{translate(locale, "tagline")}</small></div><span className="header-spark" aria-hidden="true">✦</span></header>
     <main id="main-content" className="app-main">
       {activeTab === "home" && <HomeScreen locale={locale} name={name} onMap={() => selectTab("map")} />}
-      {activeTab === "map" && <MapScreen locale={locale} />}
+      {activeTab === "map" && <KyotoMap locale={locale} />}
       {activeTab === "rewards" && <FutureScreen locale={locale} kind="rewards" />}
       {activeTab === "missions" && <FutureScreen locale={locale} kind="missions" />}
       {activeTab === "settings" && <SettingsScreen locale={locale} profile={profile} onLocale={(next) => updateProfile({ ...profile, locale: next })} onSave={(nickname) => updateProfile({ ...profile, nickname })} />}
