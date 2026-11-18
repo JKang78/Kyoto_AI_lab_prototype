@@ -20,13 +20,15 @@ const categories: { label: MessageKey; icon: LucideIcon }[] = [
 ];
 const moreCategories: MessageKey[] = ["mapCategoryHistory", "mapCategoryNature", "mapCategoryHidden", "mapCategoryLuggage", "mapCategorySeasonal"];
 
-export function KyotoMap({ locale, location, onLocationChange, onRewards }: { locale: Locale; location: LocationState; onLocationChange: Dispatch<SetStateAction<LocationState>>; onRewards: () => void }) {
+export function KyotoMap({ locale, location, onLocationChange, settingsRecenterRequest, onSettingsRecenterHandled, onRewards }: { locale: Locale; location: LocationState; onLocationChange: Dispatch<SetStateAction<LocationState>>; settingsRecenterRequest: boolean; onSettingsRecenterHandled: () => void; onRewards: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<MapLibreMarker | null>(null);
   const markerRootRef = useRef<Root | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const watchVersionRef = useRef(0);
+  const settingsRecenterHandledRef = useRef(false);
+  const useLocationButtonRef = useRef<HTMLButtonElement>(null);
   const initialCenterRef = useRef(location.mode === "demo" ? DEMO_POSITION : KYOTO_CENTER);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -34,6 +36,7 @@ export function KyotoMap({ locale, location, onLocationChange, onRewards }: { lo
   const [preview, setPreview] = useState<Preview>(null);
   const [category, setCategory] = useState<MessageKey>("mapCategoryCulture");
   const t = (key: MessageKey) => translate(locale, key);
+  const liveTracking = location.mode === "live" && ["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
 
   const stopWatch = useCallback(() => {
     watchVersionRef.current += 1;
@@ -150,9 +153,17 @@ export function KyotoMap({ locale, location, onLocationChange, onRewards }: { lo
     root.render(<div className="map-sample-marker" role="img" aria-label={ariaLabel}><MarkerPlaceholder /><span>{label}</span></div>);
   }, [locale, location, state]);
 
-  function focusMap(coordinates: [number, number]) {
+  const focusMap = useCallback((coordinates: [number, number]) => {
     mapRef.current?.easeTo({ center: coordinates, offset: [0, 115], zoom: MAP_ZOOM, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
-  }
+  }, []);
+
+  useEffect(() => {
+    if (state !== "ready" || !settingsRecenterRequest || settingsRecenterHandledRef.current) return;
+    settingsRecenterHandledRef.current = true;
+    if (location.mode === "live" && !location.fix) useLocationButtonRef.current?.focus();
+    else focusMap(location.mode === "live" && location.fix ? [location.fix.longitude, location.fix.latitude] : location.mode === "demo" ? DEMO_POSITION : KYOTO_CENTER);
+    onSettingsRecenterHandled();
+  }, [focusMap, location, onSettingsRecenterHandled, settingsRecenterRequest, state]);
 
   function useMyLocation() {
     setSearchOpen(false);
@@ -247,7 +258,7 @@ export function KyotoMap({ locale, location, onLocationChange, onRewards }: { lo
     <div className="map-intro-callout" role="status"><Flower2 size={19} aria-hidden="true" /><strong>{location.mode === "unselected" ? t("mapIntroTitle") : locationModeText(locale, location.mode)}</strong><p>{locationStatusText(locale, location)}</p></div>
 
     <div className="map-location-actions" role="group" aria-label={t("locationActionsLabel")}>
-      <button type="button" onClick={useMyLocation} disabled={state !== "ready"} aria-pressed={location.mode === "live"} className={location.mode === "live" ? "selected" : ""}><Navigation size={17} aria-hidden="true" /><span>{t("locationUseMyLocation")}</span></button>
+      <button ref={useLocationButtonRef} type="button" onClick={useMyLocation} disabled={state !== "ready"} aria-pressed={liveTracking} className={liveTracking ? "selected" : ""}><Navigation size={17} aria-hidden="true" /><span>{t("locationUseMyLocation")}</span></button>
       <button type="button" onClick={exploreDemo} disabled={state !== "ready"} aria-pressed={location.mode === "demo"} className={location.mode === "demo" ? "selected" : ""}><MapPinned size={17} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>
     </div>
 

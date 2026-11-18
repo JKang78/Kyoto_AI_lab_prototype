@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The first visit asks for a language and optional nickname. Both are stored in this browser's `localStorage`; returning visits open on the Map tab. Settings lets you edit the nickname and language.
+Open `http://localhost:3000`. The first visit asks for a language and optional nickname. Both are stored in this browser's `localStorage`; returning visits open on the Map tab. Settings lets you edit the nickname and language, switch Kyoto Demo Mode on or off, and return to Map with Recenter.
 
 The map needs an internet connection to load OpenFreeMap tiles. It uses no API key. Keep its on-map attribution visible. Provider tradeoffs and terms are recorded in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 Location permission is requested only after **Use My Location** is tapped. Browser GPS requires HTTPS or localhost. A live fix stays at its actual coordinates, including outside Kyoto; low accuracy and errors are shown. **Explore Kyoto in Demo Mode** uses a clearly labelled simulated point near Gion-Shijo and turns GPS off. GPS also stops when the Map tab is left; returning requires another tap to resume. The app does not save location history.

@@ -34,3 +34,9 @@ Browser geolocation starts only after **Use My Location**. The Map tab owns the 
 Demo Mode uses a separate fixed sample at 35.0003° N, 135.7662° E near Gion-Shijo and the Kamo River. Its marker and Settings status visibly say it is simulated and GPS is off. Recenter targets the active mode. The marker still uses the replaceable mascot asset shell.
 
 No dotted route geometry is drawn in Phase 1. A route line would imply a safe walking path; Phase 2 must first supply validated route fixtures with reviewed path coordinates and licensing. No demo walking, check-ins, coins, or coupons are implemented here.
+
+## Phase 1 closure: Settings controls and GPS QA
+
+Settings now has an explicit Kyoto Demo Mode switch. Turning it on selects the simulated Kyoto point and leaves GPS off; turning it off returns to an unselected, GPS-off state. Settings Recenter opens Map and centers the selected demo or default view. A paused live session has no retained fix, so Recenter focuses **Use My Location** on Map for a separate, deliberate GPS request. The Settings switch itself never requests permission. The Map watcher is cleared on tab exit and also on a Map mode switch.
+
+Headless Chrome with controlled Geolocation callbacks passed granted, denied, timeout, unavailable, low-accuracy, outside-Kyoto, stale-callback, tab-exit, mode-switch, Settings switch/recenter, map pan/zoom, and English/Japanese checks at 360 × 800, 390 × 800, and 430 × 800 px. Map attribution remained visible and no horizontal overflow or page errors were observed. These checks emulate phone widths; **no physical phone GPS or PWA installation test was performed**. Browser permission prompts, actual device accuracy, HTTPS deployment behavior, and iOS/Android background suspension remain unverified on real devices.

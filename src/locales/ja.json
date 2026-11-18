@@ -105,6 +105,8 @@
   "locationSettingsHeading": "位置情報",
   "locationSettingsMode": "モード",
   "locationSettingsGps": "GPSの状態",
-  "locationSettingsHint": "GPSはマップを開いている間だけ動作します。マップに戻ってモードを選択・再開できます。",
-  "locationStatusLowAccuracyOutside": "GPSの精度が低めです（±{accuracy} m）。京都の範囲外を示しています。"
+  "locationSettingsHint": "デモモードをオフにしてもGPSは始まりません。「中心に戻す」でマップを開きます。停止中のGPSは「現在地を使う」で再開してください。",
+  "locationStatusLowAccuracyOutside": "GPSの精度が低めです（±{accuracy} m）。京都の範囲外を示しています。",
+  "locationSettingsDemoSwitch": "京都デモモード",
+  "locationSettingsRecenter": "中心に戻す"
 }

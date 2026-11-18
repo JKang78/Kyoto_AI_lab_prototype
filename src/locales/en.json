@@ -105,6 +105,8 @@
   "locationSettingsHeading": "Location",
   "locationSettingsMode": "Mode",
   "locationSettingsGps": "GPS status",
-  "locationSettingsHint": "GPS runs only while Map is open. Return to Map to choose or resume a mode.",
-  "locationStatusLowAccuracyOutside": "Live GPS is imprecise (±{accuracy} m) and reports a position outside Kyoto."
+  "locationSettingsHint": "Turning Demo Mode off keeps GPS off. Recenter opens Map; paused live GPS needs a new Use My Location tap.",
+  "locationStatusLowAccuracyOutside": "Live GPS is imprecise (±{accuracy} m) and reports a position outside Kyoto.",
+  "locationSettingsDemoSwitch": "Kyoto Demo Mode",
+  "locationSettingsRecenter": "Recenter"
 }

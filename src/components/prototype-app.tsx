@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowRight, Flower2, Gift, Globe2, Info, MapPin, Save, Sparkles, Ticket } from "lucide-react";
+import { ArrowRight, Flower2, Gift, Globe2, Info, LocateFixed, MapPin, Save, Sparkles, Ticket } from "lucide-react";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
 import { KyotoMap } from "@/components/map/kyoto-map";
 import { BottomSheet, Button, Card, MarkerPlaceholder, Pill } from "@/components/ui";
@@ -58,7 +58,7 @@ function FutureScreen({ locale, kind }: { locale: Locale; kind: "rewards" | "mis
   </div>;
 }
 
-function SettingsScreen({ locale, profile, location, onLocale, onSave }: { locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void; onSave: (nickname: string) => void }) {
+function SettingsScreen({ locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: { locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void; onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void }) {
   const [nickname, setNickname] = useState(profile.nickname);
   const [saved, setSaved] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -67,7 +67,7 @@ function SettingsScreen({ locale, profile, location, onLocale, onSave }: { local
     <SectionHeader eyebrow={t("prototypeBadge")} title={t("settingsTitle")} body={t("settingsBody")} />
     <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon"><Save size={20} /></span><h2>{t("profileHeading")}</h2></div><form onSubmit={(event) => { event.preventDefault(); onSave(nickname.trim()); setSaved(true); }}><label className="form-label" htmlFor="settings-nickname">{t("nicknameLabel")}</label><input className="text-input" id="settings-nickname" value={nickname} maxLength={40} onChange={(event) => { setNickname(event.target.value); setSaved(false); }} placeholder={t("nicknamePlaceholder")} /><Button type="submit" variant="secondary" className="full-width">{t("nicknameSave")}</Button>{saved && <p className="save-message" role="status">{t("nicknameSaved")}</p>}</form></Card>
     <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon gold"><Globe2 size={20} /></span><h2>{t("languageHeading")}</h2></div><LanguageChoice locale={locale} onChange={onLocale} /></Card>
-    <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon"><MapPin size={20} /></span><h2>{t("locationSettingsHeading")}</h2></div><dl className="location-settings-status"><div><dt>{t("locationSettingsMode")}</dt><dd>{locationModeText(locale, location.mode)}</dd></div><div><dt>{t("locationSettingsGps")}</dt><dd>{locationStatusText(locale, location)}</dd></div></dl><p className="location-settings-hint">{t("locationSettingsHint")}</p></Card>
+    <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon"><MapPin size={20} /></span><h2>{t("locationSettingsHeading")}</h2></div><dl className="location-settings-status"><div><dt>{t("locationSettingsMode")}</dt><dd>{locationModeText(locale, location.mode)}</dd></div><div><dt>{t("locationSettingsGps")}</dt><dd>{locationStatusText(locale, location)}</dd></div></dl><div className="location-settings-actions"><button type="button" className="location-demo-switch" role="switch" aria-checked={location.mode === "demo"} onClick={() => onDemoChange(location.mode !== "demo")}><span>{t("locationSettingsDemoSwitch")}</span><span className="location-switch-track" aria-hidden="true"><span /></span></button><Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><LocateFixed size={18} aria-hidden="true" />{t("locationSettingsRecenter")}</Button></div><p className="location-settings-hint">{t("locationSettingsHint")}</p></Card>
     <Button variant="quiet" className="about-trigger" onClick={() => setAboutOpen(true)}><Info size={19} />{t("aboutButton")}<ArrowRight size={17} /></Button>
     <BottomSheet open={aboutOpen} onClose={() => setAboutOpen(false)} title={t("aboutHeading")} closeLabel={t("close")}><p>{t("aboutBody")}</p></BottomSheet>
   </div>;
@@ -80,6 +80,7 @@ export function PrototypeApp() {
   const [welcomeLocale, setWelcomeLocale] = useState<Locale>("en");
   const [activeTab, setActiveTab] = useState<Tab>("map");
   const [location, setLocation] = useState<LocationState>(INITIAL_LOCATION_STATE);
+  const [settingsRecenterRequest, setSettingsRecenterRequest] = useState(false);
 
   const locale = profile?.locale ?? welcomeLocale;
   useEffect(() => { document.documentElement.lang = locale; }, [locale]);
@@ -102,10 +103,10 @@ export function PrototypeApp() {
     <header className="app-header"><span className="brand-seal"><Flower2 size={20} /></span><div><strong>KYOTO AI LAB</strong><small>{translate(locale, "tagline")}</small></div><span className="header-spark" aria-hidden="true">✦</span></header>
     <main id="main-content" className="app-main">
       {activeTab === "home" && <HomeScreen locale={locale} name={name} onMap={() => selectTab("map")} />}
-      {activeTab === "map" && <KyotoMap locale={locale} location={location} onLocationChange={setLocation} onRewards={() => selectTab("rewards")} />}
+      {activeTab === "map" && <KyotoMap locale={locale} location={location} onLocationChange={setLocation} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} />}
       {activeTab === "rewards" && <FutureScreen locale={locale} kind="rewards" />}
       {activeTab === "missions" && <FutureScreen locale={locale} kind="missions" />}
-      {activeTab === "settings" && <SettingsScreen locale={locale} profile={profile} location={location} onLocale={(next) => updateProfile({ ...profile, locale: next })} onSave={(nickname) => updateProfile({ ...profile, nickname })} />}
+      {activeTab === "settings" && <SettingsScreen locale={locale} profile={profile} location={location} onLocale={(next) => updateProfile({ ...profile, locale: next })} onSave={(nickname) => updateProfile({ ...profile, nickname })} onDemoChange={(enabled) => setLocation(enabled ? { mode: "demo", gpsStatus: "off", fix: null } : INITIAL_LOCATION_STATE)} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("map"); }} />}
     </main>
     <BottomNav active={activeTab} locale={locale} onSelect={selectTab} />
   </div>;
