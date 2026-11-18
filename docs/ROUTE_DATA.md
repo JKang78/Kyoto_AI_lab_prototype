@@ -1,6 +1,6 @@
 # Phase 2 route data foundation
 
-**Reviewed 2026-11-18.** These are curated, map-checked prototype walks. They are not field-audited navigation instructions, accessibility certifications, resident endorsements, or live congestion data. The current app does not draw or select them yet.
+**Reviewed 2026-11-18.** These are curated, map-checked prototype walks. They are not field-audited navigation instructions, accessibility certifications, resident endorsements, or live congestion data. The Map tab now shows their stored geometry and lets users search, filter, and select them.
 
 | Walk | Ordered public-facing stops | OSM foot-router estimate | Path review |
 |---|---|---:|---|
@@ -27,6 +27,6 @@ All OSM-derived coordinates and geometry are from **OpenStreetMap contributors**
 - Shijō and Kawabata have no mapped stair segments, but crossings, curb ramps, tactile paving, width, roadworks, and surfaces have **not** been checked in person. They are not certified step-free routes. The Maruyama walk has mapped stairs and should not be offered as wheelchair accessible; an alternative step-free route requires separate surveying. Shrine/temple rules and temporary closures can change. Walkers must follow current signs and staff directions.
 - Before user-facing route guidance, inspect the paths on site, confirm open access and current restrictions, check accessible alternatives and crossing details, consult community representatives, and repeat the route review if OSM data changes materially.
 
-## Next Phase 2 task
+## Remaining Phase 2 work
 
-Connect these fixtures to the Map tab's category/search results, route-selected detail state, and place sheet. Render only the stored lines, retain attribution, label estimates and accessibility limits, and keep a back-to-results flow. Do not infer a line from endpoints or treat a mapped way as a live safety guarantee.
+Add map-linked place markers and a focused place card, plus explicitly demo-labeled congestion cues. The current stop list has sourced descriptions but no pin-to-place interaction. Future route guidance still needs an on-site access check; do not infer a line from endpoints or treat a mapped way as a live safety guarantee.
