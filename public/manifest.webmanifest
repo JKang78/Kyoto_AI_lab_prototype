@@ -1,0 +1,9 @@
+{
+  "name": "Kyoto AI Lab prototype",
+  "short_name": "Kyoto Walk",
+  "description": "A Kyoto walking exploration prototype",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF8F1",
+  "theme_color": "#782459"
+}
