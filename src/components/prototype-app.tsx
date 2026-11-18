@@ -92,7 +92,7 @@ export function PrototypeApp() {
     <header className="app-header"><span className="brand-seal"><Flower2 size={20} /></span><div><strong>KYOTO AI LAB</strong><small>{translate(locale, "tagline")}</small></div><span className="header-spark" aria-hidden="true">✦</span></header>
     <main id="main-content" className="app-main">
       {activeTab === "home" && <HomeScreen locale={locale} name={name} onMap={() => selectTab("map")} />}
-      {activeTab === "map" && <KyotoMap locale={locale} />}
+      {activeTab === "map" && <KyotoMap locale={locale} onRewards={() => selectTab("rewards")} />}
       {activeTab === "rewards" && <FutureScreen locale={locale} kind="rewards" />}
       {activeTab === "missions" && <FutureScreen locale={locale} kind="missions" />}
       {activeTab === "settings" && <SettingsScreen locale={locale} profile={profile} onLocale={(next) => updateProfile({ ...profile, locale: next })} onSave={(nickname) => updateProfile({ ...profile, nickname })} />}

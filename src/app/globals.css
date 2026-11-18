@@ -37,14 +37,55 @@ button:disabled { cursor: not-allowed; }
 .app-main:has(.kyoto-map) { min-height: 0; padding-bottom: 0; }
 .kyoto-map { position: relative; height: calc(100dvh - 154px - env(safe-area-inset-bottom)); min-height: 390px; overflow: hidden; background: #fff8f1; }
 .kyoto-map-canvas { position: absolute; inset: 0; }
-.kyoto-map-heading { position: absolute; z-index: 2; top: 14px; left: 14px; right: 14px; max-width: 340px; padding: 13px 16px; border: 1px solid #e7d0ca; border-radius: 20px; color: var(--kyoto-purple); background: #fffcf8; box-shadow: var(--shadow-card); pointer-events: none; }
-.kyoto-map-kicker { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.kyoto-map-heading h1 { margin: 4px 0 3px; font: 700 21px/1.15 Georgia, "Yu Mincho", serif; }
-.kyoto-map-heading p { margin: 0; font-size: 11px; line-height: 1.35; color: var(--text-muted); }
-.kyoto-map-status { position: absolute; z-index: 3; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: var(--kyoto-purple); font-size: 14px; font-weight: 700; text-align: center; background: #fff8f1; }
+.map-top-ui { position: absolute; z-index: 5; top: 12px; left: 12px; right: 12px; display: grid; gap: 8px; pointer-events: none; }
+.map-top-ui > * { pointer-events: auto; }
+.map-progress { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 61px; padding: 8px 12px; border: 1.5px solid #d7bcc6; border-radius: 99px; color: var(--kyoto-purple); background: var(--warm-white); box-shadow: var(--shadow-card); text-align: left; }
+.map-progress-flower { flex: none; color: var(--plum-medium); fill: #f6e4e8; }
+.map-progress-meter { flex: 1; min-width: 0; display: grid; gap: 5px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.map-progress-track { display: block; width: 100%; height: 8px; border-radius: 99px; background: #eddccd; overflow: hidden; }
+.map-progress-track > span { display: block; width: 40%; height: 100%; border-radius: inherit; background: var(--plum-medium); }
+.map-progress-divider { width: 1px; height: 32px; background: #c6a6b4; }
+.map-progress-ticket { flex: none; color: #a46c23; fill: #faebc9; }
+.map-progress-next { width: 76px; font-size: 10px; font-weight: 800; line-height: 1.2; }
+.map-search-wrap { position: relative; }
+.map-search-bar { display: flex; align-items: center; gap: 8px; width: 100%; height: 51px; padding: 4px 5px 4px 14px; border: 1.5px solid #d3adb9; border-radius: 99px; background: var(--warm-white); box-shadow: var(--shadow-card); color: var(--kyoto-purple); }
+.map-search-bar > svg { flex: none; }
+.map-search-bar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font-size: 13px; }
+.map-search-bar input::placeholder { color: #89757d; }
+.map-search-bar input:focus-visible { outline: 0; }
+.map-search-bar:focus-within { outline: 3px solid var(--gold); outline-offset: 2px; }
+.map-recenter { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%; background: #f7e9e7; color: var(--kyoto-purple); }
+.map-search-preview { position: absolute; z-index: 10; top: calc(100% + 7px); left: 0; right: 0; padding: 13px 15px; border: 1px solid #d7bcc6; border-radius: 18px; background: var(--warm-white); box-shadow: var(--shadow-card); }
+.map-search-preview > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--kyoto-purple); font-size: 13px; }
+.map-search-preview button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; color: var(--kyoto-purple); background: #f7e9e7; }
+.map-search-preview p { margin: 7px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.map-categories { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 5px; }
+.map-categories::-webkit-scrollbar { display: none; }
+.map-categories button { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 43px; padding: 0 12px; border: 1px solid #d8bbc5; border-radius: 99px; background: var(--warm-white); color: var(--kyoto-purple); box-shadow: 0 4px 11px rgb(93 47 70 / 11%); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.map-categories button svg { flex: none; }
+.map-intro-callout { position: absolute; z-index: 4; top: 214px; left: 15px; width: min(225px, calc(100% - 30px)); padding: 17px 17px 15px; border: 1.5px solid #d9b8c5; border-radius: 24px 24px 24px 9px; background: var(--warm-white); box-shadow: var(--shadow-card); pointer-events: none; }
+.map-intro-callout svg { position: absolute; top: -12px; left: -6px; color: var(--plum-medium); fill: #f5dae2; }
+.map-intro-callout strong { display: block; color: var(--kyoto-purple); font: 700 21px/1.15 Georgia, "Yu Mincho", serif; }
+.map-intro-callout p { margin: 5px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.map-sample-marker { display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+.map-sample-marker .marker-placeholder { width: 58px; height: 58px; border-width: 3px; }
+.map-sample-marker .marker-inner { font-size: 22px; }
+.map-sample-marker > span { display: block; padding: 4px 8px; border: 1px solid #d8bbc5; border-radius: 99px; background: var(--warm-white); color: var(--kyoto-purple); box-shadow: var(--shadow-card); font-size: 10px; font-weight: 800; white-space: nowrap; }
+.map-bottom-ui { position: absolute; z-index: 5; left: 12px; right: 12px; bottom: 43px; display: flex; gap: 9px; align-items: end; pointer-events: none; }
+.map-bottom-ui button { pointer-events: auto; border: 1.5px solid #d7b9c4; color: var(--kyoto-purple); background: var(--warm-white); box-shadow: var(--shadow-card); }
+.map-recommended { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; min-height: 65px; padding: 8px 10px; border-radius: 22px; text-align: left; }
+.map-recommended-icon { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #f8e6c7; color: #8e5a18; }
+.map-recommended > span:nth-child(2) { flex: 1; min-width: 0; }
+.map-recommended small, .map-recommended strong { display: block; }
+.map-recommended small { font-size: 10px; color: var(--text-muted); }
+.map-recommended strong { font-size: 12px; line-height: 1.25; margin-top: 3px; }
+.map-recommended > svg { flex: none; }
+.map-list-button { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 65px; height: 65px; border-radius: 22px; font-size: 11px; font-weight: 800; }
+.map-more-pills { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0 5px; }
+.kyoto-map-status { position: absolute; z-index: 20; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: var(--kyoto-purple); font-size: 14px; font-weight: 700; text-align: center; background: #fff8f1; }
 .kyoto-map .maplibregl-ctrl-bottom-left { max-width: calc(100% - 65px); }
 .kyoto-map .maplibregl-ctrl-attrib { max-width: 100%; font-size: 11px; line-height: 1.25; background: rgb(255 252 248 / 94%); }
-.kyoto-map .maplibregl-ctrl-bottom-right { margin-bottom: 12px; }
+.kyoto-map .maplibregl-ctrl-bottom-right { margin-bottom: 131px; }
 .kyoto-map .maplibregl-ctrl-group { border: 1px solid #d9bdc8; border-radius: 13px; overflow: hidden; box-shadow: var(--shadow-card); }
 .kyoto-map .maplibregl-ctrl-group button { width: 43px; height: 43px; }
 .loading-screen { display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--kyoto-purple); font-weight: 700; }
