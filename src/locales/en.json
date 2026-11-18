@@ -31,7 +31,7 @@
   "mapFoundationBadge": "Phase 1 · Map foundation",
   "mapExploreHint": "Drag to explore Kyoto. Pinch or use +/− to zoom.",
   "mapLoading": "Loading the Kyoto map…",
-  "mapLoadError": "The map could not load. Check your connection and try reloading.",
+  "mapLoadError": "The map could not load. Check your connection or browser graphics support, then reload.",
   "mapCanvasCaption": "Real geography and room to wander.",
   "mapNext": "Next: curated Kyoto walks",
   "rewardsTitle": "Small discoveries, future rewards.",
