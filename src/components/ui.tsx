@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, type RefObject, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { X } from "lucide-react";
 import Image from "next/image";
 import { assetPaths } from "@/config/assets";
@@ -17,23 +17,49 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <div className={`ui-card ${className}`}>{children}</div>;
 }
 
-export function BottomSheet({ open, onClose, title, closeLabel, children }: { open: boolean; onClose: () => void; title: string; closeLabel: string; children: ReactNode }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+export function BottomSheet({ open, onClose, title, closeLabel, children, fallbackFocusRef }: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  closeLabel: string;
+  children: ReactNode;
+  fallbackFocusRef?: RefObject<HTMLElement | null>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
 
-  if (!open) return null;
-  return <div className="sheet-root">
-    <button className="sheet-scrim" aria-label={closeLabel} onClick={onClose} />
-    <section className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <div className="sheet-handle" aria-hidden="true" />
-      <div className="sheet-heading"><h2 id="sheet-title">{title}</h2><button className="icon-button" aria-label={closeLabel} onClick={onClose}><X size={20} /></button></div>
-      <div className="sheet-body">{children}</div>
-    </section>
-  </div>;
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open || !dialog) return;
+    const fallback = fallbackFocusRef?.current;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      // Search suggestions disappear when selected. Restore a stable control in that case.
+      if (document.activeElement === document.body) fallback?.focus();
+    };
+  }, [open, fallbackFocusRef]);
+
+  useLayoutEffect(() => {
+    if (open) headingRef.current?.focus();
+  }, [open, title]);
+
+  return <dialog ref={dialogRef} className="sheet-panel" aria-labelledby={titleId}
+    onCancel={(event) => { event.preventDefault(); onClose(); }}
+    onClick={(event) => {
+      if (event.target !== event.currentTarget) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right ||
+          event.clientY < rect.top || event.clientY > rect.bottom) onClose();
+    }}>
+    <div className="sheet-handle" aria-hidden="true" />
+    <div className="sheet-heading">
+      <h2 ref={headingRef} tabIndex={-1} id={titleId}>{title}</h2>
+      <button className="icon-button" aria-label={closeLabel} onClick={onClose}><X size={20} /></button>
+    </div>
+    <div className="sheet-body">{children}</div>
+  </dialog>;
 }
 
 export function MarkerPlaceholder({ size = "normal" }: { size?: "normal" | "large" }) {

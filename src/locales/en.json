@@ -31,7 +31,7 @@
   "mapFoundationBadge": "Phase 1 · Map foundation",
   "mapExploreHint": "Drag to explore Kyoto. Pinch or use +/− to zoom.",
   "mapLoading": "Loading the Kyoto map…",
-  "mapLoadError": "The map could not load. Check your connection or browser graphics support, then reload.",
+  "mapLoadError": "The Kyoto map could not load. You can still browse the stored walks.",
   "mapSampleProgress": "Sample progress · 2/5",
   "mapNextRewardPreview": "Coupon preview",
   "mapProgressAction": "Sample progress. Open Rewards preview",
@@ -139,5 +139,7 @@
   "routesReasonPlace": "Route or place name match",
   "routesReasonTheme": "Theme match",
   "routesReasonTime": "Within time budget · map estimate",
-  "routesReasonAvailable": "Available mapped walk"
+  "routesReasonAvailable": "Available mapped walk",
+  "mapRetry": "Retry map",
+  "mapStoredWalks": "Browse stored walks"
 }

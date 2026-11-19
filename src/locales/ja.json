@@ -31,7 +31,7 @@
   "mapFoundationBadge": "フェーズ1・地図の基盤",
   "mapExploreHint": "ドラッグで京都を探索。ピンチ操作や＋／−で拡大・縮小。",
   "mapLoading": "京都の地図を読み込み中…",
-  "mapLoadError": "地図を読み込めませんでした。通信環境またはブラウザーの描画機能を確認して、再読み込みしてください。",
+  "mapLoadError": "京都の地図を読み込めませんでした。登録済みの散策ルートは引き続き閲覧できます。",
   "mapSampleProgress": "サンプル進捗 · 2/5",
   "mapNextRewardPreview": "クーポン予告",
   "mapProgressAction": "サンプル進捗。特典プレビューを開く",
@@ -139,5 +139,7 @@
   "routesReasonPlace": "ルート名・地点名が一致",
   "routesReasonTheme": "テーマが一致",
   "routesReasonTime": "時間内の地図上の目安",
-  "routesReasonAvailable": "登録済みの散策ルート"
+  "routesReasonAvailable": "登録済みの散策ルート",
+  "mapRetry": "地図を再読み込み",
+  "mapStoredWalks": "登録済みのルートを見る"
 }

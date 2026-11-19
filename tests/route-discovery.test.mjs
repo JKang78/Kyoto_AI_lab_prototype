@@ -32,3 +32,21 @@ test('unsupported category chips stay empty instead of claiming a match', () => 
   assert.deepEqual(ids(find('', 'bike')), []);
   assert.deepEqual(ids(find('', 'park')), ['yasaka-maruyama']);
 });
+
+test('strict and inclusive budgets differ at the fixture estimate in both languages', () => {
+  for (const query of ['river under 9 minutes', 'river less than 9 minutes', '9分未満の川沿い']) {
+    assert.equal(find(query).fallback, true, query);
+  }
+  for (const query of ['river within 9 minutes', '9分以内の川沿い', '9分以下の川沿い']) {
+    assert.equal(find(query).fallback, false, query);
+    assert.deepEqual(ids(find(query)), ['kamo-riverside']);
+  }
+});
+
+test('Japanese preferences with an unknown constraint are alternatives', () => {
+  for (const query of ['犬と川沿い', '雨天対応の公園', '授乳室のある四条大橋']) {
+    assert.equal(find(query).fallback, true, query);
+    assert.ok(find(query).suggestions.every(({ reason }) => reason === 'available'));
+  }
+  assert.equal(find('川沿いの散歩').fallback, false);
+});

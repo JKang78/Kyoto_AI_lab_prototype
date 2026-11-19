@@ -11,8 +11,8 @@ import { getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Pr
 
 function LanguageChoice({ locale, onChange }: { locale: Locale; onChange: (locale: Locale) => void }) {
   return <div className="language-choice" role="group" aria-label={translate(locale, "chooseLanguage")}>
-    <button className={locale === "en" ? "selected" : ""} aria-pressed={locale === "en"} onClick={() => onChange("en")}>English</button>
-    <button className={locale === "ja" ? "selected" : ""} aria-pressed={locale === "ja"} onClick={() => onChange("ja")}>日本語</button>
+    <button type="button" className={locale === "en" ? "selected" : ""} aria-pressed={locale === "en"} onClick={() => onChange("en")}>English</button>
+    <button type="button" className={locale === "ja" ? "selected" : ""} aria-pressed={locale === "ja"} onClick={() => onChange("ja")}>日本語</button>
   </div>;
 }
 
@@ -79,6 +79,7 @@ export function PrototypeApp() {
   const profile = ready ? readProfile() : null;
   const [welcomeLocale, setWelcomeLocale] = useState<Locale>("en");
   const [activeTab, setActiveTab] = useState<Tab>("map");
+  const [selectedWalkId, setSelectedWalkId] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationState>(INITIAL_LOCATION_STATE);
   const [settingsRecenterRequest, setSettingsRecenterRequest] = useState(false);
 
@@ -103,7 +104,7 @@ export function PrototypeApp() {
     <header className="app-header"><span className="brand-seal"><Flower2 size={20} /></span><div><strong>KYOTO AI LAB</strong><small>{translate(locale, "tagline")}</small></div><span className="header-spark" aria-hidden="true">✦</span></header>
     <main id="main-content" className="app-main">
       {activeTab === "home" && <HomeScreen locale={locale} name={name} onMap={() => selectTab("map")} />}
-      {activeTab === "map" && <KyotoMap locale={locale} location={location} onLocationChange={setLocation} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} />}
+      {activeTab === "map" && <KyotoMap selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} locale={locale} location={location} onLocationChange={setLocation} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} />}
       {activeTab === "rewards" && <FutureScreen locale={locale} kind="rewards" />}
       {activeTab === "missions" && <FutureScreen locale={locale} kind="missions" />}
       {activeTab === "settings" && <SettingsScreen locale={locale} profile={profile} location={location} onLocale={(next) => updateProfile({ ...profile, locale: next })} onSave={(nickname) => updateProfile({ ...profile, nickname })} onDemoChange={(enabled) => setLocation(enabled ? { mode: "demo", gpsStatus: "off", fix: null } : INITIAL_LOCATION_STATE)} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("map"); }} />}

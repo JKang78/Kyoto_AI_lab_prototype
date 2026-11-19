@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { createRoot, type Root } from "react-dom/client";
 import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { Bike, ChevronLeft, ChevronRight, Coffee, Ellipsis, Flower2, Landmark, List, LocateFixed, MapPinned, Navigation, Search, Ticket, Trees, Waves, X, type LucideIcon } from "lucide-react";
-import { BottomSheet, MarkerPlaceholder, Pill } from "@/components/ui";
+import { BottomSheet, Button, MarkerPlaceholder, Pill } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, type SampleCongestionCue } from "@/data/sample-congestion";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
@@ -51,7 +51,21 @@ function RouteDataCredit({ locale }: { locale: Locale }) {
   return <p className="route-data-credit">{translate(locale, "routesDataCredit")} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap / ODbL</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">{translate(locale, "routesFixMap")}</a></p>;
 }
 
-export function KyotoMap({ locale, location, onLocationChange, settingsRecenterRequest, onSettingsRecenterHandled, onRewards }: { locale: Locale; location: LocationState; onLocationChange: Dispatch<SetStateAction<LocationState>>; settingsRecenterRequest: boolean; onSettingsRecenterHandled: () => void; onRewards: () => void }) {
+type KyotoMapProps = {
+  selectedWalkId: string | null;
+  setSelectedWalkId: (id: string | null) => void;
+  locale: Locale;
+  location: LocationState;
+  onLocationChange: Dispatch<SetStateAction<LocationState>>;
+  settingsRecenterRequest: boolean;
+  onSettingsRecenterHandled: () => void;
+  onRewards: () => void;
+};
+
+export function KyotoMap({
+  selectedWalkId, setSelectedWalkId, locale, location, onLocationChange,
+  settingsRecenterRequest, onSettingsRecenterHandled, onRewards,
+}: KyotoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<MapLibreMarker | null>(null);
@@ -70,7 +84,8 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<RoutePanel>(null);
   const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
-  const [selectedWalkId, setSelectedWalkId] = useState<string | null>(null);
+  const [mapAttempt, setMapAttempt] = useState(0);
+  const listButtonRef = useRef<HTMLButtonElement>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
   const [placeReturnPanel, setPlaceReturnPanel] = useState<"results" | "details" | "stops">("results");
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
@@ -224,7 +239,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [mapAttempt]);
 
   useEffect(() => {
     const marker = markerRef.current;
@@ -284,8 +299,9 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
     mapRef.current?.easeTo({ center: coordinates, offset: [0, 115], zoom: MAP_ZOOM, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
   }, []);
 
-  function focusWalk(walk: CuratedWalk) {
-    const coordinates = walk.geometry.coordinates;
+  useEffect(() => {
+    if (state !== "ready" || !selectedWalk) return;
+    const coordinates = selectedWalk.geometry.coordinates;
     const lngs = coordinates.map(([lng]) => lng);
     const lats = coordinates.map(([, lat]) => lat);
     mapRef.current?.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
@@ -293,7 +309,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       maxZoom: 16.5,
       duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 650,
     });
-  }
+  }, [selectedWalk, state]);
 
   useEffect(() => {
     if (state !== "ready" || !settingsRecenterRequest || settingsRecenterHandledRef.current) return;
@@ -361,7 +377,6 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
     setSelectedWalkId(walk.id);
     setSearchOpen(false);
     setPanel("details");
-    focusWalk(walk);
   }
 
   function openPlace(place: CuratedPlace, returnPanel: "results" | "details" | "stops") {
@@ -394,6 +409,7 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
       : panel === "place" && focusedPlace ? focusedPlace.name[locale]
       : panel === "more" ? t("mapCategoryMore") : t("routesTitle");
   return <section className="kyoto-map" aria-label={t("mapCanvasLabel")}>
+    <div inert={state !== "ready"}>
     <div ref={containerRef} className="kyoto-map-canvas" />
 
     <div className="map-top-ui">
@@ -440,12 +456,24 @@ export function KyotoMap({ locale, location, onLocationChange, settingsRecenterR
         <span><small>{t(selectedWalk ? "routesDetails" : "mapRecommendedEyebrow")}</small><strong>{selectedWalk ? selectedWalk.name[locale] : t("mapRecommendedTitle")}</strong></span>
         <ChevronRight size={19} aria-hidden="true" />
       </button>
-      <button type="button" className="map-list-button" onClick={() => selectedWalk ? setPanel("stops") : showResults()}><List size={22} aria-hidden="true" /><span>{t("mapListButton")}</span></button>
+      <button type="button" ref={listButtonRef} className="map-list-button" onClick={() => selectedWalk ? setPanel("stops") : showResults()}><List size={22} aria-hidden="true" /><span>{t("mapListButton")}</span></button>
     </div>
 
-    {state !== "ready" && <div className="kyoto-map-status" role="status">{state === "loading" ? t("mapLoading") : t("mapLoadError")}</div>}
+    </div>
+    {state !== "ready" && (
+      <div className="kyoto-map-status">
+        <p role="status">{t(state === "loading" ? "mapLoading" : "mapLoadError")}</p>
+        {state === "error" && (
+          <Button onClick={() => {
+            setState("loading");
+            setMapAttempt((attempt) => attempt + 1);
+          }}>{t("mapRetry")}</Button>
+        )}
+        <Button variant="secondary" onClick={() => showResults()}>{t("mapStoredWalks")}</Button>
+      </div>
+    )}
 
-    <BottomSheet open={panel !== null} onClose={() => { setPanel(null); setFocusedPlaceId(null); }} title={sheetTitle} closeLabel={t("close")}>
+    <BottomSheet fallbackFocusRef={listButtonRef} open={panel !== null} onClose={() => { setPanel(null); setFocusedPlaceId(null); }} title={sheetTitle} closeLabel={t("close")}>
       {panel === "results" && <div className="route-sheet-content"><p className="route-sheet-intro">{t(results.fallback ? "routesSearchFallback" : "routesMapChecked")}</p>{results.suggestions.length ? <div className="route-sheet-options">{results.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div> : <div className="route-empty"><p>{t("routesEmpty")}</p><button type="button" onClick={() => showResults()}>{t("routesShowAll")}</button></div>}<RouteDataCredit locale={locale} /></div>}
       {panel === "details" && selectedWalk && <div className="route-sheet-content"><p className="route-sheet-intro">{selectedWalk.description[locale]}</p><Pill>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</Pill><h3>{t("routesStops")}</h3><ol className="route-stop-list">{selectedWalk.placeIds.map((id) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <li key={id}>{place.name[locale]}</li> : null; })}</ol><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("stops")}>{t("routesSeeStops")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
       {panel === "stops" && selectedWalk && <div className="route-sheet-content"><div className="route-place-list">{selectedWalk.placeIds.map((id, index) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <button type="button" className="route-place-card" key={id} onClick={() => openPlace(place, "stops")} aria-label={t("mapOpenPlace", { name: place.name[locale] })}><span>{index + 1}</span><div><h3>{place.name[locale]}</h3><p>{place.description[locale]}</p><small>{place.accessNotes[locale]}</small></div><ChevronRight size={18} aria-hidden="true" /></button> : null; })}</div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("details")}>{t("routesDetails")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
