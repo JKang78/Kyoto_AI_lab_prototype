@@ -2,7 +2,7 @@ import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 
 export type LocationMode = "unselected" | "live" | "demo";
 export type GpsStatus = "off" | "requesting" | "active" | "lowAccuracy" | "outsideKyoto" | "denied" | "timeout" | "unavailable" | "paused";
-export type LocationFix = { latitude: number; longitude: number; accuracy: number };
+export type LocationFix = { latitude: number; longitude: number; timestamp: number; accuracy: number };
 export type LocationState = { mode: LocationMode; gpsStatus: GpsStatus; fix: LocationFix | null };
 
 export const INITIAL_LOCATION_STATE: LocationState = { mode: "unselected", gpsStatus: "off", fix: null };

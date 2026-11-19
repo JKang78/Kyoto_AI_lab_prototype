@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node --test tests/browser/discovery.mjs"
+    "test:browser": "node --test tests/browser/*.mjs"
   },
   "dependencies": {
     "lucide-react": "0.553.0",

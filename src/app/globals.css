@@ -213,3 +213,21 @@ button:disabled { cursor: not-allowed; }
 .sheet-panel[open] { max-height: min(80dvh, 690px); display: flex; flex-direction: column; }
 .sheet-handle, .sheet-heading { flex: none; }
 .sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+/* Phase 3 walk controls share the map callout with the current checkpoint. */
+.map-selected-callout.active-walk { width: min(300px, calc(100% - 80px)); }
+.walk-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.walk-controls strong, .walk-controls small { width: 100%; padding: 0; }
+.map-selected-callout .walk-controls button { position: static; width: auto; padding: 6px 10px; border-radius: 12px; min-height: 44px; font-size: 12px; }
+.walk-controls button:disabled, .game-screen button:disabled { opacity: .62; }
+.game-screen { display: grid; align-content: start; gap: 14px; }
+.game-screen .ui-card { padding: 18px; }
+.game-screen h1, .game-screen h2 { color: var(--kyoto-purple); }
+.game-screen .ui-card h2 { margin: 8px 0; }
+.stamp-book { list-style: none; padding: 0; }
+.stamp-book li { margin: 6px 0; }
+.stamp-book span { color: var(--kyoto-purple); }
+.game-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.game-celebration > svg { color: var(--kyoto-purple); animation: stamp-arrive .35s ease-out; }
+@keyframes stamp-arrive { from { transform: scale(.6) rotate(-15deg); } to { transform: scale(1); } }
+.map-place-pin.map-next-stop { outline: 4px solid var(--gold); outline-offset: 2px; }
