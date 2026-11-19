@@ -1,6 +1,6 @@
 # Cursor starter kit — Kyoto AI Lab prototype
 
-**This is NOT an app scaffold.** It contains your product requirements, images and project rules. You'll scaffold Next.js in the same folder from Cursor.
+Historical starter-kit instructions. The app has since been scaffolded and includes route discovery. Use the [current README](README.md) for setup and testing.
 
 ## Contents
 - `PROJECT_SPEC.md` — complete baseline PRD and source-of-truth decisions.

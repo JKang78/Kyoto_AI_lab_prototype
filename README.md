@@ -1,11 +1,13 @@
-# Kyoto AI Lab prototype — Phase 1 map and location
+# Kyoto AI Lab prototype — walking route discovery
 
-This repository contains the Phase 0 mobile shell and the Phase 1 map and location foundation. The Map tab shows a real, pannable Kyoto basemap from OpenFreeMap with MapLibre GL JS. It offers optional browser GPS and a separate simulated Kyoto point. Routes, missions, coins, and coupons remain separate tasks in `docs/BUILD_PLAN.md`.
+Explore three map-checked Kyoto walks and seven places in English or Japanese. Try “river within 9 minutes” or “9分以内の川沿い”, select the Kamo riverside walk, and open **See stops** to inspect a place. Switching tabs keeps your chosen walk for this session. Reloading starts a fresh map session.
+
+MapLibre draws stored pedestrian geometry over OpenFreeMap tiles. If the basemap fails, **Browse stored walks** opens the local catalog and **Retry map** tries the basemap again. The page itself must already have loaded. Access notes and route estimates come from the fixtures. Field inspection and community review are still open. See [the route data notes](docs/ROUTE_DATA.md).
 
 ## Run locally
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -18,9 +20,17 @@ The MapLibre worker is served from `public/vendor/` because Next.js did not load
 ## Quality checks
 
 ```bash
+npm test
 npm run lint
 npm run typecheck
 npm run build
+```
+
+With the app running at localhost:3000, run the browser checks in a second terminal. Set `PHASE2_URL` to test a different local port.
+
+```bash
+npx playwright install chromium
+npm run test:browser
 ```
 
 ## Structure
@@ -28,7 +38,8 @@ npm run build
 - `src/app/` — Next.js entry, global styles, metadata
 - `src/components/` — five-tab shell, onboarding, shared button/card/pill/sheet, temporary marker
 - `src/locales/` — English and Japanese UI dictionaries
-- `src/lib/` — translation and local profile persistence
+- `src/lib/` — route matching, translation, location and local profile persistence
+- `src/data/` — curated geometry, place notes, source records and sample congestion cues
 - `public/assets/` — locations for original mascot and pin art when supplied
 - `references/` — visual references, retained from the starter kit
 
