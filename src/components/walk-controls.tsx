@@ -4,7 +4,7 @@ import { GAME } from "@/config/game";
 import { liveEligible, placeById, walkById, type Run } from "@/lib/game";
 import { act } from "@/lib/game-store";
 import { translate, type Locale } from "@/lib/i18n";
-import { locationStatusText, type LocationState } from "@/lib/location";
+import type { LocationState } from "@/lib/location";
 import type { LngLat } from "@/types/routes";
 
 // The caller keys this component by run, leg and mode. A remount resumes
@@ -28,7 +28,8 @@ export function WalkControls({ run, location, locale, onPosition, onComplete }: 
   const start = step ? nearest(placeById(walk.placeIds[step - 1])!.location, 0) : 0;
   const end = nearest(target.location, start);
   const [elapsed, setElapsed] = useState(0);
-  const [moving, setMoving] = useState(false);
+  const [motion, setMotion] = useState<"idle" | "moving" | "paused">("idle");
+  const moving = motion === "moving";
   const [now, setNow] = useState(Date.now);
   const demo = location.mode === "demo";
   const arrived = start === end || elapsed >= GAME.demoLegMs;
@@ -67,14 +68,14 @@ export function WalkControls({ run, location, locale, onPosition, onComplete }: 
     <strong>{t("gameStop")} {step + 1}/{walk.placeIds.length} · {target.name[locale]}</strong>
     {demo && !arrived && <button onClick={() => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setElapsed(GAME.demoLegMs);
-      else setMoving(!moving);
-    }}>{t(moving ? "gamePause" : elapsed ? "gameContinue" : "gameMove")}</button>}
-    {demo && elapsed > 0 && <button onClick={() => { setMoving(false); setElapsed(0); }}>{t("gameResetLeg")}</button>}
+      else setMotion(moving ? "paused" : "moving");
+    }}>{t(moving ? "gamePause" : motion === "paused" ? "gameContinue" : "gameMove")}</button>}
+    {demo && (motion !== "idle" || elapsed > 0) && <button onClick={() => { setMotion("idle"); setElapsed(0); }}>{t("gameResetLeg")}</button>}
     <button disabled={!eligible} onClick={async () => {
       const awarded = await act({ type: "collect", runId: run.id, placeId: target.id, location });
       if (awarded && step + 1 === walk.placeIds.length) onComplete();
     }}>{t(demo ? "gameSimulate" : "gameCheck")}</button>
-    {!demo && !eligible && <small>{locationStatusText(locale, location)} {translate(locale, "gameGpsHint", {
+    {!demo && !eligible && <small>{translate(locale, "gameGpsHint", {
       radius: String(GAME.radiusMeters), accuracy: String(GAME.maxAccuracyMeters),
     })}</small>}
   </div>;

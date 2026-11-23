@@ -36,6 +36,12 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       await button(copy.gameSimulate).click();
       await button(copy.navHome).click();
       await page.getByText(copy.gameBalance.replace('{coins}', '10'), { exact: true }).waitFor();
+      await button(copy.gameResume).click();
+      await button(copy.gameMove).waitFor();
+      assert.equal(await page.getByRole('searchbox').count(), 0);
+      await button(copy.locationTools).click();
+      await page.getByRole('dialog').getByRole('button', { name: copy.locationUseMyLocation }).waitFor();
+      await button(copy.close).click();
       await button(copy.navSettings).click();
       const otherLang = lang === 'en' ? 'ja' : 'en';
       const otherCopy = await copyFor(otherLang);
@@ -65,25 +71,18 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       await otherClaim.waitFor();
       const claimButtons = await Promise.all([button(copy.gameClaim).elementHandle(), otherClaim.elementHandle()]);
       await Promise.all(claimButtons.map(handle => handle.evaluate(el => el.click())));
-      await other.getByRole('button', { name: copy.gameClaimed, exact: true }).waitFor();
+      await other.getByText(copy.gameClaimed, { exact: true }).waitFor();
       await other.close();
-      await button(copy.gameClaimed).waitFor();
+      await page.getByText(copy.gameClaimed, { exact: true }).waitFor();
       assert.equal((await snapshot(page)).claims.length, 1);
       await page.getByText(copy.gameBalance.replace('{coins}', '0'), { exact: true }).waitFor();
-      const claimedButton = page.locator('[data-coupon-state="claimed"]');
-      const lockedButton = page.locator('[data-coupon-state="locked"]').first();
-      assert.equal(await claimedButton.count(), 1);
-      const claimedStyle = await claimedButton.evaluate(el => {
-        const style = getComputedStyle(el);
-        return { opacity: style.opacity, backgroundColor: style.backgroundColor };
-      });
-      const lockedStyle = await lockedButton.evaluate(el => {
-        const style = getComputedStyle(el);
-        return { opacity: style.opacity, backgroundColor: style.backgroundColor };
-      });
-      assert.equal(claimedStyle.opacity, '1');
-      assert.notEqual(lockedStyle.opacity, '1');
-      assert.notEqual(claimedStyle.backgroundColor, lockedStyle.backgroundColor);
+      const claimedStatus = page.locator('[data-coupon-state="claimed"]');
+      const lockedStatus = page.locator('[data-coupon-state="locked"]').first();
+      assert.equal(await claimedStatus.count(), 1);
+      assert.equal(await lockedStatus.innerText(), copy.gameNeed.replace('{coins}', '100'));
+      assert.equal(await button(copy.gameClaim).count(), 0);
+      assert.notEqual(await claimedStatus.evaluate(el => getComputedStyle(el).backgroundColor),
+        await lockedStatus.evaluate(el => getComputedStyle(el).backgroundColor));
       await button(copy.navMissions).click();
       await page.getByText(copy.gameCompleted, { exact: true }).waitFor();
       if (lang === 'ja') {
@@ -100,7 +99,7 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
         }
         await page.getByRole('dialog').getByRole('button', { name: copy.navRewards }).click();
         await page.getByText(copy.gameBalance.replace('{coins}', '75'), { exact: true }).waitFor();
-        assert.equal(await button(copy.gameClaimed).count(), 1);
+        assert.equal(await page.getByText(copy.gameClaimed, { exact: true }).count(), 1);
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await button(copy.navSettings).click();

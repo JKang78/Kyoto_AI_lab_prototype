@@ -63,5 +63,5 @@ export function BottomSheet({ open, onClose, title, closeLabel, children, fallba
 }
 
 export function MarkerPlaceholder({ size = "normal" }: { size?: "normal" | "large" }) {
-  return <div className={`marker-placeholder marker-placeholder--${size}`} aria-hidden="true">{assetPaths.mascot ? <Image src={assetPaths.mascot} width={90} height={90} alt="" className="marker-asset" /> : <span className="marker-inner">京</span>}<span className="marker-dot" /></div>;
+  return <div className={`marker-placeholder marker-placeholder--${size}`} aria-hidden="true">{assetPaths.mascot ? <Image src={assetPaths.mascot} width={90} height={90} alt="" className="marker-asset" /> : <span className="marker-inner">🦊</span>}<span className="marker-dot" /></div>;
 }

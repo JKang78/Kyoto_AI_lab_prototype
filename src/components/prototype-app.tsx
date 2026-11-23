@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
-import { ArrowRight, Flower2, Globe2, Info, LocateFixed, MapPin, Save, Sparkles } from "lucide-react";
-import { HomeProgress, Missions, Rewards } from "@/components/game-screens";
+import Image from "next/image";
+import { ArrowRight, Globe2, Info, LocateFixed, MapPin, Save, Footprints, Ticket } from "lucide-react";
+import { WalkingHome, Missions, Rewards } from "@/components/game-screens";
 import { act, useGame } from "@/lib/game-store";
-import { activeRun, type Game } from "@/lib/game";
-import { GAME } from "@/config/game";
+import { activeRun, balance, type Game } from "@/lib/game";
+import { COUPONS, GAME } from "@/config/game";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
 import { KyotoMap } from "@/components/map/kyoto-map";
-import { BottomSheet, Button, Card, MarkerPlaceholder, Pill } from "@/components/ui";
+import { BottomSheet, Button, Card } from "@/components/ui";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationState } from "@/lib/location";
 import { getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
@@ -24,9 +25,12 @@ function Welcome({ locale, onLocale, onStart }: { locale: Locale; onLocale: (loc
   const [nickname, setNickname] = useState("");
   const t = (key: MessageKey) => translate(locale, key);
   return <main className="welcome-screen">
-    <div className="welcome-top"><span className="brand-seal"><Flower2 size={21} /></span><span>{t("appName")}</span></div>
-    <div className="welcome-art"><div className="art-ring art-ring--one" /><div className="art-ring art-ring--two" /><span className="art-spark art-spark--one">✦</span><span className="art-spark art-spark--two">✦</span><MarkerPlaceholder size="large" /><span className="art-caption">KYOTO · 京都</span></div>
-    <div className="welcome-copy"><Pill>{t("welcomeEyebrow")}</Pill><h1>{t("welcomeTitle")}</h1><p>{t("welcomeBody")}</p></div>
+    <div className="welcome-top"><span className="brand-seal" aria-hidden="true">京</span><span>{t("appName")}</span></div>
+    <div className="walk-cover">
+      <h1>{t("welcomeTitle")}</h1>
+      <Image src="/art/kamo-woodblock.webp" width={320} height={468} alt={t("printAlt")} priority />
+    </div>
+    <p className="welcome-instruction">{t("welcomeBody")}</p>
     <form className="welcome-form" onSubmit={(event) => { event.preventDefault(); onStart(nickname.trim()); }}>
       <label className="form-label">{t("chooseLanguage")}</label>
       <LanguageChoice locale={locale} onChange={onLocale} />
@@ -38,19 +42,6 @@ function Welcome({ locale, onLocale, onStart }: { locale: Locale; onLocale: (loc
   </main>;
 }
 
-function SectionHeader({ eyebrow, title, body }: { eyebrow?: string; title: string; body: string }) {
-  return <div className="section-header">{eyebrow && <Pill>{eyebrow}</Pill>}<h1>{title}</h1><p>{body}</p></div>;
-}
-
-function HomeScreen({ locale, name, onMap, game }: { game: Game; locale: Locale; name: string; onMap: () => void }) {
-  const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
-  return <div className="content-screen home-screen">
-    <Pill>{t("homeGreeting", { name })}</Pill>
-    <div className="home-hero"><span className="hero-flower" aria-hidden="true"><Flower2 size={118} strokeWidth={0.7} /></span><h1>{t("homeTitle")}</h1><p>{t("homeBody")}</p><Button onClick={onMap}>{t("exploreMap")}<ArrowRight size={18} /></Button></div>
-    <div className="card-stack"><HomeProgress game={game} locale={locale} /><Card><div className="card-icon"><Sparkles size={22} /></div><h2>{t("homeValueTitle")}</h2><p>{t("homeValueBody")}</p></Card><Card><div className="card-icon gold"><MapPin size={22} /></div><h2>{t("homeComingTitle")}</h2><p>{t("homeComingBody")}</p></Card></div>
-  </div>;
-}
-
 function SettingsScreen({ game, onReset, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: { game: Game; onReset: () => void; locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void; onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void }) {
   const [nickname, setNickname] = useState(profile.nickname);
   const [saved, setSaved] = useState(false);
@@ -58,12 +49,12 @@ function SettingsScreen({ game, onReset, locale, profile, location, onLocale, on
   const [aboutOpen, setAboutOpen] = useState(false);
   const t = (key: MessageKey) => translate(locale, key);
   return <div className="content-screen settings-screen">
-    <SectionHeader eyebrow={t("prototypeBadge")} title={t("settingsTitle")} body={t("settingsBody")} />
+    <h1>{t("navSettings")}</h1>
     <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon"><Save size={20} /></span><h2>{t("profileHeading")}</h2></div><form onSubmit={(event) => { event.preventDefault(); onSave(nickname.trim()); setSaved(true); }}><label className="form-label" htmlFor="settings-nickname">{t("nicknameLabel")}</label><input className="text-input" id="settings-nickname" value={nickname} maxLength={40} onChange={(event) => { setNickname(event.target.value); setSaved(false); }} placeholder={t("nicknamePlaceholder")} /><Button type="submit" variant="secondary" className="full-width">{t("nicknameSave")}</Button>{saved && <p className="save-message" role="status">{t("nicknameSaved")}</p>}</form></Card>
     <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon gold"><Globe2 size={20} /></span><h2>{t("languageHeading")}</h2></div><LanguageChoice locale={locale} onChange={onLocale} /></Card>
     <Card className="settings-card"><div className="settings-card-heading"><span className="card-icon"><MapPin size={20} /></span><h2>{t("locationSettingsHeading")}</h2></div><dl className="location-settings-status"><div><dt>{t("locationSettingsMode")}</dt><dd>{locationModeText(locale, location.mode)}</dd></div><div><dt>{t("locationSettingsGps")}</dt><dd>{locationStatusText(locale, location)}</dd></div></dl><div className="location-settings-actions"><button type="button" className="location-demo-switch" role="switch" aria-checked={location.mode === "demo"} onClick={() => onDemoChange(location.mode !== "demo")}><span>{t("locationSettingsDemoSwitch")}</span><span className="location-switch-track" aria-hidden="true"><span /></span></button><Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><LocateFixed size={18} aria-hidden="true" />{t("locationSettingsRecenter")}</Button></div><p className="location-settings-hint">{t("locationSettingsHint")}</p></Card>
     <Card className="settings-card">
-      <div className="settings-card-heading"><span className="card-icon gold"><Sparkles size={20} /></span><h2>{t("gameProgress")}</h2></div>
+      <div className="settings-card-heading"><span className="card-icon gold"><Footprints size={20} /></span><h2>{t("gameProgress")}</h2></div>
       <div className="location-settings-actions">
         <label className="location-demo-switch settings-switch" data-checked={game.peak}>
           <input type="checkbox" className="settings-switch-input" checked={game.peak} onChange={event => void act({ type: "peak", enabled: event.target.checked })} />
@@ -81,7 +72,7 @@ function SettingsScreen({ game, onReset, locale, profile, location, onLocale, on
       </div>
     </BottomSheet>
     <Button variant="quiet" className="about-trigger" onClick={() => setAboutOpen(true)}><Info size={19} />{t("aboutButton")}<ArrowRight size={17} /></Button>
-    <BottomSheet open={aboutOpen} onClose={() => setAboutOpen(false)} title={t("aboutHeading")} closeLabel={t("close")}><p>{t("aboutBody")}</p></BottomSheet>
+    <BottomSheet open={aboutOpen} onClose={() => setAboutOpen(false)} title={t("aboutHeading")} closeLabel={t("close")}><p>{t("aboutBody")}</p><p><a href="https://commons.wikimedia.org/wiki/File:Kyoto_Shijo_yu-suzumi-Cooling_Off_at_the_Kamo_River_near_Shijo_in_Kyoto_MET_DP123612.jpg">{t("printCredit")}</a></p></BottomSheet>
   </div>;
 }
 
@@ -128,17 +119,30 @@ export function PrototypeApp() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
-  if (!ready) return <div className="loading-screen"><span className="brand-seal"><Flower2 size={25} /></span><span>Kyoto AI Lab prototype</span></div>;
+  if (!ready) return <div className="loading-screen"><span className="brand-seal" aria-hidden="true">京</span><span>Kyoto AI Lab prototype</span></div>;
   if (!profile) return <Welcome locale={welcomeLocale} onLocale={setWelcomeLocale} onStart={(nickname) => { updateProfile({ nickname, locale: welcomeLocale }); setActiveTab("map"); }} />;
 
-  const name = profile.nickname || translate(locale, "guestName");
+  const coins = balance(game);
+  const nextCoupon = COUPONS.find(coupon => !game.claims.some(claim => claim.id === coupon.id));
+  function openWalk(id: string) {
+    setSelectedWalkId(id);
+    selectTab("map");
+  }
   return <div className="app-shell">
-    <header className="app-header"><span className="brand-seal"><Flower2 size={20} /></span><div><strong>KYOTO AI LAB</strong><small>{translate(locale, "tagline")}</small></div><span className="header-spark" aria-hidden="true">✦</span></header>
-    <main id="main-content" className="app-main">
-      {activeTab === "home" && <HomeScreen game={game} locale={locale} name={name} onMap={() => selectTab("map")} />}
+    <header className="app-header">
+      <span className="brand-seal" aria-hidden="true">京</span><strong>KYOTO AI LAB</strong>
+      {activeTab === "map" && <button className="header-wallet" onClick={() => selectTab("rewards")} aria-label={translate(locale, "gameWalletAction")}>
+        <Ticket size={18} aria-hidden="true" />
+        <span>{translate(locale, "gameBalance", { coins: String(coins) })}{nextCoupon && ` / ${nextCoupon.cost}`}
+          {nextCoupon && <progress aria-hidden="true" max={nextCoupon.cost} value={Math.min(coins, nextCoupon.cost)} />}
+        </span>
+      </button>}
+    </header>
+    <main key={activeTab} id="main-content" className="app-main">
+      {activeTab === "home" && <WalkingHome game={game} locale={locale} name={profile.nickname} onWalk={openWalk} />}
       {activeTab === "map" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
-      {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={id => { setSelectedWalkId(id); selectTab("map"); }} />}
+      {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} />}
       {activeTab === "settings" && <SettingsScreen game={game} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} locale={locale} profile={profile} location={location} onLocale={(next) => updateProfile({ ...profile, locale: next })} onSave={(nickname) => updateProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("map"); }} />}
     </main>
     <BottomNav active={activeTab} locale={locale} onSelect={selectTab} />

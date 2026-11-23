@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
-import { Bike, ChevronLeft, ChevronRight, Coffee, Ellipsis, Flower2, Landmark, List, LocateFixed, MapPinned, Navigation, Search, Ticket, Trees, Waves, X, type LucideIcon } from "lucide-react";
+import { Bike, ChevronRight, Coffee, Ellipsis, Flower2, Landmark, List, LocateFixed, MapPinned, Navigation, Search, Trees, Waves, X, type LucideIcon } from "lucide-react";
 import { COUPONS, GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
 import { activeRun, balance, type Game } from "@/lib/game";
@@ -12,7 +12,7 @@ import { BottomSheet, Button, MarkerPlaceholder, Pill } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, type SampleCongestionCue } from "@/data/sample-congestion";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
-import { classifyFix, DEMO_POSITION, INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
+import { classifyFix, DEMO_POSITION, INITIAL_LOCATION_STATE, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
 import { discoverRoutes, type MatchReason, type RouteFilter } from "@/lib/route-discovery";
 import type { CuratedPlace, CuratedWalk } from "@/types/routes";
 
@@ -20,7 +20,7 @@ const KYOTO_CENTER: [number, number] = [135.7677, 35.0034];
 const MAP_ZOOM = 13.9;
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
-type RoutePanel = "results" | "details" | "stops" | "place" | "more" | null;
+type RoutePanel = "location" | "results" | "details" | "stops" | "place" | "more" | null;
 const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[] = [
   { label: "mapCategoryCulture", icon: Landmark, filter: "culture" },
   { label: "mapCategoryRiverside", icon: Waves, filter: "riverside" },
@@ -86,6 +86,7 @@ export function KyotoMap({
   const initialCenterRef = useRef(location.mode === "demo" ? DEMO_POSITION : KYOTO_CENTER);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showCongestion, setShowCongestion] = useState(false);
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<RoutePanel>(null);
   const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
@@ -212,7 +213,7 @@ export function KyotoMap({
             pin.type = "button";
             pin.className = `map-place-pin map-place-pin--${placeThemes[place.id] ?? "culture"}`;
             pin.dataset.placeId = place.id;
-            pin.textContent = "✦";
+            pin.textContent = "●";
             pin.setAttribute("aria-label", translate(initialLocaleRef.current, "mapOpenPlace", { name: place.name[initialLocaleRef.current] }));
             pin.addEventListener("click", (event) => {
               event.stopPropagation();
@@ -284,7 +285,8 @@ export function KyotoMap({
       ? translate(locale, "mapLiveMarker", { accuracy: String(Math.round(location.fix?.accuracy ?? 0)) })
       : translate(locale, location.mode === "demo" ? "mapDemoMarker" : "mapSampleLocation");
     const ariaLabel = location.mode === "live" ? label : translate(locale, location.mode === "demo" ? "mapDemoMarkerLabel" : "mapSampleLocationLabel");
-    root.render(<div className="map-sample-marker" role="img" aria-label={ariaLabel}><MarkerPlaceholder /><span>{label}</span></div>);
+    marker.setOffset(playing && location.mode === "demo" ? [34, 0] : [0, 0]);
+    root.render(<div className="map-sample-marker" role="img" aria-label={ariaLabel}><MarkerPlaceholder />{!playing && <span>{label}</span>}</div>);
   }, [locale, location, state, playing]);
 
   useEffect(() => {
@@ -308,7 +310,7 @@ export function KyotoMap({
       const stopIndex = selectedWalk?.placeIds.indexOf(place.id) ?? -1;
       pin.style.display = selectedWalk && stopIndex === -1 ? "none" : "";
       pin.classList.toggle("map-next-stop", Boolean(playing && stopIndex === run?.stamps.length));
-      pin.textContent = stopIndex >= 0 ? String(stopIndex + 1) : "✦";
+      pin.textContent = stopIndex >= 0 ? String(stopIndex + 1) : "●";
       pin.setAttribute("aria-label", translate(locale, "mapOpenPlace", { name: place.name[locale] }));
       pin.setAttribute("aria-pressed", String(panel === "place" && focusedPlaceId === place.id));
     }
@@ -317,13 +319,13 @@ export function KyotoMap({
       const label = marker.getElement();
       const level = translate(locale, cue.level === "busy" ? "mapSampleBusy" : "mapSampleModerate");
       label.textContent = level;
-      label.style.display = selectedWalk && !selectedWalk.placeIds.includes(cue.placeId) ? "none" : "";
+      label.style.display = !showCongestion || playing || selectedWalk && !selectedWalk.placeIds.includes(cue.placeId) ? "none" : "";
       if (place) label.setAttribute("aria-label", translate(locale, "mapSampleCongestionAt", { level, place: place.name[locale] }));
     }
-  }, [focusedPlaceId, locale, panel, selectedWalk, state, playing, run]);
+  }, [focusedPlaceId, locale, panel, selectedWalk, state, playing, run, showCongestion]);
 
   const focusMap = useCallback((coordinates: [number, number]) => {
-    mapRef.current?.easeTo({ center: coordinates, offset: [0, 115], zoom: MAP_ZOOM, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
+    mapRef.current?.easeTo({ center: coordinates, offset: [0, 35], zoom: MAP_ZOOM, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
   }, []);
 
   useEffect(() => {
@@ -332,11 +334,11 @@ export function KyotoMap({
     const lngs = coordinates.map(([lng]) => lng);
     const lats = coordinates.map(([, lat]) => lat);
     mapRef.current?.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
-      padding: { top: 175, right: 36, bottom: 205, left: 36 },
+      padding: { top: playing ? 70 : 115, right: 48, bottom: 45, left: 48 },
       maxZoom: 16.5,
       duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 650,
     });
-  }, [selectedWalk, state]);
+  }, [selectedWalk, state, playing]);
 
   useEffect(() => {
     if (state !== "ready" || !settingsRecenterRequest || settingsRecenterHandledRef.current) return;
@@ -446,61 +448,53 @@ export function KyotoMap({
   const sheetTitle = panel === "details" && selectedWalk ? selectedWalk.name[locale]
     : panel === "stops" ? t("routesStops")
       : panel === "place" && focusedPlace ? focusedPlace.name[locale]
-      : panel === "more" ? t("mapCategoryMore") : t("routesTitle");
+      : panel === "location" ? t("locationTools") : panel === "more" ? t("mapCategoryMore") : t("routesTitle");
   return <section className="kyoto-map" aria-label={t("mapCanvasLabel")}>
-    <div inert={state !== "ready"}>
-    <div ref={containerRef} className="kyoto-map-canvas" />
+    <div className="map-layout" inert={state !== "ready"}>
+      <div className="map-window">
+        <div ref={containerRef} className="kyoto-map-canvas" />
+        {!playing && <div className="map-top-ui">
+          <div className="map-search-wrap">
+            <div className="map-search-bar">
+              <Search size={21} aria-hidden="true" />
+              <input type="search" aria-label={t("mapSearchLabel")} placeholder={t("mapSearchPlaceholder")} value={query} onChange={(event) => { setQuery(event.target.value); setRouteFilter(null); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); if (event.key === "Enter" && searchResults.suggestions[0]) selectWalk(searchResults.suggestions[0].walk); }} />
+              <button type="button" className="map-recenter" onClick={recenter} disabled={state !== "ready" || (location.mode === "live" && !location.fix)} aria-label={t(location.mode === "live" ? "mapRecenterLive" : location.mode === "demo" ? "mapRecenterDemo" : "mapRecenterSample")}><LocateFixed size={20} aria-hidden="true" /></button>
+            </div>
+            {searchOpen && <div className="map-search-preview" role="region" aria-label={t("mapSearchPreviewTitle")}>
+              <div className="map-search-heading"><strong>{t("mapSearchPreviewTitle")}</strong><button type="button" onClick={() => setSearchOpen(false)} aria-label={t("close")}><X size={18} /></button></div>
+              <p className="map-search-hint">{t(!query.trim() ? "routesSearchHint" : searchResults.fallback ? "routesSearchFallback" : "routesSearchMatched")}</p>
+              <div className="map-search-results">{searchResults.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div>
+            </div>}
+          </div>
 
-    <div className="map-top-ui">
-      <button type="button" className="map-progress" onClick={onRewards} aria-label={t("gameWalletAction")}>
-        <Flower2 className="map-progress-flower" size={28} aria-hidden="true" />
-        <span className="map-progress-meter"><span>{t("gameBalance", { coins: String(coins) })}{nextCoupon && ` / ${nextCoupon.cost}`}</span><span className="map-progress-track"><span style={{ width: `${nextCoupon ? Math.min(100, coins / nextCoupon.cost * 100) : 100}%` }} /></span></span>
-        <span className="map-progress-divider" aria-hidden="true" />
-        <Ticket className="map-progress-ticket" size={27} aria-hidden="true" />
-        <span className="map-progress-next">{t(nextCoupon ? "gameNextCoupon" : "gameAllClaimed")}</span>
-      </button>
-
-      <div className="map-search-wrap">
-        <div className="map-search-bar">
-          <Search size={21} aria-hidden="true" />
-          <input type="search" aria-label={t("mapSearchLabel")} placeholder={t("mapSearchPlaceholder")} value={query} onChange={(event) => { setQuery(event.target.value); setRouteFilter(null); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); if (event.key === "Enter" && searchResults.suggestions[0]) selectWalk(searchResults.suggestions[0].walk); }} />
-          <button type="button" className="map-recenter" onClick={recenter} disabled={state !== "ready" || (location.mode === "live" && !location.fix)} aria-label={t(location.mode === "live" ? "mapRecenterLive" : location.mode === "demo" ? "mapRecenterDemo" : "mapRecenterSample")}><LocateFixed size={20} aria-hidden="true" /></button>
-        </div>
-        {searchOpen && <div className="map-search-preview" role="region" aria-label={t("mapSearchPreviewTitle")}>
-          <div className="map-search-heading"><strong>{t("mapSearchPreviewTitle")}</strong><button type="button" onClick={() => setSearchOpen(false)} aria-label={t("close")}><X size={18} /></button></div>
-          <p className="map-search-hint">{t(!query.trim() ? "routesSearchHint" : searchResults.fallback ? "routesSearchFallback" : "routesSearchMatched")}</p>
-          <div className="map-search-results">{searchResults.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div>
+          <div className="map-categories" role="group" aria-label={t("mapCategoriesLabel")}>
+            {categories.map(({ label, icon: Icon, filter }) => <button type="button" key={label} aria-pressed={routeFilter === filter && panel === "results"} onClick={() => showResults(filter)}><Icon size={18} aria-hidden="true" /><span>{t(label)}</span><ChevronRight size={14} aria-hidden="true" /></button>)}
+            <button type="button" onClick={() => { setSearchOpen(false); setPanel("more"); }}><Ellipsis size={19} aria-hidden="true" /><span>{t("mapCategoryMore")}</span></button>
+          </div>
         </div>}
+        {!playing && state === "ready" && <button type="button" className="map-congestion-legend" aria-pressed={showCongestion} onClick={() => setShowCongestion(value => !value)}>{t("sampleLayer")}</button>}
       </div>
+      <div className="map-dock">
+        {playing ? <div className="active-walk">
+          <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} run={run} locale={locale}
+            location={location} onPosition={updateDemoMarker} onComplete={() => setCelebration(true)} />
+        </div> : null}
+        <div className="map-intro-callout" role="status">{locationStatusText(locale, location)}</div>
+        {playing && <button ref={useLocationButtonRef} className="map-tools" type="button" onClick={() => setPanel("location")}><LocateFixed size={16} />{t("locationTools")}</button>}
+        {!playing && <div className="map-location-actions" role="group" aria-label={t("locationActionsLabel")}>
+          <button ref={useLocationButtonRef} type="button" onClick={requestLiveLocation} disabled={state !== "ready"} aria-pressed={liveTracking} className={liveTracking ? "selected" : ""}><Navigation size={17} aria-hidden="true" /><span>{t("locationUseMyLocation")}</span></button>
+          <button type="button" onClick={exploreDemo} disabled={state !== "ready"} aria-pressed={location.mode === "demo"} className={location.mode === "demo" ? "selected" : ""}><MapPinned size={17} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>
+        </div>}
 
-      <div className="map-categories" role="group" aria-label={t("mapCategoriesLabel")}>
-        {categories.map(({ label, icon: Icon, filter }) => <button type="button" key={label} aria-pressed={routeFilter === filter && panel === "results"} onClick={() => showResults(filter)}><Icon size={18} aria-hidden="true" /><span>{t(label)}</span><ChevronRight size={14} aria-hidden="true" /></button>)}
-        <button type="button" onClick={() => { setSearchOpen(false); setPanel("more"); }}><Ellipsis size={19} aria-hidden="true" /><span>{t("mapCategoryMore")}</span></button>
+        <div className="map-bottom-ui">
+          <button type="button" className={`map-recommended${selectedWalk ? " map-selected-callout" : ""}`} onClick={() => selectedWalk ? setPanel("details") : showResults()}>
+            <span className="map-recommended-icon">{selectedWalk ? <Landmark size={22} aria-hidden="true" /> : <Waves size={22} aria-hidden="true" />}</span>
+            <span><small>{selectedWalk ? t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) }) : t("mapRecommendedEyebrow")}</small><strong>{selectedWalk ? selectedWalk.name[locale] : t("mapRecommendedTitle")}</strong></span>
+            <ChevronRight size={19} aria-hidden="true" />
+          </button>
+          <button type="button" ref={listButtonRef} className="map-list-button" onClick={() => selectedWalk ? setPanel("stops") : showResults()}><List size={22} aria-hidden="true" /><span>{t("mapListButton")}</span></button>
+        </div>
       </div>
-    </div>
-
-    {playing ? <div className="map-intro-callout map-selected-callout active-walk">
-      <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} run={run} locale={locale}
-        location={location} onPosition={updateDemoMarker} onComplete={() => setCelebration(true)} />
-    </div> : selectedWalk ? <div className="map-intro-callout map-selected-callout" role="status"><Flower2 size={19} aria-hidden="true" /><strong>{selectedWalk.name[locale]}</strong><p>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</p><p className="map-selected-location">{locationStatusText(locale, location)}</p><button type="button" onClick={backToResults} aria-label={t("routesBack")} title={t("routesBack")}><ChevronLeft size={18} aria-hidden="true" /></button></div>
-      : <div className="map-intro-callout" role="status"><Flower2 size={19} aria-hidden="true" /><strong>{location.mode === "unselected" ? t("mapIntroTitle") : locationModeText(locale, location.mode)}</strong><p>{locationStatusText(locale, location)}</p></div>}
-
-    <div className="map-location-actions" role="group" aria-label={t("locationActionsLabel")}>
-      <button ref={useLocationButtonRef} type="button" onClick={requestLiveLocation} disabled={state !== "ready"} aria-pressed={liveTracking} className={liveTracking ? "selected" : ""}><Navigation size={17} aria-hidden="true" /><span>{t("locationUseMyLocation")}</span></button>
-      <button type="button" onClick={exploreDemo} disabled={state !== "ready"} aria-pressed={location.mode === "demo"} className={location.mode === "demo" ? "selected" : ""}><MapPinned size={17} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>
-    </div>
-
-    {state === "ready" && <div className="map-congestion-legend" role="note">{t("mapSampleCongestionLegend")}</div>}
-
-    <div className="map-bottom-ui">
-      <button type="button" className="map-recommended" onClick={() => selectedWalk ? setPanel("details") : showResults()}>
-        <span className="map-recommended-icon">{selectedWalk ? <Landmark size={22} aria-hidden="true" /> : <Waves size={22} aria-hidden="true" />}</span>
-        <span><small>{t(selectedWalk ? "routesDetails" : "mapRecommendedEyebrow")}</small><strong>{selectedWalk ? selectedWalk.name[locale] : t("mapRecommendedTitle")}</strong></span>
-        <ChevronRight size={19} aria-hidden="true" />
-      </button>
-      <button type="button" ref={listButtonRef} className="map-list-button" onClick={() => selectedWalk ? setPanel("stops") : showResults()}><List size={22} aria-hidden="true" /><span>{t("mapListButton")}</span></button>
-    </div>
-
     </div>
     {state !== "ready" && (
       <div className="kyoto-map-status">
@@ -537,6 +531,12 @@ export function KyotoMap({
         <Pill>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</Pill><h3>{t("routesStops")}</h3><ol className="route-stop-list">{selectedWalk.placeIds.map((id) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <li key={id}>{place.name[locale]}</li> : null; })}</ol><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("stops")}>{t("routesSeeStops")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
       {panel === "stops" && selectedWalk && <div className="route-sheet-content"><div className="route-place-list">{selectedWalk.placeIds.map((id, index) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <button type="button" className="route-place-card" key={id} onClick={() => openPlace(place, "stops")} aria-label={t("mapOpenPlace", { name: place.name[locale] })}><span>{index + 1}</span><div><h3>{place.name[locale]}</h3><p>{place.description[locale]}</p><small>{place.accessNotes[locale]}</small></div><ChevronRight size={18} aria-hidden="true" /></button> : null; })}</div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("details")}>{t("routesDetails")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
       {panel === "place" && focusedPlace && <div className="route-sheet-content"><p className="route-sheet-intro">{focusedPlace.description[locale]}</p><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{focusedPlace.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesAccessNotes")}</strong><p>{focusedPlace.accessNotes[locale]}</p></div><p className="route-community-status">{t("routesCommunityNotConsulted")}</p><a className="route-place-source" href={focusedPlace.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a><div className="route-sheet-actions"><button type="button" onClick={backFromPlace}>{t(placeReturnPanel === "stops" ? "placeBackToStops" : placeReturnPanel === "details" ? "routesDetails" : "routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
+      {panel === "location" && <div className="route-sheet-content">
+        <p>{locationStatusText(locale, location)}</p>
+        <Button onClick={() => { setPanel(null); requestLiveLocation(); }}>{t("locationUseMyLocation")}</Button>
+        <Button variant="secondary" onClick={() => { setPanel(null); exploreDemo(); }}>{t("locationExploreDemo")}</Button>
+        <Button variant="quiet" disabled={location.mode === "live" && !location.fix} onClick={() => { setPanel(null); recenter(); }}>{t("locationSettingsRecenter")}</Button>
+      </div>}
       {panel === "more" && <div className="route-sheet-content"><p className="route-sheet-intro">{t("mapCategoryPreviewBody")}</p><div className="map-more-pills">{moreCategories.map(({ label, filter }) => <button type="button" key={label} onClick={() => showResults(filter)}>{t(label)}</button>)}</div></div>}
     </BottomSheet>
   </section>;
