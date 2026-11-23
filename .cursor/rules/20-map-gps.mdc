@@ -4,7 +4,7 @@ globs: "src/components/map/**,src/lib/location/**,src/lib/recommendation/**,src/
 alwaysApply: false
 ---
 # Map, GPS, routing and checkpoint constraints
-- Consult `docs/ARCHITECTURE.md` and `PROJECT_SPEC.md` sections 7-9.
+- Consult `docs/ARCHITECTURE.md` and `docs/PROJECT_SPEC.md` sections 7-9.
 - A map library is not a place database or route provider. Evaluate MapLibre + legitimate basemap/provider versus Google Maps before permanent SDK lock-in. Follow provider attribution and licensing requirements; do not mix restricted provider data into an incompatible map.
 - Real GPS is opt-in; use the browser Geolocation API only in a secure context, report denied/unavailable/low-accuracy states, and stop `watchPosition` on cleanup. Never imply reliable background tracking.
 - When outside the Kyoto demo area, don't teleport the real fox into Kyoto. Offer an explicit switch to **Kyoto Demo Mode**.

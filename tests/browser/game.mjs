@@ -70,6 +70,20 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       await button(copy.gameClaimed).waitFor();
       assert.equal((await snapshot(page)).claims.length, 1);
       await page.getByText(copy.gameBalance.replace('{coins}', '0'), { exact: true }).waitFor();
+      const claimedButton = page.locator('[data-coupon-state="claimed"]');
+      const lockedButton = page.locator('[data-coupon-state="locked"]').first();
+      assert.equal(await claimedButton.count(), 1);
+      const claimedStyle = await claimedButton.evaluate(el => {
+        const style = getComputedStyle(el);
+        return { opacity: style.opacity, backgroundColor: style.backgroundColor };
+      });
+      const lockedStyle = await lockedButton.evaluate(el => {
+        const style = getComputedStyle(el);
+        return { opacity: style.opacity, backgroundColor: style.backgroundColor };
+      });
+      assert.equal(claimedStyle.opacity, '1');
+      assert.notEqual(lockedStyle.opacity, '1');
+      assert.notEqual(claimedStyle.backgroundColor, lockedStyle.backgroundColor);
       await button(copy.navMissions).click();
       await page.getByText(copy.gameCompleted, { exact: true }).waitFor();
       if (lang === 'ja') {
@@ -124,15 +138,169 @@ test('GPS check-in requires an explicit tap and an eligible live fix', async () 
     await button(copy.gameStartLive).click();
     await button(copy.gameCheck).waitFor();
     assert.ok(await button(copy.gameCheck).isDisabled());
-    const report = accuracy => page.evaluate(a => window.reportFix({
-      timestamp: Date.now(), coords: { latitude: 35.00378, longitude: 135.76932, accuracy: a },
-    }), accuracy);
+    const report = (accuracy, offsetMs = 0) => page.evaluate(({ a, offset }) => window.reportFix({
+      timestamp: Date.now() + offset, coords: { latitude: 35.00378, longitude: 135.76932, accuracy: a },
+    }), { a: accuracy, offset: offsetMs });
     await report(101);
     assert.ok(await button(copy.gameCheck).isDisabled());
-    await report(12);
+    await report(12, 60_000);
+    assert.ok(await button(copy.gameCheck).isDisabled());
+    await report(12, 300);
+    assert.equal(await button(copy.gameCheck).isDisabled(), false);
     assert.equal((await snapshot(page)).runs[0].stamps.length, 0);
     await button(copy.gameCheck).click();
     await page.getByText(copy.gameStamped.replace('{coins}', '10')).waitFor();
     assert.equal((await snapshot(page)).runs[0].stamps[0].mode, 'live');
+  } finally { await page.close(); }
+});
+
+test('aborted replay preserves completed mission badge and full stamp book', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 800 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    await page.locator('.map-list-button').click();
+    await page.locator('dialog .map-route-option').first().click();
+    await button(copy.gameStartDemo).click();
+    for (let i = 0; i < 3; i++) {
+      if (i) await button(copy.gameMove).click();
+      await button(copy.gameSimulate).click();
+    }
+    await page.getByRole('dialog').getByRole('button', { name: copy.close }).click();
+    await page.locator('.map-recommended').click();
+    await button(copy.gameStartDemo).click();
+    await button(copy.gameSimulate).click();
+    await page.locator('.map-recommended').click();
+    await button(copy.gameStopWalk).click();
+    await page.getByRole('dialog').getByRole('button', { name: copy.gameStopWalk, exact: true }).click();
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await button(copy.navMissions).click();
+    const firstCard = page.locator('.game-screen .ui-card').first();
+    await firstCard.getByText(copy.gameCompleted, { exact: true }).waitFor();
+    assert.equal(await firstCard.getByText(copy.gameStopped, { exact: true }).count(), 0);
+    const marks = await firstCard.locator('.stamp-book li span').allTextContents();
+    assert.deepEqual(marks, ['✓', '✓', '✓']);
+  } finally { await context.close(); }
+});
+
+test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab activation', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 800 }, reducedMotion: 'reduce' });
+  await context.addInitScript(() => {
+    window.__watchCleared = 0;
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition() { return 42; },
+        clearWatch() { window.__watchCleared += 1; },
+      },
+    });
+  });
+  const tabA = await context.newPage();
+  const tabB = await context.newPage();
+  tabA.setDefaultTimeout(8000);
+  tabB.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  try {
+    await prepare(tabA);
+    await tabA.getByRole('button', { name: copy.startExploring, exact: true }).click();
+    await tabA.locator('.map-congestion-legend').waitFor();
+    const demoBtnA = tabA.getByRole('button', { name: copy.locationExploreDemo, exact: true });
+    const liveBtnA = tabA.getByRole('button', { name: copy.locationUseMyLocation, exact: true });
+    const statusCalloutA = tabA.locator('.map-intro-callout');
+
+    await demoBtnA.click();
+    await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationExploreDemo }).waitFor();
+
+    await prepare(tabB);
+    await tabB.getByRole('button', { name: copy.navSettings, exact: true }).click();
+    const demoSwitchB = tabB.getByRole('switch', { name: copy.locationSettingsDemoSwitch });
+    await demoSwitchB.waitFor();
+    assert.equal(await demoSwitchB.getAttribute('aria-checked'), 'true');
+    await demoSwitchB.click();
+    await tabB.locator('[role="switch"][aria-checked="false"]', { hasText: copy.locationSettingsDemoSwitch }).waitFor();
+
+    await tabA.locator('button[aria-pressed="false"]', { hasText: copy.locationExploreDemo }).waitFor();
+    await statusCalloutA.getByText(copy.locationStatusOff).waitFor();
+
+    await demoBtnA.click();
+    await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationExploreDemo }).waitFor();
+    await tabB.getByRole('button', { name: copy.gameReset, exact: true }).click();
+    await tabB.getByRole('button', { name: copy.gameConfirm, exact: true }).click();
+    await tabB.getByRole('dialog').waitFor({ state: 'hidden' });
+
+    await tabA.locator('button[aria-pressed="false"]', { hasText: copy.locationExploreDemo }).waitFor();
+    await statusCalloutA.getByText(copy.locationStatusOff).waitFor();
+
+    await liveBtnA.click();
+    await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationUseMyLocation }).waitFor();
+    await demoSwitchB.click();
+    await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationExploreDemo }).waitFor();
+    assert.equal(await liveBtnA.getAttribute('aria-pressed'), 'false');
+    assert.ok(await tabA.evaluate(() => window.__watchCleared > 0));
+
+    // Off-Map-tab sync: live GPS paused on Settings must reset to unselected when Demo Mode cycles ON -> OFF in Tab B
+    await demoSwitchB.click();
+    await tabA.locator('button[aria-pressed="false"]', { hasText: copy.locationExploreDemo }).waitFor();
+    await liveBtnA.click();
+    await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationUseMyLocation }).waitFor();
+    await tabA.getByRole('button', { name: copy.navSettings, exact: true }).click();
+    const locationCardA = tabA.locator('.location-settings-status');
+    await locationCardA.getByText(copy.locationStatusPaused, { exact: true }).waitFor();
+
+    await demoSwitchB.click();
+    await locationCardA.getByText(copy.locationModeDemo, { exact: true }).waitFor();
+    await locationCardA.getByText(copy.locationStatusDemo, { exact: true }).waitFor();
+
+    await demoSwitchB.click();
+    await locationCardA.getByText(copy.locationStatusOff, { exact: true }).waitFor();
+    await locationCardA.getByText(copy.locationModeUnselected, { exact: true }).waitFor();
+    assert.equal(await locationCardA.getByText(copy.locationStatusPaused, { exact: true }).count(), 0);
+    assert.equal(await locationCardA.getByText(copy.locationModeLive, { exact: true }).count(), 0);
+  } finally { await context.close(); }
+});
+
+test('Settings progress switch meets 44px touch target and reset dialog actions have flex gap', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 }, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    await button(copy.navSettings).click();
+
+    const switchRow = page.locator('.settings-switch');
+    const checkbox = page.getByRole('checkbox');
+    await switchRow.waitFor();
+    const rowBox = await switchRow.boundingBox();
+    const inputBox = await checkbox.boundingBox();
+    assert.ok(rowBox && rowBox.width >= 44 && rowBox.height >= 44);
+    assert.ok(inputBox && inputBox.width >= 44 && inputBox.height >= 44);
+
+    await checkbox.click();
+    await page.getByRole('checkbox', { checked: true }).waitFor();
+    assert.equal(await switchRow.getAttribute('data-checked'), 'true');
+    await checkbox.click();
+    await page.getByRole('checkbox', { checked: false }).waitFor();
+
+    await button(copy.gameReset).click();
+    const actions = page.locator('dialog .game-actions');
+    await actions.waitFor();
+    const gap = await actions.evaluate(el => parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || '0'));
+    assert.ok(gap > 0);
+    const cancelBox = await actions.getByRole('button', { name: copy.gameCancel, exact: true }).boundingBox();
+    const confirmBox = await actions.getByRole('button', { name: copy.gameConfirm, exact: true }).boundingBox();
+    assert.ok(cancelBox && confirmBox);
+    const intersects = !(
+      cancelBox.x + cancelBox.width <= confirmBox.x ||
+      confirmBox.x + confirmBox.width <= cancelBox.x ||
+      cancelBox.y + cancelBox.height <= confirmBox.y ||
+      confirmBox.y + confirmBox.height <= cancelBox.y
+    );
+    assert.equal(intersects, false);
   } finally { await page.close(); }
 });

@@ -1,6 +1,6 @@
 # Phase 3 — from a selected walk to a claimed demo coupon
 
-The first walkthrough should let a tester select an existing Kyoto walk, start it, collect each stop, see the same balance on Home and Map, and claim a clearly labelled demo coupon in Rewards. Use the three walks and their ordered places as the basis for three missions. The current route selection and GPS lifecycle provide the starting point. [Build plan](BUILD_PLAN.md) · [Product specification, sections 7–9 and 13](../PROJECT_SPEC.md)
+The first walkthrough should let a tester select an existing Kyoto walk, start it, collect each stop, see the same balance on Home and Map, and claim a clearly labelled demo coupon in Rewards. Use the three walks and their ordered places as the basis for three missions. The current route selection and GPS lifecycle provide the starting point. [Build plan](../BUILD_PLAN.md) · [Product specification, sections 7–9 and 13](../PROJECT_SPEC.md)
 
 ## Work that can proceed from the specification
 
@@ -15,10 +15,10 @@ The first walkthrough should let a tester select an existing Kyoto walk, start i
 
 ## A showcase decision worth making early
 
-The PRD proposes 10 demo coins per checkpoint, 30 for completing a route, and a 100-coin coupon. Each current route has three stops. At those defaults, one ordinary walk earns 60 coins and two earn 120. An automated two-walk demo can use the proposed values immediately. If the presentation needs a claim after one ordinary walk, a 60-coin introductory coupon is a straightforward alternative. Keep thresholds and awards configurable. [Economy defaults](../PROJECT_SPEC.md) · [Current walks](ROUTE_DATA.md)
+The PRD proposes 10 demo coins per checkpoint, 30 for completing a route, and a 100-coin coupon. Each current route has three stops. At those defaults, one ordinary walk earns 60 coins and two earn 120. An automated two-walk demo can use the proposed values immediately. If the presentation needs a claim after one ordinary walk, a 60-coin introductory coupon is a straightforward alternative. Keep thresholds and awards configurable. [Economy defaults](../PROJECT_SPEC.md) · [Current walks](../ROUTE_DATA.md)
 
 ## Where people add evidence or make a choice
 
-- **Field GPS and access.** Start software tests with the suggested 75 m proximity and at most 50 m reported error. Someone with a target phone must try the actual approaches, check whether a stamp can be collected from the intended public spot and record false accepts and rejects. Field access and community review are tracked in the [route handoff](ROUTE_DATA.md#field-review-handoff).
+- **Field GPS and access.** Start software tests with the suggested 75 m proximity and at most 50 m reported error. Someone with a target phone must try the actual approaches, check whether a stamp can be collected from the intended public spot and record false accepts and rejects. Field access and community review are tracked in the [route handoff](../ROUTE_DATA.md#field-review-handoff).
 - **Game pacing.** A short playtest can show whether the next stop is obvious, stamps feel rewarding and a coupon arrives at a satisfying point. Decide whether repeat walks should earn a fresh completion bonus and how long the showcase should take.
 - **Copy, artwork and public offers.** Draft bilingual mission text and fictional coupons in code. Have a fluent reviewer read the Japanese in context and the team approve any final branded art. Actual merchant offers, redemption terms or partner claims require the merchant's agreement. Fictional rewards allow the prototype to proceed independently.

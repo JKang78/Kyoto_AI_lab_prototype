@@ -3,7 +3,7 @@
 **Rule:** one phase, then one scoped feature at a time. Finish each feature with a running preview, a diff review, and a Git commit. Do not ask Cursor to build the full PRD in a single prompt.
 
 ## Phase 0 — Scaffold and design system
-- Create Next.js + TypeScript + Tailwind project **in this repository**, without moving or deleting `PROJECT_SPEC.md`, `references/`, `.cursor/rules/`, or `docs/`.
+- Create Next.js + TypeScript + Tailwind project **in this repository**, without moving or deleting `docs/PROJECT_SPEC.md`, `references/`, `.cursor/rules/`, or `docs/`.
 - Add shared design tokens, 5-tab navigation, mobile shell, bilingual message dictionaries, nickname onboarding.
 - Gate: `npm run dev` works, tabs respond, 360px/430px screens look intentional.
 
@@ -31,4 +31,4 @@
 - Gate: complete `docs/TEST_CHECKLIST.md`, write setup instructions, note known limits.
 
 ## Repeatable Cursor prompt pattern
-> Read `PROJECT_SPEC.md` and the relevant project rule/doc. Implement **only [FEATURE]** from Phase [N]. Before coding, list expected files and approach. Reuse existing components; do not change unrelated UI or install dependencies without explanation. After coding, run available typecheck/lint/tests, inspect the mobile layout if browser tools are available, list changed files and known limitations, and stop.
+> Read `docs/PROJECT_SPEC.md` and the relevant project rule/doc. Implement **only [FEATURE]** from Phase [N]. Before coding, list expected files and approach. Reuse existing components; do not change unrelated UI or install dependencies without explanation. After coding, run available typecheck/lint/tests, inspect the mobile layout if browser tools are available, list changed files and known limitations, and stop.

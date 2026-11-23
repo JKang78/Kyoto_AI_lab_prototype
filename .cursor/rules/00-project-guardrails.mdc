@@ -3,7 +3,7 @@ description: Core requirements and coding discipline for Kyoto AI Lab PWA
 alwaysApply: true
 ---
 # Kyoto AI Lab: non-negotiable working rules
-- The source of truth is `PROJECT_SPEC.md`. For relevant work, consult its specific section before editing. `references/map-tab-reference.png` is the primary visual reference; `references/fox-avatar-reference.png` is mascot inspiration.
+- The source of truth is `docs/PROJECT_SPEC.md`. For relevant work, consult its specific section before editing. `references/map-tab-reference.png` is the primary visual reference; `references/fox-avatar-reference.png` is mascot inspiration.
 - Product: mobile-first, installable, Kyoto walking-exploration PWA for resident-centered tourism. Map-first, five tabs: Home / Map / Rewards / Missions / Settings.
 - The app is a **visual-first interactive prototype** with real opt-in GPS and an explicit Kyoto Demo Mode. Routes and rewards may be simulated but MUST be labeled. Do not describe mock data as live congestion, real AI routing, redeemable coupons, or verified partnerships.
 - Follow the task's scope: inspect related files, make the smallest coherent change, reuse existing components and design tokens, and do not redesign unrelated screens or silently switch libraries.

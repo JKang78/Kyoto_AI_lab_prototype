@@ -19,14 +19,20 @@ function normalize(value: string): string {
   return value.normalize("NFKD").replace(/(\p{Script=Latin})\p{M}+/gu, "$1").normalize("NFC").toLocaleLowerCase().trim();
 }
 
-function requestedMinutes(query: string) {
-  const english = query.match(/\b(?:under|within|up to|less than|max(?:imum)?)\s*(\d{1,3})\s*(?:min(?:ute)?s?)?\b/i)
-    ?? query.match(/\b(\d{1,3})\s*[- ]?min(?:ute)?s?\b/i);
-  const japanese = query.match(/(\d{1,3})\s*分(?:以内|以下|未満)?/);
-  const value = Number((english ?? japanese)?.[1]);
+function parseMinutesConstraint(query: string): { value: number; strict: boolean } | null {
+  const english = query.match(/\b(?:under|within|up to|less than|max(?:imum)?)\s*(-?\d+)\s*(?:min(?:ute)?s?)?\b/i)
+    ?? query.match(/(?:(?<!\d)(-\d+)|(?<![\w-])(\d+))\s*[- ]?min(?:ute)?s?\b/i);
+  const japanese = query.match(/(?:(?<!\d)(-\d+)|(?<![\d-])(\d+))\s*分(?:以内|以下|未満)?/);
+  const match = english ?? japanese;
+  const value = Number(match?.[1] ?? match?.[2]);
   if (!Number.isInteger(value)) return null;
-  const strict = /^(?:under|less than)\b/i.test(english?.[0] ?? "") || japanese?.[0].endsWith("未満");
+  const strict = /^(?:under|less than)\b/i.test(english?.[0] ?? "") || Boolean(japanese?.[0].endsWith("未満"));
   return { value, strict };
+}
+
+function requestedMinutes(query: string) {
+  const parsed = parseMinutesConstraint(query);
+  return parsed && parsed.value > 0 ? parsed : null;
 }
 
 // Only claim a Japanese match when we can account for the requested terms.
@@ -57,7 +63,9 @@ export function discoverRoutes(query: string, filter: RouteFilter, walks: readon
   if (!term) return { suggestions: eligible.map((walk) => ({ walk, reason: filter ? "theme" : null })), fallback: false };
 
   const themes = (Object.keys(themeTerms) as CuratedWalk["theme"][]).filter((theme) => themeTerms[theme].test(term));
+  const minuteConstraint = parseMinutesConstraint(term);
   const minutes = requestedMinutes(term);
+  const impossibleMinutes = minuteConstraint !== null && minutes === null;
   const words = (term.match(/[a-z]+/g) ?? []).filter((word) => word.length >= 3 && !ignoredWords.has(word));
   const fixtureText = normalize([...walks.flatMap((walk) => [walk.name.en, walk.name.ja, walk.description.en, walk.description.ja]), ...places.flatMap((place) => [place.name.en, place.name.ja, place.description.en, place.description.ja])].join(" "));
   const japaneseNames = [...walks, ...places].map((item) => item.name.ja).sort((a, b) => b.length - a.length);
@@ -77,7 +85,7 @@ export function discoverRoutes(query: string, filter: RouteFilter, walks: readon
     return { walk, index, relevant, score, reason };
   }).sort((a, b) => b.score - a.score || a.index - b.index);
 
-  const fallback = unverifiedTerms.test(term) || unknownWords || hasUnknownJapanese(term, japaneseNames) || !scored.some((item) => item.relevant);
+  const fallback = unverifiedTerms.test(term) || unknownWords || hasUnknownJapanese(term, japaneseNames) || impossibleMinutes || !scored.some((item) => item.relevant);
   const suggestions = fallback ? scored.map(({ walk }) => ({ walk, reason: "available" as const }))
     : scored.filter((item) => item.relevant).map(({ walk, reason }) => ({ walk, reason }));
   return { suggestions, fallback };

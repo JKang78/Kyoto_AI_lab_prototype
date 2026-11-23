@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { emptyGame, balance, activeRun, transition, liveEligible, placeById } from '../src/lib/game.ts';
+import { GAME } from '../src/config/game.ts';
+import { emptyGame, balance, activeRun, transition, liveEligible, decodeGame, placeById, walkStatus } from '../src/lib/game.ts';
 
 const demo = { mode: 'demo', gpsStatus: 'off', fix: null };
 const stops = ['shijo-kawaramachi', 'shijo-ohashi', 'yasaka-west-view'];
@@ -65,4 +66,140 @@ test('75 m radius distinguishes nearby fixes at acceptable accuracy', () => {
   } });
   assert.equal(liveEligible(north(74.99), point, now), true);
   assert.equal(liveEligible(north(75.01), point, now), false);
+});
+
+test('live eligibility tolerates small positive clock skew and rejects far-future or non-finite timestamps', () => {
+  const now = Date.now();
+  const point = placeById(stops[0]).location;
+  const makeLive = timestamp => ({
+    mode: 'live',
+    gpsStatus: 'active',
+    fix: { longitude: point[0], latitude: point[1], accuracy: 10, timestamp },
+  });
+  assert.equal(liveEligible(makeLive(now + 500), point, now), true);
+  assert.equal(liveEligible(makeLive(now + GAME.maxClockSkewMs), point, now), true);
+  assert.equal(liveEligible(makeLive(now + GAME.maxClockSkewMs + 1), point, now), false);
+  assert.equal(liveEligible(makeLive(Number.NaN), point, now), false);
+  assert.equal(liveEligible(makeLive(Number.POSITIVE_INFINITY), point, now), false);
+  assert.equal(liveEligible(makeLive(now), point, Number.NaN), false);
+  assert.equal(liveEligible(makeLive(now), point, Number.POSITIVE_INFINITY), false);
+  assert.equal(liveEligible(makeLive(now), point, Number.NEGATIVE_INFINITY), false);
+
+  const started = start(emptyGame, 'skew');
+  const accepted = transition(started, { type: 'collect', runId: 'skew', placeId: stops[0], location: makeLive(now + 500) }, now);
+  assert.equal(accepted.runs[0].stamps.length, 1);
+  const rejected = transition(started, { type: 'collect', runId: 'skew', placeId: stops[0], location: makeLive(now + GAME.maxClockSkewMs + 1) }, now);
+  assert.equal(rejected, started);
+  const rejectedNanNow = transition(started, { type: 'collect', runId: 'skew', placeId: stops[0], location: makeLive(now) }, Number.NaN);
+  assert.equal(rejectedNanNow, started);
+});
+
+test('decodeGame validates structure, bounds, uniqueness, and single active run invariant', () => {
+  const baseRun = (id, overrides = {}) => ({
+    id,
+    walkId: 'shijo-yasaka',
+    stamps: [{ placeId: stops[0], mode: 'demo', coins: 10 }],
+    complete: false,
+    bonus: 0,
+    ...overrides,
+  });
+  const baseGame = (overrides = {}) => ({
+    version: 1,
+    demo: true,
+    runs: [],
+    claims: [],
+    peak: false,
+    ...overrides,
+  });
+
+  for (const raw of [null, '', '{bad', 'null', '[]', '123', '"str"']) {
+    assert.deepEqual(decodeGame(raw), emptyGame);
+  }
+  const invalidPayloads = [
+    baseGame({ runs: {} }),
+    baseGame({ claims: null }),
+    baseGame({ runs: [null] }),
+    baseGame({ claims: [null] }),
+    baseGame({ runs: [baseRun('r1', { stamps: [null] })] }),
+    baseGame({ runs: [baseRun('r1', { stamps: [{ placeId: stops[0], mode: 'demo', coins: -1 }] })] }),
+    baseGame({ runs: [baseRun('r1', { bonus: -5 })] }),
+    baseGame({ claims: [{ id: 'postcard', cost: -1 }] }),
+    baseGame({ claims: [{ id: 'postcard', cost: 60 }, { id: 'postcard', cost: 60 }] }),
+    baseGame({ runs: [baseRun('dup', { stopped: true }), baseRun('dup')] }),
+    baseGame({
+      runs: [{
+        id: 'both',
+        walkId: 'shijo-yasaka',
+        stamps: stops.map(placeId => ({ placeId, mode: 'demo', coins: 10 })),
+        complete: true,
+        stopped: true,
+        bonus: 30,
+      }],
+    }),
+    baseGame({ runs: [baseRun('active-early'), baseRun('tail')] }),
+  ];
+  for (const payload of invalidPayloads) {
+    assert.deepEqual(decodeGame(JSON.stringify(payload)), emptyGame);
+  }
+
+  const valid = baseGame({
+    runs: [
+      {
+        id: 'done',
+        walkId: 'shijo-yasaka',
+        stamps: stops.map(placeId => ({ placeId, mode: 'demo', coins: 10 })),
+        complete: true,
+        bonus: 30,
+      },
+      baseRun('stopped-early', { stopped: true }),
+      baseRun('active-tail'),
+    ],
+    claims: [{ id: 'postcard', cost: 60 }],
+  });
+  assert.deepEqual(decodeGame(JSON.stringify(valid)), valid);
+});
+
+test('walkStatus preserves completed status and full stamps across aborted replays', () => {
+  assert.deepEqual(walkStatus(emptyGame, 'shijo-yasaka'), {
+    status: 'available',
+    stamps: 0,
+    completedCount: 0,
+  });
+
+  // Never-completed run that is stopped early shows "stopped" with partial stamps.
+  let neverCompleted = stamp(start(emptyGame, 'early'), 'early', stops[0]);
+  assert.deepEqual(walkStatus(neverCompleted, 'shijo-yasaka'), {
+    status: 'active',
+    stamps: 1,
+    completedCount: 0,
+  });
+  neverCompleted = transition(neverCompleted, { type: 'stop', runId: 'early' });
+  assert.deepEqual(walkStatus(neverCompleted, 'shijo-yasaka'), {
+    status: 'stopped',
+    stamps: 1,
+    completedCount: 0,
+  });
+
+  // Completed walk keeps "completed" + full stamp count even after a later stopped replay.
+  let game = start(emptyGame, 'one');
+  for (const stop of stops) game = stamp(game, 'one', stop);
+  assert.deepEqual(walkStatus(game, 'shijo-yasaka'), {
+    status: 'completed',
+    stamps: 3,
+    completedCount: 1,
+  });
+
+  game = stamp(start(game, 'two'), 'two', stops[0]);
+  assert.deepEqual(walkStatus(game, 'shijo-yasaka'), {
+    status: 'active',
+    stamps: 1,
+    completedCount: 1,
+  });
+
+  game = transition(game, { type: 'stop', runId: 'two' });
+  assert.deepEqual(walkStatus(game, 'shijo-yasaka'), {
+    status: 'completed',
+    stamps: 3,
+    completedCount: 1,
+  });
 });

@@ -50,3 +50,24 @@ test('Japanese preferences with an unknown constraint are alternatives', () => {
   }
   assert.equal(find('川沿いの散歩').fallback, false);
 });
+
+test('zero and negative minute budgets fall back instead of matching', () => {
+  for (const query of ['0 minutes', 'under 0 minutes', '0分以内', '-10 minutes', '-10分の川沿い', 'river 0 minutes', '川沿い 0分以内', 'river -10 minutes']) {
+    const result = find(query);
+    assert.equal(result.fallback, true, query);
+    assert.equal(result.suggestions.length, 3, query);
+    assert.ok(result.suggestions.every(({ reason }) => reason === 'available'), query);
+  }
+});
+
+test('multi-digit Japanese minute budgets parse full digit runs instead of trailing digits', () => {
+  const riverside = find('1005分の川沿い');
+  assert.equal(riverside.fallback, false);
+  assert.deepEqual(ids(riverside), ['kamo-riverside']);
+  assert.equal(riverside.suggestions[0].reason, 'theme');
+
+  const all = find('1010分');
+  assert.equal(all.fallback, false);
+  assert.deepEqual(ids(all), ['shijo-yasaka', 'kamo-riverside', 'yasaka-maruyama']);
+  assert.ok(all.suggestions.every(({ reason }) => reason === 'time'));
+});

@@ -6,6 +6,7 @@ export const GAME = {
   radiusMeters: 75,
   maxAccuracyMeters: 50,
   maxFixAgeMs: 30_000,
+  maxClockSkewMs: 5_000,
   demoLegMs: 2400,
 };
 

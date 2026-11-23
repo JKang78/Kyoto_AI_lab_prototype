@@ -12,7 +12,7 @@ import { BottomSheet, Button, MarkerPlaceholder, Pill } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, type SampleCongestionCue } from "@/data/sample-congestion";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
-import { classifyFix, DEMO_POSITION, locationModeText, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
+import { classifyFix, DEMO_POSITION, INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
 import { discoverRoutes, type MatchReason, type RouteFilter } from "@/lib/route-discovery";
 import type { CuratedPlace, CuratedWalk } from "@/types/routes";
 
@@ -122,6 +122,14 @@ export function KyotoMap({
   }, []);
 
   useEffect(() => () => stopWatch(), [stopWatch]);
+
+  const prevDemoRef = useRef(game.demo);
+  useEffect(() => {
+    if (!prevDemoRef.current && game.demo) {
+      stopWatch();
+    }
+    prevDemoRef.current = game.demo;
+  }, [game.demo, stopWatch]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -379,10 +387,10 @@ export function KyotoMap({
   }
 
   function exploreDemo() {
-    void act({ type: "demo", enabled: true });
     setSearchOpen(false);
     stopWatch();
-    onLocationChange({ mode: "demo", gpsStatus: "off", fix: null });
+    onLocationChange(INITIAL_LOCATION_STATE);
+    void act({ type: "demo", enabled: true });
     if (!selectedWalk) focusMap(DEMO_POSITION);
   }
 

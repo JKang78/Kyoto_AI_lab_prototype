@@ -1,10 +1,10 @@
 "use client";
-import { Flower2, Landmark, Ticket, Trees, Waves } from "lucide-react";
+import { Check, Flower2, Landmark, Ticket, Trees, Waves } from "lucide-react";
 import { COUPONS, GAME } from "@/config/game";
 import { CURATED_WALKS } from "@/data/kyoto-walks";
-import { activeRun, balance, placeById, type Game } from "@/lib/game";
+import { activeRun, balance, placeById, walkStatus, type Game } from "@/lib/game";
 import { act } from "@/lib/game-store";
-import { translate, type Locale } from "@/lib/i18n";
+import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { Button, Card, Pill } from "./ui";
 
 type Props = { game: Game; locale: Locale };
@@ -14,17 +14,23 @@ export function Wallet({ game, locale }: Props) {
 
 export function Missions({ game, locale, onWalk }: Props & { onWalk: (id: string) => void }) {
   const active = activeRun(game);
+  const statusKeys: Record<ReturnType<typeof walkStatus>["status"], MessageKey> = {
+    active: "gameActive",
+    completed: "gameCompleted",
+    stopped: "gameStopped",
+    available: "gameAvailable",
+  };
   return <div className="content-screen game-screen">
     <h1>{translate(locale, "navMissions")}</h1>
     {CURATED_WALKS.map(walk => {
-      const latest = game.runs.filter(run => run.walkId === walk.id).at(-1);
+      const { status, stamps } = walkStatus(game, walk.id);
       const Icon = { culture: Landmark, riverside: Waves, park: Trees }[walk.theme];
       return <Card key={walk.id}>
         <Icon aria-hidden="true" size={24} />
         <h2>{walk.name[locale]}</h2><p>{walk.description[locale]}</p>
-        <Pill>{translate(locale, latest?.complete ? "gameCompleted" : latest?.stopped ? "gameStopped" : latest ? "gameActive" : "gameAvailable")}</Pill>
+        <Pill>{translate(locale, statusKeys[status])}</Pill>
         <ol className="stamp-book">{walk.placeIds.map((id, index) =>
-          <li key={id}><span>{index < (latest?.stamps.length ?? 0) ? "✓" : "○"}</span> {placeById(id)?.name[locale]}</li>)}</ol>
+          <li key={id}><span>{index < stamps ? "✓" : "○"}</span> {placeById(id)?.name[locale]}</li>)}</ol>
         <p>{translate(locale, "gameBonus", { coins: String(GAME.completionCoins) })}</p>
         <Button variant={active?.walkId === walk.id ? "primary" : "secondary"} onClick={() => onWalk(walk.id)}>{translate(locale, "gameViewMap")}</Button>
       </Card>;
@@ -38,11 +44,23 @@ export function Rewards({ game, locale }: Props) {
     <p>{translate(locale, "gameDisclosure")}</p>
     {COUPONS.map(coupon => {
       const claimed = game.claims.some(c => c.id === coupon.id);
+      const claimable = !claimed && coins >= coupon.cost;
       return <Card key={coupon.id}><Ticket aria-hidden="true" /><h2>{coupon[locale]}</h2>
         <p>{translate(locale, "gamePrice", { coins: String(coupon.cost) })}</p>
-        <Button disabled={claimed || coins < coupon.cost} onClick={() => void act({ type: "claim", id: coupon.id })}>
-          {translate(locale, claimed ? "gameClaimed" : coins >= coupon.cost ? "gameClaim" : "gameNeed", { coins: String(coupon.cost - coins) })}
-        </Button></Card>;
+        {claimed ? (
+          <Button variant="secondary" disabled className="coupon-claimed" data-coupon-state="claimed">
+            <Check size={17} aria-hidden="true" />{translate(locale, "gameClaimed")}
+          </Button>
+        ) : (
+          <Button
+            variant={claimable ? "primary" : "secondary"}
+            disabled={!claimable}
+            data-coupon-state={claimable ? "claimable" : "locked"}
+            onClick={() => void act({ type: "claim", id: coupon.id })}
+          >
+            {translate(locale, claimable ? "gameClaim" : "gameNeed", { coins: String(coupon.cost - coins) })}
+          </Button>
+        )}</Card>;
     })}
     <h2>{translate(locale, "gameHistory")}</h2>
     {game.claims.length ? <ol>{game.claims.map(claim => <li key={claim.id}>{COUPONS.find(c => c.id === claim.id)?.[locale]} · −{claim.cost}</li>)}</ol> : <p>{translate(locale, "gameNoClaims")}</p>}

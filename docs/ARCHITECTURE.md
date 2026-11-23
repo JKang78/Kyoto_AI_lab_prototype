@@ -1,6 +1,6 @@
 # Kyoto AI Lab — Architecture decisions and guardrails
 
-**Status:** recommended prototype defaults; follow confirmed decisions in `PROJECT_SPEC.md` over this note.
+**Status:** recommended prototype defaults; follow confirmed decisions in `docs/PROJECT_SPEC.md` over this note.
 
 ## Stack
 - Mobile-first Next.js + React + TypeScript + Tailwind CSS.

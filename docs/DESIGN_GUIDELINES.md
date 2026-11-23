@@ -3,7 +3,7 @@
 ## Visual authority
 - `references/map-tab-reference.png`: primary example for **default Map** (left) and **selected route** (right). Visual fidelity is **flexible**, not pixel-perfect. Retain hierarchy and recognizable visual language.
 - `references/fox-avatar-reference.png`: fox with red scarf. **Original production assets will be provided later**. Use temporary swappable placeholders until then.
-- `PROJECT_SPEC.md` §§4–6 contains the detailed interaction specification.
+- `docs/PROJECT_SPEC.md` §§4–6 contains the detailed interaction specification.
 
 ## Visual character
 - Friendly illustrated Kyoto exploration game; soft street/river/park colors and rounded cards, not a generic navigation dashboard.

@@ -50,11 +50,18 @@ export function WalkControls({ run, location, locale, onPosition, onComplete }: 
   }, [demo, elapsed, end, line, onPosition, start]);
   useEffect(() => {
     if (location.mode !== "live") return;
+    const sync = window.setTimeout(() => setNow(Date.now()), 0);
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [location.mode]);
+    return () => {
+      window.clearTimeout(sync);
+      window.clearInterval(timer);
+    };
+  }, [location.mode, location.fix?.timestamp]);
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const eligible = demo ? arrived : liveEligible(location, target.location, now);
+  const checkNow = location.fix && location.fix.timestamp > now &&
+    location.fix.timestamp - now <= GAME.maxClockSkewMs
+    ? location.fix.timestamp : now;
+  const eligible = demo ? arrived : liveEligible(location, target.location, checkNow);
   return <div className="walk-controls">
     {step > 0 && <small role="status">{translate(locale, "gameStamped", { coins: String(run.stamps[step - 1].coins) })}</small>}
     <strong>{t("gameStop")} {step + 1}/{walk.placeIds.length} · {target.name[locale]}</strong>

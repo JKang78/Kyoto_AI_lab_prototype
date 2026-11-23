@@ -2,7 +2,7 @@
 
 A tester can now start one of the three curated walks, collect stamps at its ordered stops, finish the mission and spend the earned demo coins. A returning visitor can resume the active walk. The same progress record drives Map, Home, Missions, Rewards and Settings.
 
-**Review range.** The GitHub checkpoint is `178dd8a` (“Before starting phase 3”). The implementation and regression tests are in `43d5b4a` on `phase-2-review`. Run `git diff 178dd8a...phase-2-review` to review just Phase 3. [Implementation plan](docs/PHASE_3_PLAN.md)
+**Review range.** The GitHub checkpoint is `178dd8a` (“Before starting phase 3”). The implementation and regression tests are in `43d5b4a` on `phase-2-review`. Run `git diff 178dd8a...phase-2-review` to review just Phase 3. [Implementation plan](PHASE_3_PLAN.md)
 
 ## Try it in two minutes
 
@@ -12,13 +12,13 @@ A tester can now start one of the three curated walks, collect stamps at its ord
 4. The completion sheet should award **30 bonus coins** and announce that the postcard is unlocked. Open Rewards and claim it. The balance should drop from **60 to 0**, the postcard should read **Claimed**, and the claim should appear in history. Missions shows the completed walk and its three stamps.
 5. In Settings, try cancelling **Reset demo progress**. Confirm only when ready to clear the game data in this browser. The nickname and chosen language survive.
 
-These screenshots show the Kamo walkthrough with live map tiles at a 390 px browser width. [First stamp and next checkpoint](docs/review/phase-3/kamo-checkpoint.png) · [Wallet after claiming the postcard](docs/review/phase-3/claimed-postcard.png)
+These screenshots show the Kamo walkthrough with live map tiles at a 390 px browser width. [First stamp and next checkpoint](../review/phase-3/kamo-checkpoint.png) · [Wallet after claiming the postcard](../review/phase-3/claimed-postcard.png)
 
 ## Wave 1 — rules and ownership
 
 One progress record belongs to the browser and one walk instance can be active at a time. The map receives the current game state from the app shell, so destroying the map renderer on tab exit preserves the mission while still clearing the GPS watcher. Recorded stamps retain their source mode and awarded amount. A later change to the bonus switch does not recalculate earlier awards.
 
-I used these provisional settings to make the showcase playable. All monetary values describe virtual coins. [Game configuration](src/config/game.ts)
+I used these provisional settings to make the showcase playable. All monetary values describe virtual coins. [Game configuration](../../src/config/game.ts)
 
 | Setting | Implemented behavior |
 | --- | --- |
@@ -33,13 +33,13 @@ I used these provisional settings to make the showcase playable. All monetary va
 
 | Files | What to look for in the diff |
 | --- | --- |
-| [Game rules](src/lib/game.ts) and [configuration](src/config/game.ts) | The state transition checks the walk instance and expected place before accepting a stamp. Completion is recorded with the final stamp. The wallet is derived from stamp awards, completion bonuses and claim costs. Claiming requires both sufficient balance and an unclaimed coupon. |
-| [Browser storage](src/lib/game-store.ts) | Versioned local storage under `kyoto-ai-lab.progress.v1`, separate from the Phase 2 profile. It rereads the latest state before each transaction, writes the transition as a single record, and notifies other views. Browsers supporting Web Locks serialize concurrent tab writes. Blocked local storage falls back to session memory. |
-| [Walk controls](src/components/walk-controls.tsx), [map](src/components/map/kyoto-map.tsx) and [location](src/lib/location.ts) | Start a demo or GPS walk from route details. The demo marker follows vertices of the existing pedestrian geometry. The next pin is highlighted. Live eligibility uses the timestamp and accuracy of the browser fix. The map displays earned progress and provides a dismissible completion sheet. |
-| [Game screens](src/components/game-screens.tsx) and [app shell](src/components/prototype-app.tsx) | Replaced the Missions and Rewards placeholders. Each walk has a mission with a theme icon, story, status, stamp list and map action. Home summarizes stamps, completed runs and balance. Settings controls the sample bonus and confirmed reset. |
-| [Styles](src/app/globals.css), [English](src/locales/en.json) and [Japanese](src/locales/ja.json) | Added checkpoint controls, stamp lists, wallet and reward states, completion feedback and localized GPS eligibility hints. Updated obsolete preview copy. |
-| [Unit tests](tests/game.test.mjs), [browser tests](tests/browser/game.mjs), [npm scripts](package.json) and [TypeScript config](tsconfig.json) | The existing Node and Playwright setup now exercises game rules and user flows. Explicit TypeScript import extensions let the pure game module run directly in Node tests. |
-| [README](README.md) and [review captures](docs/review/phase-3/) | Current local setup, short demo walkthrough and two screenshots from the live-provider smoke test. |
+| [Game rules](../../src/lib/game.ts) and [configuration](../../src/config/game.ts) | The state transition checks the walk instance and expected place before accepting a stamp. Completion is recorded with the final stamp. The wallet is derived from stamp awards, completion bonuses and claim costs. Claiming requires both sufficient balance and an unclaimed coupon. |
+| [Browser storage](../../src/lib/game-store.ts) | Versioned local storage under `kyoto-ai-lab.progress.v1`, separate from the Phase 2 profile. It rereads the latest state before each transaction, writes the transition as a single record, and notifies other views. Browsers supporting Web Locks serialize concurrent tab writes. Blocked local storage falls back to session memory. |
+| [Walk controls](../../src/components/walk-controls.tsx), [map](../../src/components/map/kyoto-map.tsx) and [location](../../src/lib/location.ts) | Start a demo or GPS walk from route details. The demo marker follows vertices of the existing pedestrian geometry. The next pin is highlighted. Live eligibility uses the timestamp and accuracy of the browser fix. The map displays earned progress and provides a dismissible completion sheet. |
+| [Game screens](../../src/components/game-screens.tsx) and [app shell](../../src/components/prototype-app.tsx) | Replaced the Missions and Rewards placeholders. Each walk has a mission with a theme icon, story, status, stamp list and map action. Home summarizes stamps, completed runs and balance. Settings controls the sample bonus and confirmed reset. |
+| [Styles](../../src/app/globals.css), [English](../../src/locales/en.json) and [Japanese](../../src/locales/ja.json) | Added checkpoint controls, stamp lists, wallet and reward states, completion feedback and localized GPS eligibility hints. Updated obsolete preview copy. |
+| [Unit tests](../../tests/game.test.mjs), [browser tests](../../tests/browser/game.mjs), [npm scripts](../../package.json) and [TypeScript config](../../tsconfig.json) | The existing Node and Playwright setup now exercises game rules and user flows. Explicit TypeScript import extensions let the pure game module run directly in Node tests. |
+| [README](../README.md) and [review captures](../review/phase-3/) | Current local setup, short demo walkthrough and two screenshots from the live-provider smoke test. |
 
 ## Wave 3 — audit results
 
@@ -54,7 +54,7 @@ For reproduction, use the review worktree. Run `npm ci`, `npm test`, `npm run li
 
 1. **Showcase pacing.** Try one ordinary walk. Should that immediately pay for the postcard, or should the first reward take two walks? The 60-coin introductory price is my provisional choice. The PRD suggests 100 as an example threshold.
 2. **Replay incentives.** Today, repeating a walk can pay out again, including its completion bonus. Ending a walk early also lets a visitor restart and earn its first stamp again. Decide whether the intended incentive is repeat participation or discovering different places.
-3. **Field eligibility.** On actual phones, record the distance and reported accuracy from each intended public stopping point and from across the street. The current settings are demo defaults. Public access, stairs, community feedback and physical-phone GPS testing are still open. [Field review checklist](docs/ROUTE_DATA.md#field-review-handoff)
+3. **Field eligibility.** On actual phones, record the distance and reported accuracy from each intended public stopping point and from across the street. The current settings are demo defaults. Public access, stairs, community feedback and physical-phone GPS testing are still open. [Field review checklist](../ROUTE_DATA.md#field-review-handoff)
 4. **Language and reward appeal.** Have a fluent reviewer try the Japanese walkthrough and observe whether a first-time visitor understands how to move, check in and claim. The three coupons are fictional and carry no merchant redemption rights.
 
 **Practical limits.** Data is local to a browser profile. Clearing browser storage removes it, and memory-only mode cannot survive reloads. Cross-tab serialization was verified in Chromium with Web Locks. Physical-device GPS, Safari, PWA installation and field accessibility remain unverified. The browser tests exercise product behavior independently of those field and Phase 4 checks.
