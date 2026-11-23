@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Navigation, X } from "lucide-react";
 import { GAME } from "@/config/game";
@@ -9,6 +9,8 @@ import { bonusNameKey, translate, type Locale, type MessageKey } from "@/lib/i18
 import type { LocationState } from "@/lib/location";
 import type { LngLat } from "@/types/routes";
 import { FoxAvatar, haptic, ICON_STROKE, SPRING } from "./ui";
+import { kyotoSeason, PlaceSeal, SeasonSprite } from "./glyphs";
+import { StoryDialog } from "./place-media";
 
 // The caller keys this component by run, leg and mode. A remount resumes
 // from the last stamp with movement paused, including after leaving Explore.
@@ -69,18 +71,37 @@ export function WalkControls({ run, location, locale, onPosition, onComplete, on
   const here: LngLat | null = demo ? line[demoIndex] : location.fix ? [location.fix.longitude, location.fix.latitude] : null;
   const remaining = here ? Math.round(distanceMeters(here, target.location) / 10) * 10 : null;
   const last = step > 0 ? run.stamps[step - 1] : null;
+  // This card remounts after each stamp, so a stamp younger than ~2 s means one was just accepted (visuals.md F2).
+  const [celebrating, setCelebrating] = useState(() => Boolean(last?.at && Date.now() - last.at < 2000));
+  // Seasonal sprites by Kyoto month (visuals.md E10): maple Oct–Dec, cherry Mar–Apr, sparkle otherwise.
+  const [season] = useState(() => kyotoSeason(Date.now()));
+  const [storyPlace, setStoryPlace] = useState<string | null>(null);
+  useEffect(() => {
+    if (!celebrating) return;
+    const timer = window.setTimeout(() => setCelebrating(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [celebrating]);
   const gpsIdle = location.mode === "live" && !["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const other = locale === "en" ? "ja" : "en";
   return <div className="follow-card" data-demo={demo}>
+    {celebrating && !reduced && <span className="season-burst" data-season={season} aria-hidden="true">
+      {Array.from({ length: 7 }, (_, index) => <span key={index} style={{ "--i": index } as CSSProperties}><SeasonSprite season={season} /></span>)}
+    </span>}
     {demo && <p className="demo-badge follow-demo-badge">{t("followDemoBadge")}</p>}
     {last && <motion.p role="status" className="stamp-receipt" initial={reduced ? false : { scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
-      <span className="stamp-seal" aria-hidden="true">印</span>
-      <span><strong>{t("receiptEarned", { points: String(last.points) })}</strong>
+      <span className="stamp-slam" data-fresh={celebrating}>
+        <motion.span className="stamp-seal" aria-hidden="true" initial={reduced || !celebrating ? false : { y: -28, scale: 1.7, rotate: -22, opacity: 0 }}
+          animate={{ y: 0, scale: 1, rotate: -6, opacity: 1 }} transition={SPRING}><PlaceSeal placeId={last.placeId} size={22} /></motion.span>
+        {celebrating && !reduced && <span className="ink-ring" aria-hidden="true" />}
+      </span>
+      <span className="receipt-text"><strong>{t("receiptEarned", { points: String(last.points) })}</strong>
         <small>{last.campaign ? t("receiptBonus", { base: String(GAME.checkpointPoints), multiplier: last.multiplier.toFixed(1), name: t(bonusNameKey[last.campaign]) }) : t("receiptStandard", { base: String(GAME.checkpointPoints) })}</small>
         <small className="receipt-verification">{t(last.mode === "demo" ? "receiptSimulated" : "receiptGps")}</small></span>
+      <button type="button" className="receipt-story" onClick={() => setStoryPlace(last.placeId)}>{t("storyRead")}</button>
     </motion.p>}
+    {storyPlace && <StoryDialog placeId={storyPlace} locale={locale} onClose={() => setStoryPlace(null)} />}
     <div className="follow-head">
-      <FoxAvatar state={eligible ? "arrived" : moving ? "walking" : "idle"} size={40} />
+      <FoxAvatar state={celebrating ? "reward" : eligible ? "arrived" : moving ? "walking" : "idle"} size={40} />
       <div>
         <small className="follow-progress">{t("followStop", { current: String(step + 1), total: String(walk.placeIds.length) })}{remaining !== null && ` · ${t("followRemaining", { meters: String(remaining) })}`}</small>
         <strong className="follow-title">{target.name[locale]}</strong>

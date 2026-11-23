@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { animate, motion, useDragControls, useMotionValue, useReducedMotion } from "motion/react";
-import { ChevronUp, X } from "lucide-react";
+import { animate, motion, useDragControls, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { ChevronRight, ChevronUp, X } from "lucide-react";
 import Image from "next/image";
 import { assetPaths } from "@/config/assets";
 import type { CrowdLevel } from "@/data/sample-congestion";
@@ -129,4 +129,61 @@ export function FoxAvatar({ state = "idle", size = 44 }: { state?: FoxState; siz
             <circle cx="22" cy="22" r="5" className="fox-dot" />}
       </svg>}
   </span>;
+}
+
+/** One bead per stop: gold when stamped, ringed for the next stop. Shared by the walk HUD and the Missions hero. */
+export function StopBeads({ total, done, label }: { total: number; done: number; label: string }) {
+  return <span className="stop-beads" role="img" aria-label={label}>
+    {Array.from({ length: total }, (_, index) => <span key={index} data-done={index < done} data-next={index === done} />)}
+  </span>;
+}
+
+/** Empty segment or list: the idle fox beside a short explanation (visuals.md §3.7). */
+export function EmptyState({ children }: { children: ReactNode }) {
+  return <div className="empty-note"><FoxAvatar state="idle" size={40} /><p>{children}</p></div>;
+}
+
+/**
+ * Slide-to-confirm (visuals.md F1). Pointer users drag the knob to the end; keyboard and
+ * assistive-technology users press Enter/Space or activate the knob (a click with
+ * `detail === 0`). A plain pointer tap does not confirm, so it can't fire by accident.
+ */
+export function SlideToConfirm({ label, sublabel, hint, onConfirm, disabled = false }: {
+  label: string; sublabel?: ReactNode; hint: string; onConfirm: () => void; disabled?: boolean;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [max, setMax] = useState(0);
+  const x = useMotionValue(0);
+  const fill = useTransform(x, value => value + 52);
+  const reduced = useReducedMotion();
+  const done = useRef(false);
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const measure = () => setMax(Math.max(0, track.clientWidth - 56));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, []);
+  const confirm = () => {
+    if (done.current || disabled) return;
+    done.current = true;
+    animate(x, max, reduced ? { duration: 0 } : SPRING);
+    onConfirm();
+  };
+  return <div ref={trackRef} className="slide-confirm" data-disabled={disabled}>
+    <motion.span className="slide-confirm-fill" style={{ width: fill }} aria-hidden="true" />
+    <span className="slide-confirm-label"><span>{label}</span>{sublabel}</span>
+    <motion.button type="button" className="slide-confirm-knob" aria-label={`${label}. ${hint}`} disabled={disabled}
+      style={{ x }} drag={disabled ? false : "x"} dragConstraints={{ left: 0, right: max }} dragElastic={0} dragMomentum={false}
+      onDragEnd={() => { if (x.get() >= max * 0.85) confirm(); else animate(x, 0, reduced ? { duration: 0 } : SPRING); }}
+      onClick={(event) => { if (event.detail === 0) confirm(); }}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowRight") { event.preventDefault(); const next = Math.min(max, x.get() + max / 4); x.set(next); if (next >= max) confirm(); }
+        if (event.key === "ArrowLeft") { event.preventDefault(); x.set(Math.max(0, x.get() - max / 4)); }
+      }}>
+      <ChevronRight size={22} strokeWidth={ICON_STROKE + 0.5} aria-hidden="true" />
+    </motion.button>
+  </div>;
 }

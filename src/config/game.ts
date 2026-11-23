@@ -8,7 +8,6 @@ export const GAME = {
   maxClockSkewMs: 5_000,
   demoLegMs: 2400,
   redeemWindowMs: 5 * 60_000,
-  staffHoldMs: 1200,
 };
 
 /**
@@ -24,6 +23,12 @@ export const DEMO_SCENARIOS: readonly { kind: CampaignKind; walkIds: readonly st
   { kind: "bus_relief", walkIds: ["shijo-yasaka"], multiplier: 2 },
   { kind: "quiet_hour", walkIds: ["yasaka-maruyama"], multiplier: 2 },
 ];
+
+/**
+ * Seasonal trail (docs/visuals.md M4). A demo collection goal only: no deadline, no extra
+ * reward. A real trail needs a campaign with an owner, dates and data (PRODUCT_REQUIREMENTS §9).
+ */
+export const DEMO_TRAIL = { goal: 5 } as const;
 
 type Text = { en: string; ja: string };
 export type CouponCategory = "cafe" | "experience" | "shop";

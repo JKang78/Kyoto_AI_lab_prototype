@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SetStateAction } from "react";
 import Image from "next/image";
-import { ArrowRight, FlaskConical, Globe2, LocateFixed, MapPin, Sparkles, UserRound } from "lucide-react";
+import { ArrowRight, FlaskConical, Globe2, LocateFixed, MapPin, Sparkles, UserRound, X } from "lucide-react";
 import { Missions } from "@/components/missions-screen";
 import { Rewards } from "@/components/rewards-screen";
 import { act, useGame } from "@/lib/game-store";
-import { activeRun, walkById, type Game } from "@/lib/game";
-import type { CampaignKind } from "@/config/game";
+import { activeRun, balance, walkById, type Game } from "@/lib/game";
+import { COUPONS, type CampaignKind } from "@/config/game";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
 import { KyotoMap } from "@/components/map/kyoto-map";
-import { Button, ConfirmDialog, haptic, ICON_STROKE, Segmented } from "@/components/ui";
+import { Button, ConfirmDialog, FoxAvatar, haptic, ICON_STROKE, Segmented } from "@/components/ui";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationState } from "@/lib/location";
 import { getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
@@ -57,6 +57,18 @@ function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, 
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   return <div className="content-screen settings-screen">
     <h1>{t("navMe")}</h1>
+    {/* Passport header (visuals.md Me2): one sentence of progress, not a KPI grid. */}
+    <section className="passport" aria-label={t("passportLabel")}>
+      <FoxAvatar state="idle" size={88} />
+      <div>
+        <p className="passport-name">{profile.nickname || t("guestName")}</p>
+        <p className="passport-line">{t("passportLine", {
+          seals: String(new Set(game.runs.flatMap(run => run.stamps.map(stamp => stamp.placeId))).size),
+          walks: String(game.runs.filter(run => run.complete).length),
+          used: String(game.claims.filter(claim => claim.redeemedAt !== undefined).length),
+        })}</p>
+      </div>
+    </section>
     <section className="settings-section">
       <h2><Globe2 size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("languageHeading")}</h2>
       <LanguageChoice locale={locale} onChange={onLocale} />
@@ -148,6 +160,23 @@ export function PrototypeApp() {
     }
   }, [game.demo]);
   const [settingsRecenterRequest, setSettingsRecenterRequest] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+  const [stampBookFocus, setStampBookFocus] = useState(false);
+
+  // Unlock toast and tab dots (visuals.md C2, C3). Baselines start from whatever already exists when
+  // the app opens, so only progress made in this session is announced.
+  const points = balance(game);
+  const affordable = COUPONS.filter(coupon => !game.claims.some(claim => claim.id === coupon.id) && points >= coupon.cost).map(coupon => coupon.id);
+  const sealCount = new Set(game.runs.flatMap(run => run.stamps.map(stamp => stamp.placeId))).size;
+  const [seen, setSeen] = useState<{ rewards: string[]; toast: string[]; seals: number } | null>(null);
+  if (ready && seen === null) setSeen({ rewards: affordable, toast: affordable, seals: sealCount });
+  const toastId = seen && !celebrating ? affordable.find(id => !seen.toast.includes(id)) : undefined;
+  const dismissToast = useCallback((id: string) => setSeen(current => current && { ...current, toast: [...current.toast, id] }), []);
+  useEffect(() => {
+    if (!toastId) return;
+    const timer = window.setTimeout(() => dismissToast(toastId), 6000);
+    return () => window.clearTimeout(timer);
+  }, [toastId, dismissToast]);
 
   // A deep-link visitor browses as a guest; nothing is saved until they change a setting.
   const profile: Profile | null = storedProfile ?? (deepLinkWalk ? { nickname: "", locale: welcomeLocale } : null);
@@ -160,6 +189,9 @@ export function PrototypeApp() {
         ? { mode: "live", gpsStatus: "paused", fix: null } : current);
     }
     setActiveTab(tab);
+    setStampBookFocus(false);
+    if (tab === "rewards") setSeen(current => current && { ...current, rewards: affordable, toast: [...new Set([...current.toast, ...affordable])] });
+    if (tab === "missions") setSeen(current => current && { ...current, seals: sealCount });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -172,11 +204,21 @@ export function PrototypeApp() {
   }
   return <div className="app-shell" data-tab={activeTab}>
     <main key={activeTab} id="main-content" className="app-main">
-      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} />}
-      {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} />}
+      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} />}
+      {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
       {activeTab === "me" && <MeScreen game={game} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
     </main>
-    <BottomNav active={activeTab} locale={locale} onSelect={selectTab} />
+    {toastId && <div className="unlock-toast" role="status">
+      <FoxAvatar state="reward" size={36} />
+      <p><strong>{translate(locale, "unlockToast")}</strong>
+        <small>{COUPONS.find(coupon => coupon.id === toastId)?.offer[locale]} · {translate(locale, "demoNotRedeemable")}</small></p>
+      <Button onClick={() => selectTab("rewards")}>{translate(locale, "unlockToastView")}</Button>
+      <button type="button" className="icon-button" aria-label={translate(locale, "close")} onClick={() => dismissToast(toastId)}><X size={18} strokeWidth={ICON_STROKE} /></button>
+    </div>}
+    <BottomNav active={activeTab} locale={locale} onSelect={selectTab} dots={{
+      rewards: activeTab !== "rewards" && Boolean(seen && affordable.some(id => !seen.rewards.includes(id))),
+      missions: activeTab !== "missions" && Boolean(seen && sealCount > seen.seals),
+    }} />
   </div>;
 }

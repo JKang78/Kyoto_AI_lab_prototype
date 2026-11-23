@@ -67,3 +67,17 @@ Follows `IMPLEMENTATION_AUDIT.md`. Navigation is now **Explore / Missions / Rewa
 - **QR deep links** use `/?route=<walk-id>` and browse as a guest without saving a profile.
 - **Mascot.** Masters moved to `design/mascot/originals/`; `scripts/normalize_mascot.py` derives cleaned, consistently framed 512 px copies.
 - **Saved progress** moves to version 3: version-2 saves keep their points, drop the off-peak switch, and refund the retired transit voucher.
+
+## 2026-11-24 Self-hosted fonts
+
+`next/font/google` downloads every font slice at compile time. This network refuses most parallel connections to Google Fonts (61–77 of 100 parallel requests refused, inside and outside the command sandbox), which broke `npm run build` and, after a cache reset, the dev server.
+
+The fonts are now self-hosted: `scripts/fetch_fonts.py` downloads Google's woff2 slices one at a time into `public/fonts/` and writes `src/app/fonts.css` with the original `unicode-range` rules, so browsers still fetch only the slices a page needs. Families: Shippori Mincho 700 only (the only weight used), Plus Jakarta Sans and Noto Sans JP (variable 400–700). Total 9.5 MB in 250 files, all SIL OFL 1.1 with licence texts alongside. Builds no longer need the network, which also suits the offline PWA goal (ENGINEERING_SPEC §10). Fonts are no longer preloaded; `font-display: swap` keeps text visible while they load.
+
+## 2026-11-24 Place photos, stories, seals and the demo trail (visuals.md P2)
+
+- **Photos** come only from Wikimedia Commons under CC BY, CC BY-SA, CC0 or public domain, re-checked through the Commons API by `scripts/fetch_place_photos.py`. Every photo shows its author, licence and source on screen. CC BY-SA applies to the photo itself, not to the app. A place with no photo of the exact spot keeps an illustrated placeholder.
+- **Stories** are drafts built only from cited public sources and stay labelled "DRAFT · awaiting local review" until a local reviewer approves them (PRODUCT_REQUIREMENTS §10). Adding a fact requires adding its source.
+- **Seals** are code-drawn placeholders in the pin line style, one per stop, to be replaced by designer art.
+- **Trail** is a demo collection goal with no deadline and no extra reward. A real seasonal campaign needs an owner, dates and data first.
+- **Fox poses:** no new poses were made. Any new pose needs commissioned artwork and team approval.

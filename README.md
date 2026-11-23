@@ -6,7 +6,7 @@ MapLibre draws stored pedestrian geometry over OpenFreeMap tiles. If the basemap
 
 ## Play a mission
 
-Open **Missions → View on Map** and choose **Start demo walk**. The sheet gives way to a compact follow card marked **DEMO MODE**: walk to the next stop, then simulate each check-in. Each stamp shows a receipt explaining its points and whether the check-in was simulated or GPS-based (a GPS check-in shows presence near a stop, never how you travelled). A three-stop walk earns 60 points.
+Open **Missions → View on Map** and choose **Start demo walk**. The sheet gives way to a compact follow card marked **DEMO MODE**: walk to the next stop, then simulate each check-in. Each stamp shows a receipt explaining its points and whether the check-in was simulated or GPS-based (a GPS check-in shows presence near a stop, never how you travelled). A three-stop walk earns 60 points. During a walk a dark HUD at the top shows the walk and one bead per stop, map pins gain a 印 seal once collected, and the next stop shows a "!". Finishing a walk opens a celebration with the fox, the walk's seals, a demo points count-up, and links to the stamp book and Rewards. A dismissible toast and tab dots announce a newly affordable demo voucher or new seals. The reward pill on Explore shows progress toward the next voucher, and the fox's speech bubble suggests the next step.
 
 **Bonus scenarios.** The PRD separates two incentives: a *bus-relief* bonus (walk instead of a crowded bus) and a *quiet-hour* bonus (visit a place outside its busy hours). No real bus or crowd data exists, so neither runs on its own. A presenter can switch on one hypothetical scenario in **Me → Demo controls**; bus relief doubles check-ins on *Shijō to Yasaka* only, quiet hour on *Yasaka and Maruyama Park* only, and every surface labels it a demo scenario.
 
@@ -49,6 +49,8 @@ npm run test:browser
 
 - `src/app/` — Next.js entry, global styles, metadata
 - `src/components/` — four-tab shell and dock, onboarding, Missions, Rewards and demo redemption screens, shared snap sheet, dialog and fox avatar
+- `public/places/` — Wikimedia Commons place photos with credits in `src/data/place-photos.json` (`python3 scripts/fetch_place_photos.py`); draft place stories with sources live in `src/data/place-stories.ts`
+- `public/fonts/` — self-hosted web fonts (SIL OFL 1.1); regenerate with `python3 scripts/fetch_fonts.py`
 - `design/mascot/originals/` — official 2048 px fox masters (source of truth); `scripts/normalize_mascot.py` derives the served copies in `public/assets/mascot/`
 - `src/locales/` — English and Japanese UI dictionaries
 - `src/lib/` — route matching, translation, location and local profile persistence

@@ -105,7 +105,7 @@ test('keeping a selected route never resumes GPS after leaving Explore', async (
     await page.getByRole('button', { name: 'Preview route' }).first().click();
     await page.getByRole('button', { name: 'Missions', exact: true }).click();
     await page.getByRole('button', { name: 'Explore', exact: true }).click();
-    await page.locator('.crowd-legend-pill').waitFor();
+    await page.locator('.map-rail').waitFor();
     assert.ok(await page.locator('.sheet-title').isVisible());
     assert.deepEqual(await page.evaluate(() => window.gpsCalls), ['start', 27]);
   } finally {

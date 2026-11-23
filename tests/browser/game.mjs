@@ -26,12 +26,13 @@ async function walkAllStops(page, copy, from = 0) {
     await button(copy.gameSimulate).click();
   }
 }
-async function holdStaffButton(page, copy) {
-  const hold = page.getByRole('button', { name: new RegExp(copy.redeemStaffHold) });
-  const box = await hold.boundingBox();
+async function slideToConfirm(page) {
+  const knob = page.locator('.slide-confirm-knob');
+  const track = await page.locator('.slide-confirm').boundingBox();
+  const box = await knob.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(1500);
+  await page.mouse.move(track.x + track.width - 8, box.y + box.height / 2, { steps: 12 });
   await page.mouse.up();
 }
 
@@ -79,8 +80,12 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       }
       await button(copy.gameSimulate).click();
       await walkAllStops(page, copy, 2);
-      await page.locator('.completion-receipt').getByText(copy.gameFinished).waitFor();
-      await page.locator('.completion-receipt').getByRole('button', { name: copy.navRewards }).click();
+      const celebration = page.locator('.celebration');
+      await celebration.getByRole('heading', { name: copy.celebrateTitle }).waitFor();
+      await celebration.getByText(copy.celebrateDemo).waitFor();
+      assert.equal(await celebration.locator('.celebration-seals li').count(), 3);
+      await celebration.getByText(copy.celebrateVoucher.replace('{offer}', lang === 'en' ? '¥150 off a matcha latte' : '抹茶ラテ 150円引き')).waitFor();
+      await celebration.getByRole('button', { name: copy.navRewards }).click();
       await page.locator('.rewards-points').getByText(pts(copy, 60), { exact: true }).waitFor();
 
       // Two tabs racing to unlock the same voucher produce one claim.
@@ -107,7 +112,7 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       assert.equal(await redeem.getByText(/show this to staff|店員さまにお見せ/i).count(), 0);
       assert.match(await redeem.locator('.redeem-code').innerText(), /^\d{3}\s\d{3}$/);
       await redeem.getByText(copy.redeemExpires.replace('{time}', '5:00')).waitFor();
-      await holdStaffButton(page, copy);
+      await slideToConfirm(page);
       await redeem.getByRole('status').getByText(copy.redeemVerified).waitFor();
       assert.equal(typeof (await snapshot(page)).claims[0].redeemedAt, 'number');
       await redeem.getByRole('button', { name: copy.close }).first().click();
@@ -137,7 +142,7 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
         await button(copy.gameSimulate).click();
         await page.getByText(copy.receiptBonus.replace('{base}', '10').replace('{multiplier}', '2.0').replace('{name}', busName)).waitFor();
         await walkAllStops(page, copy, 1);
-        await page.locator('.completion-receipt').getByRole('button', { name: copy.navRewards }).click();
+        await page.locator('.celebration').getByRole('button', { name: copy.navRewards }).click();
         await page.locator('.rewards-points').getByText(pts(copy, 90), { exact: true }).waitFor();
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -206,7 +211,7 @@ test('aborted replay keeps the completed mission and its seals', async () => {
     await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
     await walkAllStops(page, copy);
-    await page.locator('.completion-receipt').waitFor();
+    await page.locator('.celebration').getByRole('button', { name: copy.close }).click();
     await button(copy.sheetExpand).click();
     await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
@@ -245,7 +250,7 @@ test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab act
   try {
     await prepare(tabA);
     await tabA.getByRole('button', { name: copy.startExploring, exact: true }).click();
-    await tabA.locator('.crowd-legend-pill').waitFor();
+    await tabA.locator('.map-rail').waitFor();
     const demoBtnA = tabA.getByRole('button', { name: copy.locationExploreDemo, exact: true });
     const liveBtnA = tabA.getByRole('button', { name: copy.locationUseMyLocation, exact: true });
     const statusA = tabA.locator('.location-status');
@@ -368,7 +373,7 @@ test('QR deep link opens the route without onboarding and completes a clearly la
     await button(copy.gameStartDemo).click();
     await page.locator('.follow-card').getByText(copy.followDemoBadge).waitFor();
     await walkAllStops(page, copy);
-    await page.locator('.completion-receipt').getByRole('button', { name: copy.navRewards }).click();
+    await page.locator('.celebration').getByRole('button', { name: copy.navRewards }).click();
     await page.locator('.rewards-points').getByText(pts(copy, 60), { exact: true }).waitFor();
     assert.equal(await page.locator('.ticket-card').count(), 3);
     assert.equal(await page.locator('.ticket-card .demo-badge').count(), 3);
@@ -378,7 +383,7 @@ test('QR deep link opens the route without onboarding and completes a clearly la
     await button(copy.rewardsRedeem).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByText(copy.demoNotRedeemable, { exact: true }).waitFor();
-    await holdStaffButton(page, copy);
+    await slideToConfirm(page);
     await dialog.getByRole('status').getByText(copy.redeemVerified).waitFor();
     await dialog.getByRole('button', { name: copy.close }).first().click();
     await button(copy.rewardsUsed).click();
@@ -393,5 +398,213 @@ test('an unknown route id falls back to the normal welcome flow', async () => {
   try {
     await page.goto(`${url}/?route=not-a-walk`);
     await page.locator('#nickname').waitFor();
+  } finally { await page.close(); }
+});
+
+test('P0 interaction layer: reward pill, walk HUD beads, pin seals, celebration, unlock toast and tab dots', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    // E1: the pill shows progress toward the cheapest voucher and opens Rewards.
+    const pill = page.locator('.reward-pill');
+    assert.equal(await pill.innerText(), copy.rewardPillValue.replace('{points}', '0').replace('{target}', '60'));
+    await pill.click();
+    await page.getByRole('heading', { name: copy.navRewards, level: 1 }).waitFor();
+    await button(copy.navExplore).click();
+    // E2: the fox's contextual bubble opens the walk list.
+    await page.locator('.fox-bubble').getByText(copy.foxBubblePick).click();
+    await page.locator('.snap-sheet[data-snap="half"]').waitFor();
+    await button(copy.routePreview).first().click();
+    await page.locator('.fox-bubble').getByText(copy.foxBubbleReady.replace('{walk}', 'Shijō to Yasaka')).waitFor();
+    await button(copy.gameStartDemo).click();
+    // E3: the HUD replaces search and gains one gold bead per stamp; the bubble hides during a walk.
+    const hud = page.locator('.walk-hud');
+    await hud.getByText('Shijō to Yasaka').waitFor();
+    assert.equal(await page.getByRole('searchbox').count(), 0);
+    assert.equal(await page.locator('.fox-bubble').count(), 0);
+    assert.equal(await hud.locator('.stop-beads [data-done="true"]').count(), 0);
+    await button(copy.gameSimulate).click();
+    await hud.locator('.stop-beads [data-done="true"]').first().waitFor();
+    assert.equal(await hud.locator('.stop-beads [data-done="true"]').count(), 1);
+    // E4: the stamped stop carries a seal; the next stop has the "!" bubble.
+    assert.equal(await page.locator('.map-place-pin[data-place-id="shijo-kawaramachi"] .map-place-pin-seal').count(), 1);
+    assert.equal(await page.locator('.map-place-pin[data-place-id="shijo-ohashi"] .map-place-pin-bubble').count(), 1);
+    // C3: a new seal puts a dot on Missions (described, not renamed, for screen readers).
+    assert.equal(await page.locator('[data-tab-dot="missions"]').count(), 1);
+    assert.equal(await button(copy.navMissions).evaluate(el => document.getElementById(el.getAttribute('aria-describedby'))?.textContent), copy.navNew);
+    await walkAllStops(page, copy, 1);
+    // C1: the celebration shows demo points and both actions; the toast waits until it closes.
+    const celebration = page.locator('.celebration');
+    await celebration.getByText(copy.celebratePoints.replace('{points}', '60')).waitFor();
+    assert.equal(await page.locator('.unlock-toast').count(), 0);
+    await celebration.getByRole('button', { name: copy.close }).click();
+    // C2: the unlock toast is labelled demo and links to Rewards.
+    const toast = page.locator('.unlock-toast');
+    await toast.getByText(copy.demoNotRedeemable, { exact: false }).waitFor();
+    assert.equal(await page.locator('[data-tab-dot="rewards"]').count(), 1);
+    await toast.getByRole('button', { name: copy.unlockToastView }).click();
+    await page.getByRole('heading', { name: copy.navRewards, level: 1 }).waitFor();
+    assert.equal(await page.locator('[data-tab-dot="rewards"]').count(), 0);
+    // R1: the first voucher marker is ready, the others locked.
+    assert.deepEqual(await page.locator('.voucher-track-stop').evaluateAll(els => els.map(el => el.dataset.state)), ['ready', 'locked', 'locked']);
+    // M1 + celebration stamp-book link: Missions shows the stamp book after visiting.
+    await button(copy.navMissions).click();
+    assert.equal(await page.locator('[data-tab-dot="missions"]').count(), 0);
+    assert.equal(await page.locator('.mission-hero').count(), 0);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('the celebration "See stamp book" opens Missions at the stamp book, and an active walk leads Missions', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
+    await button(copy.gameStartDemo).click();
+    await walkAllStops(page, copy);
+    await page.locator('.celebration').getByRole('button', { name: copy.celebrateStampBook }).click();
+    await page.locator('#goshuin-title').waitFor();
+    assert.ok(await page.locator('#goshuin-title').evaluate(el => el.getBoundingClientRect().top < innerHeight));
+    await button(copy.navExplore).click();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
+    await button(copy.gameStartDemo).click();
+    await button(copy.gameSimulate).click();
+    await button(copy.navMissions).click();
+    const hero = page.locator('.mission-hero');
+    await hero.getByText(copy.missionsHeroNext.replace('{place}', 'Shijō Bridge')).waitFor();
+    await hero.getByRole('button', { name: copy.gameResume }).click();
+    await page.locator('.walk-hud').waitFor();
+  } finally { await page.close(); }
+});
+
+test('P1: side rail, help sheet, route labels, goal marker and glyph seals', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    // E5: every rail tool is a labelled 44 px target.
+    for (const name of [copy.railList, copy.crowdInfo, copy.railHelp]) {
+      const target = await button(name).locator('span').first().boundingBox();
+      assert.ok(target.width >= 44 && target.height >= 44, name);
+    }
+    await button(copy.crowdInfo).click();
+    await page.locator('.map-rail .crowd-legend').getByText(copy.crowdProvenance).waitFor();
+    await button(copy.crowdInfo).click();
+    // E6: the help sheet explains the verification limits.
+    await button(copy.railHelp).click();
+    const help = page.getByRole('dialog');
+    await help.getByText(copy.helpCheckinsBody).waitFor();
+    await help.getByRole('button', { name: copy.helpDone }).click();
+    // E7: at least one route label is visible and opens its preview.
+    const label = page.locator('.map-route-label').filter({ visible: true }).first();
+    const walkId = await label.getAttribute('data-walk-id');
+    await label.click();
+    await page.locator('.snap-sheet[data-snap="full"]').waitFor();
+    assert.equal(await page.locator('.map-route-label').filter({ visible: true }).count(), 0);
+    // E8: the goal marker labels the walk's last stop as where demo points are earned.
+    await page.locator('.map-goal-marker').getByText(copy.goalMarker.replace('{points}', '30')).waitFor();
+    assert.ok(walkId);
+    // M2: a stamped stop shows its theme glyph in the stamp book, not a generic mark.
+    await button(copy.gameStartDemo).click();
+    await button(copy.gameSimulate).click();
+    await page.locator('.map-place-pin-seal svg').first().waitFor();
+    await button(copy.navMissions).click();
+    assert.ok(await page.locator('.goshuin-page li[data-collected="true"] .goshuin-seal svg').count() >= 1);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('P1: slide-to-confirm works by keyboard, a pointer tap alone does not confirm, and Me shows the passport', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  try {
+    await prepare(page);
+    await page.locator('#nickname').fill('Aki');
+    await button(copy.startExploring).click();
+    await button(copy.navRewards).click();
+    await page.locator('.empty-note .fox-avatar').first().waitFor();
+    await button(copy.navExplore).click();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
+    await button(copy.gameStartDemo).click();
+    await walkAllStops(page, copy);
+    await page.locator('.celebration').getByRole('button', { name: copy.navRewards }).click();
+    await button(copy.rewardsUnlock).click();
+    await page.getByRole('button', { name: copy.rewardsMine.replace('{count}', '1') }).click();
+    await page.locator('.ticket-art').first().waitFor();
+    await button(copy.rewardsRedeem).click();
+    const knob = page.locator('.slide-confirm-knob');
+    await knob.click();
+    await page.waitForTimeout(300);
+    assert.equal((await snapshot(page)).claims[0].redeemedAt, undefined);
+    await knob.focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog').getByRole('status').getByText(copy.redeemVerified).waitFor();
+    await page.getByRole('dialog').getByRole('button', { name: copy.close }).first().click();
+    await button(copy.navMe).click();
+    await page.locator('.passport').getByText('Aki').waitFor();
+    assert.equal(await page.locator('.passport-line').innerText(), copy.passportLine.replace('{seals}', '3').replace('{walks}', '1').replace('{used}', '1'));
+  } finally { await page.close(); }
+});
+
+test('P2: credited place photos, locked then unlocked draft stories, per-place seals and the demo trail', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    await button(copy.sheetExpand).click();
+    // Yasaka and Maruyama Park: its Chion-in stop has no licensed photo, so it shows the placeholder.
+    await page.locator('.route-card').filter({ hasText: 'Yasaka and Maruyama Park' }).getByRole('button', { name: copy.routePreview }).click();
+    await page.locator('.snap-sheet').getByRole('button', { name: copy.mapOpenPlace.replace('{name}', 'Chion-in south-gate side of Maruyama Park') }).click();
+    await page.locator('.place-photo--placeholder').getByText(copy.photoPlaceholder).waitFor();
+    await page.locator('.place-story--locked').getByText(copy.storyLocked).waitFor();
+    // A photographed stop shows the credit with licence and source links.
+    await button(copy.routesDetails).click();
+    await page.locator('.snap-sheet').getByRole('button', { name: copy.mapOpenPlace.replace('{name}', 'Yasaka Shrine west-gate view') }).click();
+    const figure = page.locator('.snap-sheet .place-photo').first();
+    await figure.getByRole('img', { name: copy.photoAlt.replace('{place}', 'Yasaka Shrine west-gate view') }).waitFor();
+    await figure.getByRole('link', { name: 'CC BY-SA 4.0' }).waitFor();
+    assert.match(await figure.getByRole('link', { name: copy.photoSource }).getAttribute('href'), /^https:\/\/commons\.wikimedia\.org\//);
+    // Checking in unlocks the story, labelled as a draft with its sources.
+    await button(copy.routesDetails).click();
+    await button(copy.gameStartDemo).click();
+    await button(copy.gameSimulate).click();
+    await button(copy.storyRead).click();
+    const story = page.getByRole('dialog');
+    await story.getByText(copy.storyDraft).waitFor();
+    await story.getByRole('link', { name: /Wikipedia/ }).first().waitFor();
+    await story.getByRole('button', { name: copy.close }).click();
+    // The stamp book shows the stop's own seal and opens the same story; the trail counts seals.
+    await button(copy.navMissions).click();
+    await page.locator('.trail-card').getByText(copy.trailProgress.replace('{count}', '1').replace('{goal}', '5')).first().waitFor();
+    await page.locator('.trail-card').getByText(copy.trailNote).waitFor();
+    await page.getByRole('button', { name: copy.storyOpen.replace('{place}', 'Yasaka Shrine west-gate view') }).first().click();
+    await page.getByRole('dialog').getByText(copy.storyDraft).waitFor();
+    assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });

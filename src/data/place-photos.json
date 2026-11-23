@@ -1,0 +1,62 @@
+{
+  "shijo-kawaramachi": {
+    "src": "/places/shijo-kawaramachi.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Shijo Kawaramachi 2020-04-05.jpg",
+    "author": "inunami",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shijo_Kawaramachi_2020-04-05.jpg"
+  },
+  "shijo-ohashi": {
+    "src": "/places/shijo-ohashi.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Shijô-Ôhashi Bridge.jpg",
+    "author": "Yanajin33",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shij%C3%B4-%C3%94hashi_Bridge.jpg"
+  },
+  "yasaka-west-view": {
+    "src": "/places/yasaka-west-view.jpg",
+    "width": 800,
+    "height": 512,
+    "title": "Nishiromon Gate, Yasaka Shrine, Kyoto, West view 20190416 1.jpg",
+    "author": "DXR",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nishiromon_Gate,_Yasaka_Shrine,_Kyoto,_West_view_20190416_1.jpg"
+  },
+  "kawabata-riverside": {
+    "src": "/places/kawabata-riverside.jpg",
+    "width": 800,
+    "height": 531,
+    "title": "Kamo River from Shijo Bridge.jpg",
+    "author": "Saigen Jiro",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kamo_River_from_Shijo_Bridge.jpg"
+  },
+  "sanjo-ohashi": {
+    "src": "/places/sanjo-ohashi.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "三条大橋 Sanjo Ohashi (22402221530).jpg",
+    "author": "nobu3withfoxy from Iga,Mie, Japan",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E4%B8%89%E6%9D%A1%E5%A4%A7%E6%A9%8B_Sanjo_Ohashi_(22402221530).jpg"
+  },
+  "maruyama-cherry-path": {
+    "src": "/places/maruyama-cherry-path.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Maruyama Park (3515270775).jpg",
+    "author": "KimonBerlin",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Maruyama_Park_(3515270775).jpg"
+  }
+}
