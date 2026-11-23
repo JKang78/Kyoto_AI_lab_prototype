@@ -6,12 +6,12 @@ import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { ArrowLeft, Bike, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, Luggage, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, X, type LucideIcon } from "lucide-react";
 import { GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
-import { activeRun, offPeakWindow, walkReward, type Game } from "@/lib/game";
+import { activeBonus, activeRun, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
 import { act } from "@/lib/game-store";
-import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, useNow, type Snap } from "@/components/ui";
+import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, type Snap } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, sampleWalkCrowd, type CrowdLevel } from "@/data/sample-congestion";
-import { formatKyotoTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { bonusNameKey, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { classifyFix, DEMO_POSITION, INITIAL_LOCATION_STATE, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
 import { discoverRoutes, type MatchReason, type RouteFilter } from "@/lib/route-discovery";
 import type { CuratedPlace, CuratedWalk } from "@/types/routes";
@@ -34,7 +34,7 @@ const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[]
 const themeIcons: Record<CuratedWalk["theme"], LucideIcon> = { culture: Landmark, riverside: Waves, park: Trees };
 const routeColors: Record<CuratedWalk["theme"], string> = { culture: "#a8453c", riverside: "#3d5f86", park: "#5d7a3e" };
 const reasonKeys: Record<Exclude<MatchReason, null>, MessageKey> = { place: "routesReasonPlace", theme: "routesReasonTheme", time: "routesReasonTime", available: "routesReasonAvailable" };
-const crowdKeys: Record<CrowdLevel, MessageKey> = { calm: "crowdCalm", moderate: "crowdModerate", busy: "crowdBusy" };
+const crowdKeys: Record<CrowdLevel, MessageKey> = { calm: "crowdCalm", moderate: "crowdModerate", busy: "crowdBusy", unknown: "crowdUnknown" };
 const placeThemes: Record<string, CuratedWalk["theme"]> = {
   "shijo-kawaramachi": "culture", "shijo-ohashi": "riverside", "yasaka-west-view": "culture",
   "kawabata-riverside": "riverside", "sanjo-ohashi": "riverside",
@@ -64,12 +64,12 @@ function RouteDataCredit({ locale }: { locale: Locale }) {
   return <p className="route-data-credit">{translate(locale, "routesDataCredit")} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap / ODbL</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">{translate(locale, "routesFixMap")}</a></p>;
 }
 
-function RewardLine({ walk, multiplier, locale }: { walk: CuratedWalk; multiplier: number; locale: Locale }) {
-  const reward = walkReward(walk.id, multiplier);
+function RewardLine({ walk, bonus, locale }: { walk: CuratedWalk; bonus: ActiveBonus | null; locale: Locale }) {
+  const reward = walkReward(walk.id, bonus?.multiplier ?? 1);
   return <p className="reward-line">
     <Sparkles size={15} strokeWidth={ICON_STROKE} aria-hidden="true" />
     <span>{translate(locale, "routeRewardNow", { points: String(reward.now) })}</span>
-    {multiplier > 1 && <><s aria-label={translate(locale, "routeRewardStandardLabel", { points: String(reward.standard) })}>{reward.standard}</s><em>{translate(locale, "offPeakShort", { multiplier: multiplier.toFixed(1) })}</em></>}
+    {bonus && <><s aria-label={translate(locale, "routeRewardStandardLabel", { points: String(reward.standard) })}>{reward.standard}</s><em>{translate(locale, "bonusShort", { name: translate(locale, bonusNameKey[bonus.kind]), multiplier: bonus.multiplier.toFixed(1) })}</em></>}
   </p>;
 }
 
@@ -77,11 +77,11 @@ function WalkMeta({ walk, locale }: { walk: CuratedWalk; locale: Locale }) {
   return <p className="walk-meta">
     <span>{translate(locale, "walkMinutes", { minutes: String(walk.estimatedMinutes) })}</span>
     <span>{translate(locale, "walkKm", { km: (walk.estimatedMeters / 1000).toFixed(1) })}</span>
-    <span>{translate(locale, walk.mappedSteps ? "walkMappedStairs" : "walkNoMappedSteps")}</span>
+    <span>{translate(locale, walk.mappedSteps ? "walkMappedStairs" : "walkStepFreeUnknown")}</span>
   </p>;
 }
 
-function RouteCard({ walk, locale, reason, multiplier, onPreview }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; multiplier: number; onPreview: () => void }) {
+function RouteCard({ walk, locale, reason, bonus, onPreview }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; bonus: ActiveBonus | null; onPreview: () => void }) {
   const Icon = themeIcons[walk.theme];
   const crowd = sampleWalkCrowd(walk.placeIds);
   return <article className={`route-card route-card--${walk.theme}`}>
@@ -95,19 +95,19 @@ function RouteCard({ walk, locale, reason, multiplier, onPreview }: { walk: Cura
       <CrowdBadge level={crowd} label={translate(locale, "crowdSampleLevel", { level: translate(locale, crowdKeys[crowd]) })} />
       {reason && <span className="match-tag">{translate(locale, reasonKeys[reason])}</span>}
     </div>
-    <RewardLine walk={walk} multiplier={multiplier} locale={locale} />
+    <RewardLine walk={walk} bonus={bonus} locale={locale} />
     <Button variant="secondary" className="full-width" onClick={onPreview}>{translate(locale, "routePreview")}<ChevronRight size={17} strokeWidth={ICON_STROKE} aria-hidden="true" /></Button>
   </article>;
 }
 
-export function OffPeakBanner({ game, locale }: { game: Game; locale: Locale }) {
-  const now = useNow(30_000);
-  const window_ = offPeakWindow(game, now);
-  const time = formatKyotoTime(window_.changesAt);
-  return <div className="offpeak-banner" data-active={window_.active}>
+/** Shown only while a presenter has switched on a hypothetical bonus scenario; never inferred from real data. */
+function BonusBanner({ game, locale }: { game: Game; locale: Locale }) {
+  if (!game.scenario) return null;
+  const scenario = scenarioByKind(game.scenario);
+  return <div className="bonus-banner" data-active="true" data-kind={scenario.kind}>
     <Sparkles size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />
-    <p><strong>{window_.active ? translate(locale, window_.simulated ? "offPeakSimulated" : "offPeakActive", { multiplier: window_.multiplier.toFixed(1), time }) : translate(locale, "offPeakInactive", { time })}</strong>
-      <small>{translate(locale, "offPeakSource")}</small></p>
+    <p><strong>{translate(locale, "bonusBanner", { name: translate(locale, bonusNameKey[scenario.kind]), multiplier: scenario.multiplier.toFixed(1) })}</strong>
+      <small>{translate(locale, "bonusBannerWalk", { walk: scenario.walkIds.map(id => walkById(id)?.name[locale]).join(", ") })}</small></p>
   </div>;
 }
 
@@ -124,12 +124,12 @@ type KyotoMapProps = {
   onLocationChange: Dispatch<SetStateAction<LocationState>>;
   settingsRecenterRequest: boolean;
   onSettingsRecenterHandled: () => void;
-  onWallet: () => void;
+  onRewards: () => void;
 };
 
 export function KyotoMap({
   game, selectedWalkId, setSelectedWalkId, query, setQuery, routeFilter, setRouteFilter, locale, location, onLocationChange,
-  settingsRecenterRequest, onSettingsRecenterHandled, onWallet,
+  settingsRecenterRequest, onSettingsRecenterHandled, onRewards,
 }: KyotoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -157,8 +157,6 @@ export function KyotoMap({
   const results = discoverRoutes(query, routeFilter, CURATED_WALKS, CURATED_PLACES);
   const run = activeRun(game);
   const playing = run && selectedWalkId === run.walkId;
-  const now = useNow(30_000);
-  const { multiplier } = offPeakWindow(game, now);
   const [confirmStop, setConfirmStop] = useState<string | null>(null);
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -489,20 +487,18 @@ export function KyotoMap({
   }
 
   const busyCues = SAMPLE_CONGESTION_CUES.filter(cue => cue.level === "busy");
-  const calmWalks = CURATED_WALKS.filter(walk => sampleWalkCrowd(walk.placeIds) === "calm");
   const finishedWalk = CURATED_WALKS.find(walk => walk.id === finishedWalkId);
   const other = locale === "en" ? "ja" : "en";
   const sheetHeader = <div className="sheet-peek">
-    <OffPeakBanner game={game} locale={locale} />
+    <BonusBanner game={game} locale={locale} />
     {snap === "peek" && <p className="crowd-strip" aria-label={t("crowdStripLabel")}>
       {busyCues.map(cue => <CrowdBadge key={cue.id} level="busy" label={`${t("crowdBusy")} · ${CURATED_PLACES.find(place => place.id === cue.placeId)?.name[locale]}`} />)}
-      {calmWalks.map(walk => <CrowdBadge key={walk.id} level="calm" label={`${t("crowdCalm")} · ${walk.name[locale]}`} />)}
       <small>{t("crowdSampleNote")}</small>
     </p>}
     {finishedWalk ? <div className="completion-receipt" role="status">
       <FoxAvatar state="reward" size={36} />
       <p><strong>{t("gameFinished")}</strong><small>{t("gameEarned", { points: String(GAME.completionPoints), walk: finishedWalk.name[locale] })}</small></p>
-      <Button onClick={onWallet}>{t("navWallet")}</Button>
+      <Button onClick={onRewards}>{t("navRewards")}</Button>
       <button type="button" className="icon-button" aria-label={t("close")} onClick={() => setFinishedWalkId(null)}><X size={18} strokeWidth={ICON_STROKE} /></button>
     </div> : run && !playing ? <Button className="full-width" onClick={() => { setSelectedWalkId(run.walkId); setView("walk"); setSnap("peek"); }}>
       <Footprints size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gameResume")}
@@ -536,7 +532,7 @@ export function KyotoMap({
       <div className="crowd-legend-wrap">
         <button type="button" className="crowd-legend-pill" aria-pressed={showCrowd} aria-expanded={showCrowd} onClick={() => { setShowCrowd(value => !value); haptic(); }}>{t("crowdInfo")}</button>
         {showCrowd && <div className="crowd-legend" role="note">
-          {(["calm", "moderate", "busy"] as const).map(level => <CrowdBadge key={level} level={level} label={t(crowdKeys[level])} />)}
+          {(["calm", "moderate", "busy", "unknown"] as const).map(level => <CrowdBadge key={level} level={level} label={t(crowdKeys[level])} />)}
           <small>{t("crowdProvenance")}</small>
         </div>}
       </div>
@@ -551,7 +547,7 @@ export function KyotoMap({
           {view === "routes" && <div className="sheet-section">
             <h2 className="sheet-title">{t("routesTitle")}</h2>
             {results.suggestions.length ? <div className="route-carousel">
-              {results.suggestions.slice(0, 3).map(({ walk, reason }) => <RouteCard key={walk.id} walk={walk} locale={locale} reason={reason} multiplier={multiplier} onPreview={() => previewWalk(walk)} />)}
+              {results.suggestions.slice(0, 3).map(({ walk, reason }) => <RouteCard key={walk.id} walk={walk} locale={locale} reason={reason} bonus={activeBonus(game, walk.id)} onPreview={() => previewWalk(walk)} />)}
             </div> : <div className="route-empty"><p>{t("routesEmpty")}</p><Button variant="secondary" onClick={() => { setQuery(""); setRouteFilter(null); }}>{t("routesShowAll")}</Button></div>}
             <p className="sheet-intro">{t(results.fallback ? "routesSearchFallback" : "routesMapChecked")}</p>
             <RouteDataCredit locale={locale} />
@@ -561,7 +557,7 @@ export function KyotoMap({
             <h2 className="sheet-title">{selectedWalk.name[locale]}<small lang={other}>{selectedWalk.name[other]}</small></h2>
             <p className="sheet-intro">{selectedWalk.description[locale]}</p>
             <WalkMeta walk={selectedWalk} locale={locale} />
-            <RewardLine walk={selectedWalk} multiplier={multiplier} locale={locale} />
+            <RewardLine walk={selectedWalk} bonus={activeBonus(game, selectedWalk.id)} locale={locale} />
             <h3 className="sheet-subtitle">{t("routesStops")}</h3>
             <ol className="stop-timeline">{selectedWalk.placeIds.map((id, index) => {
               const place = CURATED_PLACES.find((item) => item.id === id);

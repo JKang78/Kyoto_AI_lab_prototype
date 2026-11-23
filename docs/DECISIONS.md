@@ -55,3 +55,15 @@ Where the spec conflicts with this repo's honesty rules (`.cursor/rules/00-proje
 - **Points, not coins.** Rewards are “quest points” that unlock vouchers, per spec §1.4. Saved v1 progress is upgraded in place; the retired postcard/tea/journal claims are refunded.
 
 Dependencies: added `motion` (14.14.0) for the spring values the spec specifies. `vaul`, `zustand` and `next-intl` were not added: the existing sheet, store and dictionary cover what the spec needs from them. Fonts load through `next/font/google` with no new package.
+
+## 2026-11-24 Audit remediation (Phase 1–2)
+
+Follows `IMPLEMENTATION_AUDIT.md`. Navigation is now **Explore / Missions / Rewards / Me** (settings inside Me), per PRD §5 and design system §4.
+
+- **Incentives are two separate concepts** (PRD §9, AC-04): `bus_relief` and `quiet_hour`. The invented 06:00–10:00 "off-peak" schedule was removed. With no real bus or crowd data, each exists only as a **hypothetical demo scenario** a presenter switches on in Me → Demo controls, scoped to one walk, and labelled "demo scenario" wherever it appears. Copy claiming that walking relieves buses was removed; receipts say a check-in confirms a visit, not how you travelled.
+- **Vouchers** are all `isDemo: true` and labelled `DEMO — NOT REDEEMABLE` on every ticket and in both languages on the redemption preview. The "Show this to staff" framing is gone. The unverified transit voucher was replaced by a fictional washi postcard set. The Rewards tabs are Available / My vouchers / Used.
+- **Demo vs production boundary.** `src/config/environment.ts` declares `REWARD_MODE = "demo"`; `clientMayUnlock()` refuses non-demo vouchers. Real issuance must be server-side (ENGINEERING_SPEC §5–7) and must never read the browser ledger. Demo Mode check-ins carry a `DEMO MODE` badge and a "Simulated check-in · not GPS-verified" receipt.
+- **Honest data states.** Crowd level is `unknown` (never `calm`) without a sample; sample cues carry `kind: "demo_sample"` and no observation time. Unsurveyed walks read "Step-free: unknown".
+- **QR deep links** use `/?route=<walk-id>` and browse as a guest without saving a profile.
+- **Mascot.** Masters moved to `design/mascot/originals/`; `scripts/normalize_mascot.py` derives cleaned, consistently framed 512 px copies.
+- **Saved progress** moves to version 3: version-2 saves keep their points, drop the off-peak switch, and refund the retired transit voucher.

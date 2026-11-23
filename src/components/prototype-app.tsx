@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SetStateAction } from "react";
 import Image from "next/image";
-import { ArrowRight, Globe2, LocateFixed, MapPin, Sparkles, UserRound } from "lucide-react";
-import { Quests } from "@/components/quests-screen";
-import { Wallet } from "@/components/wallet-screen";
+import { ArrowRight, FlaskConical, Globe2, LocateFixed, MapPin, Sparkles, UserRound } from "lucide-react";
+import { Missions } from "@/components/missions-screen";
+import { Rewards } from "@/components/rewards-screen";
 import { act, useGame } from "@/lib/game-store";
-import { activeRun, type Game } from "@/lib/game";
-import { OFF_PEAK } from "@/config/game";
+import { activeRun, walkById, type Game } from "@/lib/game";
+import type { CampaignKind } from "@/config/game";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
 import { KyotoMap } from "@/components/map/kyoto-map";
-import { Button, ConfirmDialog, haptic, ICON_STROKE } from "@/components/ui";
+import { Button, ConfirmDialog, haptic, ICON_STROKE, Segmented } from "@/components/ui";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationState } from "@/lib/location";
 import { getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
@@ -50,13 +50,13 @@ function Welcome({ locale, onLocale, onStart }: { locale: Locale; onLocale: (loc
   </main>;
 }
 
-function SettingsScreen({ game, onReset, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: { game: Game; onReset: () => void; locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void; onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void }) {
+function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: { game: Game; onReset: () => void; locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void; onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void }) {
   const [nickname, setNickname] = useState(profile.nickname);
   const [saved, setSaved] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   return <div className="content-screen settings-screen">
-    <h1>{t("navSettings")}</h1>
+    <h1>{t("navMe")}</h1>
     <section className="settings-section">
       <h2><Globe2 size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("languageHeading")}</h2>
       <LanguageChoice locale={locale} onChange={onLocale} />
@@ -80,10 +80,19 @@ function SettingsScreen({ game, onReset, locale, profile, location, onLocale, on
       <Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><LocateFixed size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationSettingsRecenter")}</Button>
       <p className="settings-hint">{t("locationSettingsHint")}</p>
     </section>
+    <section className="settings-section demo-controls">
+      <h2><FlaskConical size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("demoControlsHeading")}</h2>
+      <p className="form-label">{t("scenarioLabel")}</p>
+      <Segmented<"none" | CampaignKind> label={t("scenarioLabel")} value={game.scenario ?? "none"}
+        onChange={kind => { haptic(); void act({ type: "scenario", kind: kind === "none" ? null : kind }); }} options={[
+          { id: "none", label: t("scenarioNone") },
+          { id: "bus_relief", label: t("scenarioBus") },
+          { id: "quiet_hour", label: t("scenarioQuiet") },
+        ]} />
+      <p className="settings-hint">{t("scenarioHint")}</p>
+    </section>
     <section className="settings-section">
       <h2><Sparkles size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gameProgress")}</h2>
-      <Switch checked={game.offPeak} onChange={enabled => void act({ type: "offPeak", enabled })}>{t("offPeakSimulateSwitch", { multiplier: OFF_PEAK.multiplier.toFixed(1) })}</Switch>
-      <p className="settings-hint">{t("offPeakSimulateHint")}</p>
       <Button variant="secondary" className="full-width" onClick={() => setResetOpen(true)}>{t("gameReset")}</Button>
     </section>
     <details className="settings-about">
@@ -105,10 +114,16 @@ export function PrototypeApp() {
   const game = useGame();
   const snapshot = useSyncExternalStore(subscribeProfile, getProfileSnapshot, () => undefined);
   const ready = snapshot !== undefined;
-  const profile = ready ? readProfile() : null;
-  const [welcomeLocale, setWelcomeLocale] = useState<Locale>("en");
+  const storedProfile = ready ? readProfile() : null;
+  const [welcomeLocale, setWelcomeLocale] = useState<Locale>(() => typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en");
   const [activeTab, setActiveTab] = useState<Tab>("explore");
-  const [browsedWalk, setSelectedWalkId] = useState<string | null>();
+  // QR deep link: /?route=<walk-id> opens that walk on Explore, skipping the welcome form.
+  const [deepLinkWalk] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const id = new URLSearchParams(window.location.search).get("route");
+    return id && walkById(id) ? id : null;
+  });
+  const [browsedWalk, setSelectedWalkId] = useState<string | null | undefined>(deepLinkWalk ?? undefined);
   const selectedWalkId = browsedWalk === undefined ? activeRun(game)?.walkId ?? null : browsedWalk;
   // Search and filters survive tab switches for the session.
   const [query, setQuery] = useState("");
@@ -134,6 +149,8 @@ export function PrototypeApp() {
   }, [game.demo]);
   const [settingsRecenterRequest, setSettingsRecenterRequest] = useState(false);
 
+  // A deep-link visitor browses as a guest; nothing is saved until they change a setting.
+  const profile: Profile | null = storedProfile ?? (deepLinkWalk ? { nickname: "", locale: welcomeLocale } : null);
   const locale = profile?.locale ?? welcomeLocale;
   useEffect(() => { document.documentElement.lang = locale; }, [locale]);
 
@@ -155,10 +172,10 @@ export function PrototypeApp() {
   }
   return <div className="app-shell" data-tab={activeTab}>
     <main key={activeTab} id="main-content" className="app-main">
-      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onWallet={() => selectTab("wallet")} />}
-      {activeTab === "quests" && <Quests game={game} locale={locale} onWalk={openWalk} />}
-      {activeTab === "wallet" && <Wallet game={game} locale={locale} />}
-      {activeTab === "settings" && <SettingsScreen game={game} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
+      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} />}
+      {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} />}
+      {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
+      {activeTab === "me" && <MeScreen game={game} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
     </main>
     <BottomNav active={activeTab} locale={locale} onSelect={selectTab} />
   </div>;

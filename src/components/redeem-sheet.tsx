@@ -8,9 +8,13 @@ import { act } from "@/lib/game-store";
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { Button, ConfirmDialog, haptic, ICON_STROKE, SPRING } from "./ui";
 
-/** Staff-facing voucher screen. The moving background and live countdown show it is not a screenshot. */
+/**
+ * Demo redemption preview. Nothing here is verified: the code is never checked and "mark as used" only
+ * updates this browser. Real redemption needs a staff-authenticated server (ENGINEERING_SPEC §7).
+ */
 export function RedeemSheet({ coupon, claim, locale, onClose }: { coupon: CouponDefinition; claim: Claim; locale: Locale; onClose: () => void }) {
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
+  const other: Locale = locale === "en" ? "ja" : "en";
   const reduced = useReducedMotion();
   const [openedAt, setOpenedAt] = useState(() => Date.now());
   const [now, setNow] = useState(openedAt);
@@ -51,14 +55,14 @@ export function RedeemSheet({ coupon, claim, locale, onClose }: { coupon: Coupon
 
   return <ConfirmDialog open onClose={onClose} title={t("redeemTitle")} closeLabel={t("close")} className="redeem-dialog">
     <div className="redeem-live" data-motion={!reduced && !redeemed}>
-      <p className="demo-strip">{t("redeemDemoStrip")}</p>
+      <p className="demo-strip redeem-demo"><strong>{t("demoNotRedeemable")}</strong><span lang={other}>{translate(other, "demoNotRedeemable")}</span><small>{t("redeemDemoBody")}</small></p>
       <p className="redeem-merchant">{coupon.merchant.ja}<small>{coupon.merchant.en}</small></p>
       <p className="redeem-offer" lang="ja">{coupon.offer.ja}</p>
       <p className="redeem-offer-en" lang="en">{coupon.offer.en}</p>
       <p className="redeem-code" aria-label={t("redeemCodeLabel", { code: code.split("").join(" ") })}>{code.slice(0, 3)}<span aria-hidden="true"> </span>{code.slice(3)}</p>
       <p className="redeem-terms">{coupon.terms.ja}<br />{coupon.terms.en}</p>
       {redeemed ? <motion.p className="redeem-verified" role="status" initial={reduced ? false : { scale: 0.6, rotate: -8, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={SPRING}>
-        <BadgeCheck size={28} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("redeemVerified")}<small>{t("redeemVerifiedJa")}</small></span>
+        <BadgeCheck size={28} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("redeemVerified")}<small lang={other}>{translate(other, "redeemVerified")}</small></span>
       </motion.p> : <>
         <p className="redeem-clock" aria-live="off" data-expired={expired}>{expired ? t("redeemExpired") : t("redeemExpires", { time: clock })}</p>
         {expired ? <Button className="full-width" onClick={() => { const fresh = Date.now(); setOpenedAt(fresh); setNow(fresh); }}>{t("redeemRefresh")}</Button> :
@@ -67,7 +71,7 @@ export function RedeemSheet({ coupon, claim, locale, onClose }: { coupon: Coupon
             onKeyDown={(event) => { if ((event.key === " " || event.key === "Enter") && !event.repeat) { event.preventDefault(); beginHold(); } }}
             onKeyUp={(event) => { if (event.key === " " || event.key === "Enter") endHold(); }}
             onContextMenu={(event) => event.preventDefault()}>
-            <span>{t("redeemStaffHold")}</span><small>{t("redeemStaffHoldJa")}</small>
+            <span>{t("redeemStaffHold")}</span><small lang={other}>{translate(other, "redeemStaffHold")}</small>
           </button>}
       </>}
     </div>

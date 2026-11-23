@@ -1,16 +1,16 @@
 "use client";
 
-import { Compass, Settings2, Stamp, Ticket, type LucideIcon } from "lucide-react";
+import { Compass, Stamp, Ticket, UserRound, type LucideIcon } from "lucide-react";
 import type { Locale, MessageKey } from "@/lib/i18n";
 import { translate } from "@/lib/i18n";
 import { haptic, ICON_STROKE } from "./ui";
 
-export type Tab = "explore" | "quests" | "wallet" | "settings";
+export type Tab = "explore" | "missions" | "rewards" | "me";
 const items: { id: Tab; label: MessageKey; icon: LucideIcon }[] = [
   { id: "explore", label: "navExplore", icon: Compass },
-  { id: "quests", label: "navQuests", icon: Stamp },
-  { id: "wallet", label: "navWallet", icon: Ticket },
-  { id: "settings", label: "navSettings", icon: Settings2 },
+  { id: "missions", label: "navMissions", icon: Stamp },
+  { id: "rewards", label: "navRewards", icon: Ticket },
+  { id: "me", label: "navMe", icon: UserRound },
 ];
 
 export function BottomNav({ active, locale, onSelect }: { active: Tab; locale: Locale; onSelect: (tab: Tab) => void }) {

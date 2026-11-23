@@ -5,7 +5,7 @@ import { Navigation, X } from "lucide-react";
 import { GAME } from "@/config/game";
 import { distanceMeters, liveEligible, placeById, walkById, type Run } from "@/lib/game";
 import { act } from "@/lib/game-store";
-import { translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { bonusNameKey, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import type { LocationState } from "@/lib/location";
 import type { LngLat } from "@/types/routes";
 import { FoxAvatar, haptic, ICON_STROKE, SPRING } from "./ui";
@@ -71,11 +71,13 @@ export function WalkControls({ run, location, locale, onPosition, onComplete, on
   const last = step > 0 ? run.stamps[step - 1] : null;
   const gpsIdle = location.mode === "live" && !["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const other = locale === "en" ? "ja" : "en";
-  return <div className="follow-card">
+  return <div className="follow-card" data-demo={demo}>
+    {demo && <p className="demo-badge follow-demo-badge">{t("followDemoBadge")}</p>}
     {last && <motion.p role="status" className="stamp-receipt" initial={reduced ? false : { scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
       <span className="stamp-seal" aria-hidden="true">印</span>
       <span><strong>{t("receiptEarned", { points: String(last.points) })}</strong>
-        <small>{last.multiplier > 1 ? t("receiptOffPeak", { base: String(GAME.checkpointPoints), multiplier: last.multiplier.toFixed(1) }) : t("receiptStandard", { base: String(GAME.checkpointPoints) })}</small></span>
+        <small>{last.campaign ? t("receiptBonus", { base: String(GAME.checkpointPoints), multiplier: last.multiplier.toFixed(1), name: t(bonusNameKey[last.campaign]) }) : t("receiptStandard", { base: String(GAME.checkpointPoints) })}</small>
+        <small className="receipt-verification">{t(last.mode === "demo" ? "receiptSimulated" : "receiptGps")}</small></span>
     </motion.p>}
     <div className="follow-head">
       <FoxAvatar state={eligible ? "arrived" : moving ? "walking" : "idle"} size={40} />

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GAME, OFF_PEAK } from '../src/config/game.ts';
-import { emptyGame, balance, activeRun, transition, liveEligible, decodeGame, placeById, walkStatus, offPeakWindow, walkReward, redemptionCode } from '../src/lib/game.ts';
+import { GAME, COUPONS } from '../src/config/game.ts';
+import { REWARD_MODE } from '../src/config/environment.ts';
+import { sampleWalkCrowd } from '../src/data/sample-congestion.ts';
+import { emptyGame, balance, activeRun, transition, liveEligible, decodeGame, placeById, walkStatus, activeBonus, walkReward, redemptionCode, clientMayUnlock } from '../src/lib/game.ts';
 
 // 12:00 and 08:00 Kyoto time (UTC+9).
 const NOON = Date.UTC(2026, 10, 24, 3);
@@ -35,20 +37,40 @@ test('two walk instances, stale events, duplicate unlocks and reset', () => {
   assert.deepEqual(transition(game, { type: 'reset' }), emptyGame);
 });
 
-test('the off-peak window doubles check-in points in Kyoto time, and the simulation switch forces it', () => {
-  assert.deepEqual(offPeakWindow(emptyGame, NOON), { active: false, simulated: false, multiplier: 1, changesAt: Date.UTC(2026, 10, 24, OFF_PEAK.startHour + 24 - 9) });
-  assert.deepEqual(offPeakWindow(emptyGame, MORNING), { active: true, simulated: false, multiplier: 2, changesAt: Date.UTC(2026, 10, 24, OFF_PEAK.endHour - 9) });
-  assert.equal(offPeakWindow(emptyGame, Date.UTC(2026, 10, 24, OFF_PEAK.endHour - 9)).active, false);
-  assert.equal(offPeakWindow(emptyGame, Date.UTC(2026, 10, 23, OFF_PEAK.startHour + 24 - 9)).active, true);
-  const simulated = transition(emptyGame, { type: 'offPeak', enabled: true });
-  assert.deepEqual(offPeakWindow(simulated, NOON), { ...offPeakWindow(emptyGame, NOON), active: true, simulated: true, multiplier: 2 });
+test('bonus scenarios are off by default, separate, and only apply to their own walk', () => {
+  assert.equal(emptyGame.scenario, null);
+  assert.equal(activeBonus(emptyGame, 'shijo-yasaka'), null);
+  const bus = transition(emptyGame, { type: 'scenario', kind: 'bus_relief' });
+  const quiet = transition(emptyGame, { type: 'scenario', kind: 'quiet_hour' });
+  assert.deepEqual(activeBonus(bus, 'shijo-yasaka'), { kind: 'bus_relief', multiplier: 2 });
+  assert.equal(activeBonus(bus, 'yasaka-maruyama'), null);
+  assert.equal(activeBonus(bus, 'kamo-riverside'), null);
+  assert.deepEqual(activeBonus(quiet, 'yasaka-maruyama'), { kind: 'quiet_hour', multiplier: 2 });
+  assert.equal(activeBonus(quiet, 'shijo-yasaka'), null);
+  assert.equal(transition(emptyGame, { type: 'scenario', kind: 'off_peak' }), emptyGame);
+  // No clock-based window exists: the time of day never changes points.
+  for (const now of [MORNING, NOON]) assert.equal(stamp(start(emptyGame, 'w'), 'w', stops[0], demo, now).runs[0].stamps[0].points, 10);
 
-  let game = start(emptyGame, 'walk');
-  game = stamp(game, 'walk', stops[0], demo, MORNING);
-  game = stamp(game, 'walk', stops[1], demo, NOON);
-  assert.deepEqual(game.runs[0].stamps.map(s => [s.points, s.multiplier, s.at]), [[20, 2, MORNING], [10, 1, NOON]]);
+  let game = start(bus, 'walk');
+  game = stamp(game, 'walk', stops[0]);
+  game = transition(game, { type: 'scenario', kind: null });
+  game = stamp(game, 'walk', stops[1]);
+  assert.deepEqual(game.runs[0].stamps.map(s => [s.points, s.multiplier, s.campaign]), [[20, 2, 'bus_relief'], [10, 1, undefined]]);
   assert.equal(balance(game), 30);
   assert.deepEqual(walkReward('shijo-yasaka', 2), { now: 3 * GAME.checkpointPoints * 2 + GAME.completionPoints, standard: 60 });
+  assert.deepEqual(decodeGame(JSON.stringify(game)), game);
+});
+
+test('every voucher is a demo voucher and nothing else can be unlocked', () => {
+  assert.equal(REWARD_MODE, 'demo');
+  assert.ok(COUPONS.length > 0 && COUPONS.every(coupon => coupon.isDemo === true));
+  assert.ok(COUPONS.every(coupon => !/transit|subway|bus|rail/i.test(`${coupon.id} ${coupon.offer.en} ${coupon.merchant.en}`)));
+  assert.ok(COUPONS.every(coupon => /fictional/i.test(coupon.merchant.en) && /架空/.test(coupon.merchant.ja)));
+  assert.equal(clientMayUnlock({ ...COUPONS[0], isDemo: false }), false);
+  assert.equal(clientMayUnlock(COUPONS[0]), true);
+  let game = start(emptyGame, 'walk');
+  for (const stop of stops) game = stamp(game, 'walk', stop);
+  assert.equal(transition(game, { type: 'unlock', id: 'not-a-demo-voucher' }), game);
 });
 
 test('a voucher redeems once and keeps a stable code', () => {
@@ -138,9 +160,9 @@ test('decodeGame validates structure, bounds, uniqueness, and single active run 
     ...overrides,
   });
   const baseGame = (overrides = {}) => ({
-    version: 2,
+    version: 3,
     demo: true,
-    offPeak: false,
+    scenario: null,
     runs: [],
     claims: [],
     ...overrides,
@@ -152,7 +174,8 @@ test('decodeGame validates structure, bounds, uniqueness, and single active run 
   const invalidPayloads = [
     baseGame({ runs: {} }),
     baseGame({ claims: null }),
-    baseGame({ offPeak: 'yes' }),
+    baseGame({ scenario: 'off_peak' }),
+    baseGame({ runs: [baseRun('r1', { stamps: [{ ...point(stops[0]), campaign: 'surge' }] })] }),
     baseGame({ runs: [null] }),
     baseGame({ claims: [null] }),
     baseGame({ runs: [baseRun('r1', { stamps: [null] })] }),
@@ -200,7 +223,7 @@ test('version 1 progress upgrades: coins become points and retired coupons are r
   };
   const upgraded = decodeGame(JSON.stringify(v1));
   assert.deepEqual(upgraded, {
-    version: 2, demo: true, offPeak: false, claims: [],
+    version: 3, demo: true, scenario: null, claims: [],
     runs: [{ id: 'old', walkId: 'shijo-yasaka', complete: false, bonus: 0, stamps: [
       { placeId: stops[0], mode: 'demo', points: 15, multiplier: 1.5 }, { placeId: stops[1], mode: 'live', points: 10, multiplier: 1 },
     ] }],
@@ -226,4 +249,20 @@ test('walkStatus preserves completed status and full stamps across aborted repla
 
   game = transition(game, { type: 'stop', runId: 'two' });
   assert.deepEqual(walkStatus(game, 'shijo-yasaka'), { status: 'completed', stamps: 3, completedCount: 1 });
+});
+
+test('version 2 progress upgrades: points stay, the retired transit claim is refunded, the off-peak switch is dropped', () => {
+  const run = { id: 'old', walkId: 'shijo-yasaka', complete: false, bonus: 0, stamps: [{ placeId: stops[0], mode: 'demo', points: 20, multiplier: 2, at: NOON }] };
+  const v2 = { version: 2, demo: false, offPeak: true, runs: [run], claims: [{ id: 'matcha', cost: 60, at: NOON }, { id: 'transit', cost: 120, at: NOON }] };
+  const upgraded = decodeGame(JSON.stringify(v2));
+  assert.deepEqual(upgraded, { version: 3, demo: false, scenario: null, runs: [run], claims: [{ id: 'matcha', cost: 60, at: NOON }] });
+  assert.equal(balance(upgraded), -40);
+  assert.deepEqual(decodeGame(JSON.stringify({ ...v2, offPeak: 'yes' })), emptyGame);
+});
+
+test('crowd levels default to unknown, never calm, when no sample exists', () => {
+  assert.equal(sampleWalkCrowd([]), 'unknown');
+  assert.equal(sampleWalkCrowd(['kawabata-riverside', 'sanjo-ohashi']), 'unknown');
+  assert.equal(sampleWalkCrowd(['yasaka-west-view']), 'moderate');
+  assert.equal(sampleWalkCrowd(['shijo-ohashi', 'yasaka-west-view']), 'busy');
 });

@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const url = process.env.PHASE3_URL || process.env.PHASE2_URL || 'http://localhost:3000';
 const style = { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] };
-// 12:00 Kyoto time, outside the sample off-peak window.
+// Fixed time so dates in receipts and logs are stable.
 const NOON = new Date('2026-11-24T03:00:00Z');
 let browser;
 before(async () => { browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] }); });
@@ -57,7 +57,7 @@ for (const locale of ['en', 'ja']) {
         assert.equal(await sheet.locator('.sheet-title').evaluate(el => el.firstChild.textContent), walk);
 
         // Search, the selected walk and its pins survive a tab switch.
-        await button(copy.navSettings).click();
+        await button(copy.navMe).click();
         await button(copy.navExplore).click();
         await page.locator('.map-place-pin[data-place-id="kawabata-riverside"]').waitFor();
         assert.equal(await page.getByRole('searchbox').inputValue(), locale === 'en' ? 'river within 9 minutes' : '9分以内の川沿い');
@@ -76,7 +76,7 @@ for (const locale of ['en', 'ja']) {
         // Crowd info pairs colour with a shape and text, and is labelled as a sample.
         await button(copy.crowdInfo).click();
         const legend = page.locator('.crowd-legend');
-        assert.deepEqual(await legend.locator('.crowd-badge').allTextContents(), [`●${copy.crowdCalm}`, `▲${copy.crowdModerate}`, `■${copy.crowdBusy}`]);
+        assert.deepEqual(await legend.locator('.crowd-badge').allTextContents(), [`●${copy.crowdCalm}`, `▲${copy.crowdModerate}`, `■${copy.crowdBusy}`, `?${copy.crowdUnknown}`]);
         await legend.getByText(copy.crowdProvenance).waitFor();
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         assert.deepEqual(errors, []);
@@ -103,7 +103,7 @@ test('keeping a selected route never resumes GPS after leaving Explore', async (
     await page.getByRole('button', { name: 'Use My Location', exact: true }).click();
     await page.getByRole('button', { name: 'Expand walk panel' }).click();
     await page.getByRole('button', { name: 'Preview route' }).first().click();
-    await page.getByRole('button', { name: 'Quests', exact: true }).click();
+    await page.getByRole('button', { name: 'Missions', exact: true }).click();
     await page.getByRole('button', { name: 'Explore', exact: true }).click();
     await page.locator('.crowd-legend-pill').waitFor();
     assert.ok(await page.locator('.sheet-title').isVisible());

@@ -1,33 +1,29 @@
-import { GAME, COUPONS, OFF_PEAK } from "../config/game.ts";
+import { GAME, COUPONS, DEMO_SCENARIOS, type CampaignKind } from "../config/game.ts";
+import { REWARD_MODE } from "../config/environment.ts";
 import { CURATED_PLACES, CURATED_WALKS } from "../data/kyoto-walks.ts";
 import type { LocationState } from "./location";
 import type { LngLat } from "../types/routes";
 
-export type Stamp = { placeId: string; mode: "live" | "demo"; points: number; multiplier: number; at?: number };
+/** `mode: "demo"` is a simulated check-in; `"live"` only shows a browser GPS fix was near the stop. Both are demo rewards. */
+export type Stamp = { placeId: string; mode: "live" | "demo"; points: number; multiplier: number; campaign?: CampaignKind; at?: number };
 export type Run = { id: string; walkId: string; stamps: Stamp[]; complete: boolean; stopped?: boolean; bonus: number };
 export type Claim = { id: string; cost: number; at?: number; redeemedAt?: number };
-/** `offPeak` forces the sample off-peak window on so it can be shown at any hour. */
-export type Game = { version: 2; demo: boolean; offPeak: boolean; runs: Run[]; claims: Claim[] };
-export const emptyGame: Game = { version: 2, demo: false, offPeak: false, runs: [], claims: [] };
+/** `scenario` is the hypothetical bonus scenario a presenter has switched on, if any. It is never inferred from real data. */
+export type Game = { version: 3; demo: boolean; scenario: CampaignKind | null; runs: Run[]; claims: Claim[] };
+export const emptyGame: Game = { version: 3, demo: false, scenario: null, runs: [], claims: [] };
 export const walkById = (id: string) => CURATED_WALKS.find(w => w.id === id);
 export const placeById = (id: string) => CURATED_PLACES.find(p => p.id === id);
 export const couponById = (id: string) => COUPONS.find(c => c.id === id);
+/** The client ledger may only ever hold demo vouchers. Real offers need the server path (src/config/environment.ts). */
+export const clientMayUnlock = (coupon: { isDemo: boolean }) => REWARD_MODE === "demo" && coupon.isDemo === true;
 
-const HOUR = 3_600_000;
-const JST_OFFSET = 9 * HOUR;
-export type OffPeakWindow = { active: boolean; simulated: boolean; multiplier: number; changesAt: number };
-/** The sample schedule runs in Kyoto time regardless of the device time zone. */
-export function offPeakWindow(game: Pick<Game, "offPeak">, now: number): OffPeakWindow {
-  const local = now + JST_OFFSET;
-  const dayStart = Math.floor(local / (24 * HOUR)) * 24 * HOUR;
-  const hour = (local - dayStart) / HOUR;
-  const start = dayStart + OFF_PEAK.startHour * HOUR - JST_OFFSET;
-  const end = dayStart + OFF_PEAK.endHour * HOUR - JST_OFFSET;
-  const scheduled = hour >= OFF_PEAK.startHour && hour < OFF_PEAK.endHour;
-  const active = scheduled || game.offPeak;
-  const changesAt = scheduled ? end : hour < OFF_PEAK.startHour ? start : start + 24 * HOUR;
-  return { active, simulated: game.offPeak && !scheduled, multiplier: active ? OFF_PEAK.multiplier : 1, changesAt };
+export type ActiveBonus = { kind: CampaignKind; multiplier: number };
+/** The bonus a walk earns right now: only when its demo scenario is switched on. */
+export function activeBonus(game: Pick<Game, "scenario">, walkId: string): ActiveBonus | null {
+  const scenario = DEMO_SCENARIOS.find(item => item.kind === game.scenario);
+  return scenario && scenario.walkIds.includes(walkId) ? { kind: scenario.kind, multiplier: scenario.multiplier } : null;
 }
+export const scenarioByKind = (kind: CampaignKind) => DEMO_SCENARIOS.find(item => item.kind === kind)!;
 
 export function activeRun(game: Game) {
   const last = game.runs.at(-1);
@@ -53,7 +49,7 @@ export function balance(game: Game) {
   return game.runs.reduce((sum, run) => sum + run.bonus + run.stamps.reduce((n, s) => n + s.points, 0), 0)
     - game.claims.reduce((sum, claim) => sum + claim.cost, 0);
 }
-/** Points a full walk earns now and at the standard rate. */
+/** Points a full walk earns with the given bonus multiplier and at the standard rate. */
 export function walkReward(walkId: string, multiplier: number) {
   const stops = walkById(walkId)?.placeIds.length ?? 0;
   return { now: stops * GAME.checkpointPoints * multiplier + GAME.completionPoints, standard: stops * GAME.checkpointPoints + GAME.completionPoints };
@@ -97,10 +93,12 @@ function validRun(run: unknown): run is Run {
     isPlainObject(stamp) &&
     stamp.placeId === walk.placeIds[index] &&
     (stamp.mode === "live" || stamp.mode === "demo") &&
-    nonNegative(stamp.points) && nonNegative(stamp.multiplier) && optionalTime(stamp.at),
+    nonNegative(stamp.points) && nonNegative(stamp.multiplier) && optionalTime(stamp.at) &&
+    (stamp.campaign === undefined || DEMO_SCENARIOS.some(item => item.kind === stamp.campaign)),
   );
 }
 
+const knownClaims = (claims: unknown[]) => claims.filter(claim => isPlainObject(claim) && couponById(String(claim.id)));
 /** Version 1 stored coins and a "busy period" flag. Its coupons no longer exist, so their claims are refunded. */
 function upgradeV1(value: Record<string, unknown>): unknown {
   if (typeof value.peak !== "boolean" || !Array.isArray(value.runs) || !Array.isArray(value.claims)) return null;
@@ -110,15 +108,22 @@ function upgradeV1(value: Record<string, unknown>): unknown {
       ...rest, points: coins, multiplier: typeof coins === "number" ? coins / GAME.checkpointPoints : coins,
     }))(stamp)),
   });
-  return { version: 2, demo: value.demo, offPeak: false, runs, claims: value.claims.filter(claim => isPlainObject(claim) && couponById(String(claim.id))) };
+  return { version: 2, demo: value.demo, offPeak: false, runs, claims: knownClaims(value.claims) };
+}
+/** Version 2 had a clock-based "off-peak" window and a transit voucher. Earned points stay; the transit claim is refunded. */
+function upgradeV2(value: Record<string, unknown>): unknown {
+  if (typeof value.offPeak !== "boolean" || !Array.isArray(value.claims)) return null;
+  return { version: 3, demo: value.demo, scenario: null, runs: value.runs, claims: knownClaims(value.claims) };
 }
 
 export function decodeGame(raw: string | null): Game {
   try {
     let value: unknown = JSON.parse(raw ?? "null");
     if (isPlainObject(value) && value.version === 1) value = upgradeV1(value);
+    if (isPlainObject(value) && value.version === 2) value = upgradeV2(value);
     if (!isPlainObject(value)) return emptyGame;
-    if (value.version !== 2 || typeof value.offPeak !== "boolean" || typeof value.demo !== "boolean") return emptyGame;
+    if (value.version !== 3 || typeof value.demo !== "boolean") return emptyGame;
+    if (value.scenario !== null && !DEMO_SCENARIOS.some(item => item.kind === value.scenario)) return emptyGame;
     if (!Array.isArray(value.runs) || !Array.isArray(value.claims)) return emptyGame;
     if (!value.runs.every(validRun)) return emptyGame;
     if (new Set(value.runs.map(run => run.id)).size !== value.runs.length) return emptyGame;
@@ -141,7 +146,7 @@ export type Action =
   | { type: "stop"; runId: string }
   | { type: "unlock"; id: string }
   | { type: "redeem"; id: string }
-  | { type: "offPeak"; enabled: boolean }
+  | { type: "scenario"; kind: CampaignKind | null }
   | { type: "demo"; enabled: boolean }
   | { type: "reset" };
 
@@ -150,7 +155,7 @@ export function transition(game: Game, action: Action, now = Date.now()): Game {
   switch (action.type) {
     case "reset": return emptyGame;
     case "demo": return { ...game, demo: action.enabled };
-    case "offPeak": return { ...game, offPeak: action.enabled };
+    case "scenario": return action.kind === null || DEMO_SCENARIOS.some(item => item.kind === action.kind) ? { ...game, scenario: action.kind } : game;
     case "start":
       if (run || !walkById(action.walkId) || game.runs.some(r => r.id === action.id)) return game;
       return { ...game, runs: [...game.runs, { id: action.id, walkId: action.walkId, stamps: [], complete: false, bonus: 0 }] };
@@ -159,7 +164,7 @@ export function transition(game: Game, action: Action, now = Date.now()): Game {
       return { ...game, runs: [...game.runs.slice(0, -1), { ...run, stopped: true }] };
     case "unlock": {
       const coupon = couponById(action.id);
-      if (!coupon || game.claims.some(c => c.id === coupon.id) || balance(game) < coupon.cost) return game;
+      if (!coupon || !clientMayUnlock(coupon) || game.claims.some(c => c.id === coupon.id) || balance(game) < coupon.cost) return game;
       return { ...game, claims: [...game.claims, { id: coupon.id, cost: coupon.cost, at: now }] };
     }
     case "redeem": {
@@ -174,8 +179,11 @@ export function transition(game: Game, action: Action, now = Date.now()): Game {
       if (!place || walk?.placeIds[run.stamps.length] !== place.id) return game;
       const mode = action.location.mode;
       if (mode === "unselected" || (mode === "live" && !liveEligible(action.location, place.location, now))) return game;
-      const { multiplier } = offPeakWindow(game, now);
-      const stamps = [...run.stamps, { placeId: place.id, mode, points: GAME.checkpointPoints * multiplier, multiplier, at: now }];
+      const bonus = activeBonus(game, walk.id);
+      const multiplier = bonus?.multiplier ?? 1;
+      const stamp: Stamp = { placeId: place.id, mode, points: GAME.checkpointPoints * multiplier, multiplier, at: now };
+      if (bonus) stamp.campaign = bonus.kind;
+      const stamps = [...run.stamps, stamp];
       const complete = stamps.length === walk.placeIds.length;
       return { ...game, runs: [...game.runs.slice(0, -1), { ...run, stamps, complete, bonus: complete ? GAME.completionPoints : 0 }] };
     }

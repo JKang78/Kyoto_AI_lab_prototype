@@ -1,75 +1,99 @@
-# Open Product Decisions (TODOs)
+I'd stop adding features temporarily. You're at the point where real mobile testing and product refinement will probably improve the app more than another large coding prompt.
+1. Where your app stands
+Area	Status	Assessment
+Frontend	Passing	22 unit tests, 15 browser tests, build and lint
+UI/UX	Implemented	Four tabs, fox assets, routes, challenges
+Demo rewards	Corrected	Explicitly simulated, not redeemable
+Congestion information	Corrected	Unknown data no longer shown as calm
+Route safety	Partial	Bike and luggage-friendly controls need work
+Mobile accessibility	Unverified	Physical-device testing still required
+Real merchant integration	Not implemented	Appropriate for a prototype
+Production backend	Not implemented	Required before issuing genuine rewards
 
-Decisions deferred for human product/team review before locking Phase 4 polish, public showcase pacing, or real-world field rollout.
-For known technical bugs to fix in code, see [docs/BUGS.md](BUGS.md).
+These statuses reflect Codex's report, rather than an independent inspection of your repository.
+2. What I would do next
+1. Commit the current working implementation.
+   
+   This should be your first priority. Make sure the five generated mascot PNGs, original files, normalization script, and documentation are included.
+   git status --short
+   git diff --check
+   git add -A
+   git diff --cached --stat
+   git diff --cached --check
+   git commit -m "Complete Kyoto Flow demo remediation"
+   
+   
+   Inspect the staged files before committing, particularly for secrets, local configuration, and generated build directories.
+2. Resolve the two remaining potentially misleading controls.
+   
+   The Bike chip should not offer unverified cycling routes. Similarly, Luggage-friendly should not imply a route is flat, step-free, or suitable for wheeled luggage without supporting data.
+   
+   For now, disable unsupported modes with clear explanations rather than inventing functionality.
+3. Run a real mobile usability test.
+   
+   Test on an actual iPhone and Android device, including Safari and Chrome. Pay particular attention to GPS permission, fox rendering, map responsiveness, bottom-sheet gestures, language switching, and the coupon demonstration.
+4. Finish the remaining high-value UX work.
+   
+   Prioritize the Map/List accessibility toggle, contrast improvements, and an etiquette notification that doesn't obstruct navigation.
+   
+   These have more direct user value than introducing additional missions or more rewards.
+5. Separate demo deployment from future pilot infrastructure.
+   
+   Put simulation controls behind a preview-only build configuration, ensuring they cannot be activated in a public-facing build. This is a product safeguard, not a substitute for server-side security once real rewards exist.
+3. My suggested next Codex prompt
+I would keep the next assignment small, so that you can verify what it changes.
+We have completed the first Kyoto Flow remediation pass. All existing checks pass.
 
-## 1. Game Economy & Showcase Pacing
-> Configurable centrally in `src/config/game.ts`. See also `docs/done/REVIEW_PHASE_3.md`, `docs/done/PHASE_3_PLAN.md`, and `docs/PROJECT_SPEC.md` §9.
+Our next objective is release-readiness refinement of the existing prototype, not new feature development.
 
-- [ ] **First voucher unlock threshold:**
-  - *Current default:* 10 points/stop + 30 completion bonus = **60 points** per 3-stop walk at the standard rate (90 in the off-peak window), unlocking the fictional matcha voucher (60) after one ordinary walk.
-  - *Decision needed:* Keep the 60-point introductory voucher for a fast single-walk demo, or raise it so two walks are needed?
-- [ ] **Replay & early-exit incentives:**
-  - *Current default:* Starting a fresh replay of an already-completed walk earns full checkpoint + completion coins again; ending a walk early keeps earned stamps/coins and allows restarting to earn Stop 1 again.
-  - *Decision needed:* Should repeat walks pay full coins again, pay checkpoint coins only (no repeat completion bonus), or incentivize discovering distinct walks/places instead?
-- [ ] **Off-peak window and multiplier:**
-  - *Current default:* Sample window 06:00–10:00 Kyoto time at 2.0×, applied to every check-in (demo and GPS) but not to the 30-point completion bonus. Settings can simulate the window at any hour.
-  - *Decision needed:* Confirm the hours and multiplier with the team, and whether the completion bonus should also be multiplied.
-- [ ] **Fictional voucher catalog & partner framing:**
-  - *Current default:* 3 fictional vouchers (matcha café 60, bathhouse soap 90, sample transit ride 120), each unlockable and redeemable once per browser until reset.
-  - *Decision needed:* Keep these 3 items, or expand to 3–5 fictional rewards with illustrative local-business categories (`docs/PROJECT_SPEC.md` §5.3 & §13)? *(Note: any real merchant offer or partner name requires explicit merchant agreement.)*
+First, confirm the current changes have been committed to Git. Do not overwrite or discard uncommitted work.
 
-## 2. Brand, Artwork & Localization
-> See `docs/PROJECT_SPEC.md` §0, §5.5, §10, §11, and §19.
+Read IMPLEMENTATION_AUDIT.md, design_system.md, PRODUCT_REQUIREMENTS.md, and ENGINEERING_SPEC.md.
+Scope
+1. Resolve the remaining Bike and Luggage-friendly UI issues. Do not advertise route capabilities that have not been validated.
+2. Restrict simulation controls to explicitly configured preview environments. Keep all rewards demo-only; do not introduce production rewards.
+3. Implement or complete the Map/List accessibility toggle, ensuring destinations and routes remain usable without the illustrated map.
+4. Correct small-text contrast issues according to WCAG AA.
+5. Implement the previously specified non-blocking etiquette notification, using only designated example zones and clearly labeled demo behavior where appropriate.
+6. Review mobile viewport sizing, safe areas, bottom-sheet scrolling, and touch interactions on iOS Safari and Android Chrome.
+Constraints
+- Preserve the existing app architecture and visual identity.
+- Do not rebuild or redesign working screens.
+- Do not introduce new missions, reward categories, AI functionality, or backend infrastructure.
+- Do not present unverified real-world information as factual.
+- Do not modify the original mascot artwork.
+- Add focused automated tests for the affected behavior.
+Verification
+Run typecheck, lint, unit tests, production build, and browser tests. Summarize modified files and identify any issues that still require manual testing on physical devices.
 
-- [ ] **Original mascot, pin, and PWA icon artwork:**
-  - *Current default:* Temporary `京` avatar placeholder, simple circle/star CSS pins, and temporary flower `src/app/icon.svg` (no `icons` array yet in `public/manifest.webmanifest`).
-  - *Decision needed:* Supply team-owned fox mascot art (`public/assets/mascot/`), themed pin art (`public/assets/pins/`), and full PWA install icon set.
-- [ ] **Final product name & visual tokens:**
-  - *Current default:* Working name **Kyoto AI Lab prototype** (short name *Kyoto Walk*); confirmed brand color `#782459` (Kyoto Purple) with proposed supporting palette.
-  - *Decision needed:* Confirm whether to keep the working name or adopt a final team name, and lock auxiliary palette/typography choices.
-- [ ] **Fluent Japanese copy & UX review:**
-  - *Current default:* All 173 EN/JA keys are in place and tested for overflow in Chromium, but have not been reviewed by a native/fluent Japanese speaker in context.
-  - *Decision needed:* Review phrasing, naturalness, and clarity of active-walk controls, mission stories, and fictional-reward disclosures in Japanese.
-- [ ] **Phase 4 Settings & About additions:**
-  - *Current default:* Respects OS `prefers-reduced-motion`; no in-app reduced-motion override, no sound setting, and brief About sheet without PWA Add-to-Home-Screen help.
-  - *Decision needed:* Decide which PRD §5.5 / §11 Settings extras to include in Phase 4 (in-app reduced-motion toggle, optional sound toggle defaulting off, fuller privacy/credits/install guide).
+Complete this as a bounded refinement pass.
 
-## 2b. Kyoto Flow spec items not yet built
-> The 2026-11-24 refactor covered the tab layout, tokens, sheet, off-peak visibility and voucher redemption. These spec sections remain open.
 
-- [ ] 3-screen skippable onboarding with Visitor/Resident persona, interests and station picker (spec §4); `?reset=1` entry.
-- [ ] Mode pill (Walk / Rail + Walk / locked Bike), Illustrated / Standard / List map toggle, and the Amenities overlay (spec §5 Tab 1A).
-- [ ] Geofenced, non-blocking etiquette toast with `FoxAvatar state="warning"`, once per zone per day (spec §5D).
-- [ ] Heart/Save toggles, `+` Add Stop, opening hours and payment badges on stops (needs sourced data first).
-- [ ] QR scanner for partner check-ins and a QR code on the redemption screen.
-- [ ] Settings extras: persona switch, step-free and shade preferences, saved routes, KML/CSV import, emergency guide, offline cache, privacy dashboard, path issue report (spec §5 Tab 4).
-- [ ] GPS Kalman smoothing and offline “cached route” pill (spec §3, §6).
 
-## 3. Field Validation, GPS & Community Consultation
-> See `docs/ROUTE_DATA.md#field-review-handoff`, `docs/done/REVIEW_PHASE_2.md`, `docs/done/REVIEW_PHASE_3.md`, and `docs/PROJECT_SPEC.md` §8 & §19.
 
-- [ ] **Real-device GPS check-in thresholds:**
-  - *Current default:* Provisional 75 m check-in radius, <=50 m reported accuracy, <=30 s fix age (`src/config/game.ts`). Tested only via controlled Chromium geolocation injection.
-  - *Decision needed:* Test on physical iPhones (Safari) and Android phones (Chrome) at each intended public stopping point and from across the street; record false accepts/rejects and tune thresholds.
-- [ ] **On-site walkability & accessibility audit (3 routes):**
-  - *Current default:* All 3 routes are map-checked fixtures only; not field-audited.
-  - *Decision needed:* Walk and log conditions for **Shijō to Yasaka** (crossings, curb ramps, stopping point before west-gate stairs), **Kamo riverside sidewalk** (Kawabata sidewalk surface, crossings, staying off the lower riverbed), and **Yasaka and Maruyama Park** (stairs signage, park service path access, whether a separate step-free alternative is needed).
-- [ ] **Local / resident community consultation:**
-  - *Current default:* All routes/places carry `communityInputStatus: "not-consulted"`.
-  - *Decision needed:* Gather and document local/resident input before changing consultation labels or presenting routes as publicly endorsed guidance.
+4. The bigger decision: what happens after this?
+I would distinguish between two ambitions for Kyoto Flow.
+If your priority is a Kyoto Innovation Lab demonstration
 
-## 4. Hosting, Map Provider & Repo Housekeeping
-> See `docs/DECISIONS.md` and `docs/PROJECT_SPEC.md` §11 & §19.
+You're getting close. A polished, reliable demo with one route, a charming fox character, meaningful challenges, and transparent mock rewards is sufficient to demonstrate the concept.
 
-- [ ] **HTTPS hosting target for PWA & phone GPS QA:**
-  - *Decision needed:* Choose a deployment host (e.g., Vercel) so testers can install the PWA to iOS/Android home screens and verify live GPS over HTTPS.
-- [ ] **Long-term map tile/style provider:**
-  - *Current default:* OpenFreeMap public Liberty vector tiles (free, no API key, no SLA).
-  - *Decision needed:* Keep OpenFreeMap for prototype/showcase, or plan a contracted/self-hosted vector tile provider before broader public traffic?
-- [ ] **Offline PWA caching scope (Phase 4):**
-  - *Decision needed:* Define what the service worker should cache (app shell + local route catalog only, clearly disclosing that live basemap tiles and GPS require connectivity).
-- [ ] **Repository housekeeping:**
-  - [ ] Push merged `main` (`1dca433` + new docs) to `origin` when ready.
-  - [ ] Delete the merged `phase-2-review` branch (locally and/or on `origin`) once no longer needed for review.
-  - [x] Archived the pre-Phase-3 [baseline audit](done/UPTOSPEED.md).
+Your next major activity should be user testing, not backend development.
+
+
+
+If your priority is an actual Kyoto pilot with businesses
+
+Then you'll eventually need to shift attention from frontend development to merchant partnerships, approved route data, reward funding, server-side verification, and measuring whether tourists change transportation decisions.
+
+Those are substantial projects in their own right.
+
+
+
+One thing I'd specifically reconsider
+I wouldn't continue indefinitely polishing the app based solely on what Codex thinks needs improvement.
+
+You now have enough functionality to conduct a small 5-person usability test: give someone unfamiliar with the project a QR code, ask them to select a route and complete a simulated mission, and watch where they hesitate.
+
+You may discover that visitors don't understand the difference between Missions and Rewards, that the map is too visually busy, or that the bonus incentive is confusing. Those findings could be more valuable than any amount of speculative engineering refinement.
+
+My recommendation: Commit → resolve the remaining release-readiness issues → test on real devices → test with actual users. After that, decide whether your next investment should be UX improvements or building the infrastructure for a real Kyoto pilot.

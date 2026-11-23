@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { animate, motion, useDragControls, useMotionValue, useReducedMotion } from "motion/react";
 import { ChevronUp, X } from "lucide-react";
 import Image from "next/image";
@@ -10,16 +10,6 @@ import type { CrowdLevel } from "@/data/sample-congestion";
 export const SPRING = { type: "spring", stiffness: 380, damping: 32, mass: 0.9 } as const;
 export const ICON_STROKE = 1.5;
 export const haptic = () => { try { navigator.vibrate?.(12); } catch { /* Unsupported. */ } };
-
-/** Current time, refreshed on an interval, without impure reads during render. */
-export function useNow(intervalMs: number) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(timer);
-  }, [intervalMs]);
-  return now;
-}
 
 export function Button({ children, className = "", variant = "primary", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" }) {
   return <button className={`ui-button ui-button--${variant} ${className}`} {...props}>{children}</button>;
@@ -33,7 +23,7 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
   </div>;
 }
 
-const crowdGlyph: Record<CrowdLevel, string> = { calm: "●", moderate: "▲", busy: "■" };
+const crowdGlyph: Record<CrowdLevel, string> = { calm: "●", moderate: "▲", busy: "■", unknown: "?" };
 /** Colour is always paired with a distinct shape and text. */
 export function CrowdBadge({ level, label }: { level: CrowdLevel; label: string }) {
   return <span className={`crowd-badge crowd-badge--${level}`}><span aria-hidden="true">{crowdGlyph[level]}</span>{label}</span>;
