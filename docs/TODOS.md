@@ -6,17 +6,17 @@ For known technical bugs to fix in code, see [docs/BUGS.md](BUGS.md).
 ## 1. Game Economy & Showcase Pacing
 > Configurable centrally in `src/config/game.ts`. See also `docs/done/REVIEW_PHASE_3.md`, `docs/done/PHASE_3_PLAN.md`, and `docs/PROJECT_SPEC.md` §9.
 
-- [ ] **First coupon unlock threshold (60 vs. 100 coins):**
-  - *Current default:* 10 coins/stop + 30 completion bonus = **60 coins** per 3-stop walk, unlocking *Kyoto postcard* (60 coins) immediately after one ordinary walk.
-  - *Decision needed:* Keep the 60-coin introductory reward for a fast single-walk demo, or raise the first reward threshold to 100 coins (2 walks) to match the PRD example?
+- [ ] **First voucher unlock threshold:**
+  - *Current default:* 10 points/stop + 30 completion bonus = **60 points** per 3-stop walk at the standard rate (90 in the off-peak window), unlocking the fictional matcha voucher (60) after one ordinary walk.
+  - *Decision needed:* Keep the 60-point introductory voucher for a fast single-walk demo, or raise it so two walks are needed?
 - [ ] **Replay & early-exit incentives:**
   - *Current default:* Starting a fresh replay of an already-completed walk earns full checkpoint + completion coins again; ending a walk early keeps earned stamps/coins and allows restarting to earn Stop 1 again.
   - *Decision needed:* Should repeat walks pay full coins again, pay checkpoint coins only (no repeat completion bonus), or incentivize discovering distinct walks/places instead?
-- [ ] **Busy-period sample bonus (+50%) scope:**
-  - *Current default:* Settings toggle adds +50% to **Demo Mode checkpoint stamps only** (10 → 15 coins; 75 coins/walk), not to live GPS check-ins and not to the 30-coin completion bonus.
-  - *Decision needed:* Should the illustrative congestion bonus also apply to live GPS check-ins and/or the route completion bonus?
-- [ ] **Fictional coupon catalog & partner framing:**
-  - *Current default:* 3 fictional coupons (*Kyoto postcard* 60, *Tea break* 100, *Walking journal* 120), each claimable once per browser until reset.
+- [ ] **Off-peak window and multiplier:**
+  - *Current default:* Sample window 06:00–10:00 Kyoto time at 2.0×, applied to every check-in (demo and GPS) but not to the 30-point completion bonus. Settings can simulate the window at any hour.
+  - *Decision needed:* Confirm the hours and multiplier with the team, and whether the completion bonus should also be multiplied.
+- [ ] **Fictional voucher catalog & partner framing:**
+  - *Current default:* 3 fictional vouchers (matcha café 60, bathhouse soap 90, sample transit ride 120), each unlockable and redeemable once per browser until reset.
   - *Decision needed:* Keep these 3 items, or expand to 3–5 fictional rewards with illustrative local-business categories (`docs/PROJECT_SPEC.md` §5.3 & §13)? *(Note: any real merchant offer or partner name requires explicit merchant agreement.)*
 
 ## 2. Brand, Artwork & Localization
@@ -34,6 +34,17 @@ For known technical bugs to fix in code, see [docs/BUGS.md](BUGS.md).
 - [ ] **Phase 4 Settings & About additions:**
   - *Current default:* Respects OS `prefers-reduced-motion`; no in-app reduced-motion override, no sound setting, and brief About sheet without PWA Add-to-Home-Screen help.
   - *Decision needed:* Decide which PRD §5.5 / §11 Settings extras to include in Phase 4 (in-app reduced-motion toggle, optional sound toggle defaulting off, fuller privacy/credits/install guide).
+
+## 2b. Kyoto Flow spec items not yet built
+> The 2026-11-24 refactor covered the tab layout, tokens, sheet, off-peak visibility and voucher redemption. These spec sections remain open.
+
+- [ ] 3-screen skippable onboarding with Visitor/Resident persona, interests and station picker (spec §4); `?reset=1` entry.
+- [ ] Mode pill (Walk / Rail + Walk / locked Bike), Illustrated / Standard / List map toggle, and the Amenities overlay (spec §5 Tab 1A).
+- [ ] Geofenced, non-blocking etiquette toast with `FoxAvatar state="warning"`, once per zone per day (spec §5D).
+- [ ] Heart/Save toggles, `+` Add Stop, opening hours and payment badges on stops (needs sourced data first).
+- [ ] QR scanner for partner check-ins and a QR code on the redemption screen.
+- [ ] Settings extras: persona switch, step-free and shade preferences, saved routes, KML/CSV import, emergency guide, offline cache, privacy dashboard, path issue report (spec §5 Tab 4).
+- [ ] GPS Kalman smoothing and offline “cached route” pill (spec §3, §6).
 
 ## 3. Field Validation, GPS & Community Consultation
 > See `docs/ROUTE_DATA.md#field-review-handoff`, `docs/done/REVIEW_PHASE_2.md`, `docs/done/REVIEW_PHASE_3.md`, and `docs/PROJECT_SPEC.md` §8 & §19.

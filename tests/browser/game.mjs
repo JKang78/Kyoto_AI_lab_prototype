@@ -4,10 +4,13 @@ import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const url = process.env.PHASE3_URL || process.env.PHASE2_URL || 'http://localhost:3000';
+// 12:00 Kyoto time, outside the sample off-peak window, so totals are deterministic.
+const NOON = new Date('2026-11-24T03:00:00Z');
 let browser;
 before(async () => { browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] }); });
 after(async () => { await browser?.close(); });
 async function prepare(page) {
+  await page.clock.setFixedTime(NOON);
   await page.route('https://tiles.openfreemap.org/styles/liberty', route => route.fulfill({
     json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] },
   }));
@@ -15,8 +18,25 @@ async function prepare(page) {
 }
 const copyFor = async lang => JSON.parse(await readFile(new URL(`../../src/locales/${lang}.json`, import.meta.url)));
 const snapshot = page => page.evaluate(() => JSON.parse(localStorage.getItem('kyoto-ai-lab.progress.v1')));
+const pts = (copy, points) => copy.pointsValue.replace('{points}', String(points));
+async function walkAllStops(page, copy, from = 0) {
+  const button = name => page.getByRole('button', { name, exact: true });
+  for (let i = from; i < 3; i++) {
+    if (i) await button(copy.gameMove).click();
+    await button(copy.gameSimulate).click();
+  }
+}
+async function holdStaffButton(page, copy) {
+  const hold = page.getByRole('button', { name: new RegExp(copy.redeemStaffHold) });
+  const box = await hold.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1500);
+  await page.mouse.up();
+}
+
 for (const [lang, width] of [['en', 360], ['ja', 390]]) {
-  test(`${lang} earns and spends coins, resumes after reload and resets only game data`, async () => {
+  test(`${lang} earns points, unlocks and redeems a voucher once, resumes after reload and resets only game data`, async () => {
     const context = await browser.newContext({ viewport: { width, height: 800 }, reducedMotion: lang === 'en' ? 'no-preference' : 'reduce' });
     const page = await context.newPage();
     page.setDefaultTimeout(8000);
@@ -29,27 +49,25 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       await button(lang === 'en' ? 'English' : '日本語').click();
       await page.locator('#nickname').fill('Aki');
       await button(copy.startExploring).click();
-      await button(copy.navMissions).click();
+      assert.equal(await page.locator('.dock-item').count(), 4);
+      await button(copy.navQuests).click();
       await button(copy.gameViewMap).first().click();
-      await page.locator('.map-recommended').click();
       await button(copy.gameStartDemo).click();
       await button(copy.gameSimulate).click();
-      await button(copy.navHome).click();
-      await page.getByText(copy.gameBalance.replace('{coins}', '10'), { exact: true }).waitFor();
-      await button(copy.gameResume).click();
-      await button(copy.gameMove).waitFor();
-      assert.equal(await page.getByRole('searchbox').count(), 0);
-      await button(copy.locationTools).click();
-      await page.getByRole('dialog').getByRole('button', { name: copy.locationUseMyLocation }).waitFor();
-      await button(copy.close).click();
+      await page.getByText(copy.receiptEarned.replace('{points}', '10')).waitFor();
+      await page.getByText(copy.receiptStandard.replace('{base}', '10')).waitFor();
+
+      // Language switches mid-walk without losing the walk.
       await button(copy.navSettings).click();
       const otherLang = lang === 'en' ? 'ja' : 'en';
       const otherCopy = await copyFor(otherLang);
       await button(otherLang === 'en' ? 'English' : '日本語').click();
-      await button(otherCopy.navHome).click();
-      await page.getByText(otherCopy.gameBalance.replace('{coins}', '10'), { exact: true }).waitFor();
+      await button(otherCopy.navWallet).click();
+      await page.locator('.wallet-points').getByText(pts(otherCopy, 10), { exact: true }).waitFor();
       await button(otherCopy.navSettings).click();
       await button(lang === 'en' ? 'English' : '日本語').click();
+
+      // The active walk resumes after a reload with movement paused.
       await page.reload();
       await button(copy.gameMove).click();
       if (lang === 'en') {
@@ -60,46 +78,58 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
         await button(copy.gameMove).click();
       }
       await button(copy.gameSimulate).click();
-      await button(copy.gameMove).click();
-      await button(copy.gameSimulate).click();
-      await page.getByRole('dialog').getByRole('button', { name: copy.navRewards }).click();
-      await page.getByText(copy.gameBalance.replace('{coins}', '60'), { exact: true }).waitFor();
-      const other = await page.context().newPage();
+      await walkAllStops(page, copy, 2);
+      await page.locator('.completion-receipt').getByText(copy.gameFinished).waitFor();
+      await page.locator('.completion-receipt').getByRole('button', { name: copy.navWallet }).click();
+      await page.locator('.wallet-points').getByText(pts(copy, 60), { exact: true }).waitFor();
+
+      // Two tabs racing to unlock the same voucher produce one claim.
+      const other = await context.newPage();
       await prepare(other);
-      await other.getByRole('button', { name: copy.navRewards, exact: true }).click();
-      const otherClaim = other.getByRole('button', { name: copy.gameClaim, exact: true });
-      await otherClaim.waitFor();
-      const claimButtons = await Promise.all([button(copy.gameClaim).elementHandle(), otherClaim.elementHandle()]);
-      await Promise.all(claimButtons.map(handle => handle.evaluate(el => el.click())));
-      await other.getByText(copy.gameClaimed, { exact: true }).waitFor();
+      await other.getByRole('button', { name: copy.navWallet, exact: true }).click();
+      const otherUnlock = other.getByRole('button', { name: copy.walletUnlock, exact: true });
+      await otherUnlock.waitFor();
+      const unlockButtons = await Promise.all([button(copy.walletUnlock).elementHandle(), otherUnlock.elementHandle()]);
+      await Promise.all(unlockButtons.map(handle => handle.evaluate(el => el.click())));
       await other.close();
-      await page.getByText(copy.gameClaimed, { exact: true }).waitFor();
+      await page.locator('.wallet-points').getByText(pts(copy, 0), { exact: true }).waitFor();
       assert.equal((await snapshot(page)).claims.length, 1);
-      await page.getByText(copy.gameBalance.replace('{coins}', '0'), { exact: true }).waitFor();
-      const claimedStatus = page.locator('[data-coupon-state="claimed"]');
-      const lockedStatus = page.locator('[data-coupon-state="locked"]').first();
-      assert.equal(await claimedStatus.count(), 1);
-      assert.equal(await lockedStatus.innerText(), copy.gameNeed.replace('{coins}', '100'));
-      assert.equal(await button(copy.gameClaim).count(), 0);
-      assert.notEqual(await claimedStatus.evaluate(el => getComputedStyle(el).backgroundColor),
-        await lockedStatus.evaluate(el => getComputedStyle(el).backgroundColor));
-      await button(copy.navMissions).click();
-      await page.getByText(copy.gameCompleted, { exact: true }).waitFor();
+      assert.equal(await button(copy.walletUnlock).count(), 0);
+      assert.equal(await page.locator('[data-coupon-state="locked"]').first().innerText(), copy.walletNeed.replace('{points}', '90'));
+
+      await page.getByRole('button', { name: copy.walletMine.replace('{count}', '1') }).click();
+      await button(copy.walletRedeem).click();
+      const redeem = page.getByRole('dialog');
+      await redeem.getByText(copy.redeemDemoStrip).waitFor();
+      assert.match(await redeem.locator('.redeem-code').innerText(), /^\d{3}\s\d{3}$/);
+      await redeem.getByText(copy.redeemExpires.replace('{time}', '5:00')).waitFor();
+      await holdStaffButton(page, copy);
+      await redeem.getByRole('status').getByText(copy.redeemVerified).waitFor();
+      assert.equal(typeof (await snapshot(page)).claims[0].redeemedAt, 'number');
+      await redeem.getByRole('button', { name: copy.close }).first().click();
+      await page.locator('[data-coupon-state="redeemed"]').waitFor();
+      assert.equal(await button(copy.walletRedeem).count(), 0);
+      await page.locator('.activity-log').getByText(copy.logRedeemed).waitFor();
+
+      await button(copy.navQuests).click();
+      await button(copy.questsCompleted.replace('{count}', '1')).click();
+      await page.locator('.quest-card').getByText(copy.questProgress.replace('{stamps}', '3').replace('{total}', '3'), { exact: true }).first().waitFor();
+
       if (lang === 'ja') {
+        // The simulated off-peak window doubles check-in points and shows up in the receipt and log.
         await button(copy.navSettings).click();
-        await page.getByRole('checkbox').click();
-        await page.getByRole('checkbox', { checked: true }).waitFor();
-        await button(copy.navMissions).click();
-        await button(copy.gameViewMap).first().click();
-        await page.locator('.map-recommended').click();
+        await page.getByRole('switch', { name: copy.offPeakSimulateSwitch.replace('{multiplier}', '2.0') }).click();
+        await button(copy.navQuests).click();
+        await page.locator('.surge-card').getByText(copy.surgeSimulated).waitFor();
+        await button(copy.questsCompleted.replace('{count}', '1')).click();
+        await button(copy.gameViewMap).click();
+        await page.locator('.reward-line em').getByText(copy.offPeakShort.replace('{multiplier}', '2.0')).waitFor();
         await button(copy.gameStartDemo).click();
-        for (let i = 0; i < 3; i++) {
-          if (i) await button(copy.gameMove).click();
-          await button(copy.gameSimulate).click();
-        }
-        await page.getByRole('dialog').getByRole('button', { name: copy.navRewards }).click();
-        await page.getByText(copy.gameBalance.replace('{coins}', '75'), { exact: true }).waitFor();
-        assert.equal(await page.getByText(copy.gameClaimed, { exact: true }).count(), 1);
+        await button(copy.gameSimulate).click();
+        await page.getByText(copy.receiptOffPeak.replace('{base}', '10').replace('{multiplier}', '2.0')).waitFor();
+        await walkAllStops(page, copy, 1);
+        await page.locator('.completion-receipt').getByRole('button', { name: copy.navWallet }).click();
+        await page.locator('.wallet-points').getByText(pts(copy, 90), { exact: true }).waitFor();
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await button(copy.navSettings).click();
@@ -132,8 +162,8 @@ test('GPS check-in requires an explicit tap and an eligible live fix', async () 
     });
     await prepare(page);
     await button(copy.startExploring).click();
-    await page.locator('.map-list-button').click();
-    await page.locator('dialog .map-route-option').first().click();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
     await button(copy.gameStartLive).click();
     await button(copy.gameCheck).waitFor();
     assert.ok(await button(copy.gameCheck).isDisabled());
@@ -146,14 +176,15 @@ test('GPS check-in requires an explicit tap and an eligible live fix', async () 
     assert.ok(await button(copy.gameCheck).isDisabled());
     await report(12, 300);
     assert.equal(await button(copy.gameCheck).isDisabled(), false);
+    assert.equal(await button(copy.gameCheck).getAttribute('data-ready'), 'true');
     assert.equal((await snapshot(page)).runs[0].stamps.length, 0);
     await button(copy.gameCheck).click();
-    await page.getByText(copy.gameStamped.replace('{coins}', '10')).waitFor();
+    await page.getByText(copy.receiptEarned.replace('{points}', '10')).waitFor();
     assert.equal((await snapshot(page)).runs[0].stamps[0].mode, 'live');
   } finally { await page.close(); }
 });
 
-test('aborted replay preserves completed mission badge and full stamp book', async () => {
+test('aborted replay keeps the completed quest and its seals', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 800 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
@@ -162,27 +193,26 @@ test('aborted replay preserves completed mission badge and full stamp book', asy
   try {
     await prepare(page);
     await button(copy.startExploring).click();
-    await page.locator('.map-list-button').click();
-    await page.locator('dialog .map-route-option').first().click();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
-    for (let i = 0; i < 3; i++) {
-      if (i) await button(copy.gameMove).click();
-      await button(copy.gameSimulate).click();
-    }
-    await page.getByRole('dialog').getByRole('button', { name: copy.close }).click();
-    await page.locator('.map-recommended').click();
+    await walkAllStops(page, copy);
+    await page.locator('.completion-receipt').waitFor();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
     await button(copy.gameSimulate).click();
-    await page.locator('.map-recommended').click();
     await button(copy.gameStopWalk).click();
     await page.getByRole('dialog').getByRole('button', { name: copy.gameStopWalk, exact: true }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
-    await button(copy.navMissions).click();
-    const firstCard = page.locator('.game-screen .ui-card').first();
-    await firstCard.getByText(copy.gameCompleted, { exact: true }).waitFor();
-    assert.equal(await firstCard.getByText(copy.gameStopped, { exact: true }).count(), 0);
-    const marks = await firstCard.locator('.stamp-book li span').allTextContents();
-    assert.deepEqual(marks, ['✓', '✓', '✓']);
+    await button(copy.navQuests).click();
+    await button(copy.questsCompleted.replace('{count}', '1')).click();
+    const card = page.locator('.quest-card').first();
+    await card.getByText(copy.questCompletedCount.replace('{count}', '1')).waitFor();
+    assert.equal(await card.getByText(copy.gameStopped, { exact: true }).count(), 0);
+    await card.getByText(copy.questProgress.replace('{stamps}', '3').replace('{total}', '3')).first().waitFor();
+    const seals = await page.locator('.goshuin-page').first().locator('li').evaluateAll(items => items.map(li => li.dataset.collected));
+    assert.deepEqual(seals, ['true', 'true', 'true']);
   } finally { await context.close(); }
 });
 
@@ -206,10 +236,10 @@ test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab act
   try {
     await prepare(tabA);
     await tabA.getByRole('button', { name: copy.startExploring, exact: true }).click();
-    await tabA.locator('.map-congestion-legend').waitFor();
+    await tabA.locator('.crowd-legend-pill').waitFor();
     const demoBtnA = tabA.getByRole('button', { name: copy.locationExploreDemo, exact: true });
     const liveBtnA = tabA.getByRole('button', { name: copy.locationUseMyLocation, exact: true });
-    const statusCalloutA = tabA.locator('.map-intro-callout');
+    const statusA = tabA.locator('.location-status');
 
     await demoBtnA.click();
     await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationExploreDemo }).waitFor();
@@ -223,7 +253,7 @@ test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab act
     await tabB.locator('[role="switch"][aria-checked="false"]', { hasText: copy.locationSettingsDemoSwitch }).waitFor();
 
     await tabA.locator('button[aria-pressed="false"]', { hasText: copy.locationExploreDemo }).waitFor();
-    await statusCalloutA.getByText(copy.locationStatusOff).waitFor();
+    await statusA.getByText(copy.locationStatusOff).waitFor();
 
     await demoBtnA.click();
     await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationExploreDemo }).waitFor();
@@ -232,7 +262,7 @@ test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab act
     await tabB.getByRole('dialog').waitFor({ state: 'hidden' });
 
     await tabA.locator('button[aria-pressed="false"]', { hasText: copy.locationExploreDemo }).waitFor();
-    await statusCalloutA.getByText(copy.locationStatusOff).waitFor();
+    await statusA.getByText(copy.locationStatusOff).waitFor();
 
     await liveBtnA.click();
     await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationUseMyLocation }).waitFor();
@@ -241,56 +271,52 @@ test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab act
     assert.equal(await liveBtnA.getAttribute('aria-pressed'), 'false');
     assert.ok(await tabA.evaluate(() => window.__watchCleared > 0));
 
-    // Off-Map-tab sync: live GPS paused on Settings must reset to unselected when Demo Mode cycles ON -> OFF in Tab B
+    // Off-Explore sync: live GPS paused on Settings must reset to unselected when Demo Mode cycles ON -> OFF in Tab B
     await demoSwitchB.click();
     await tabA.locator('button[aria-pressed="false"]', { hasText: copy.locationExploreDemo }).waitFor();
     await liveBtnA.click();
     await tabA.locator('button[aria-pressed="true"]', { hasText: copy.locationUseMyLocation }).waitFor();
     await tabA.getByRole('button', { name: copy.navSettings, exact: true }).click();
-    const locationCardA = tabA.locator('.location-settings-status');
-    await locationCardA.getByText(copy.locationStatusPaused, { exact: true }).waitFor();
+    const locationA = tabA.locator('.settings-status');
+    await locationA.getByText(copy.locationStatusPaused, { exact: true }).waitFor();
 
     await demoSwitchB.click();
-    await locationCardA.getByText(copy.locationModeDemo, { exact: true }).waitFor();
-    await locationCardA.getByText(copy.locationStatusDemo, { exact: true }).waitFor();
+    await locationA.getByText(copy.locationModeDemo, { exact: true }).waitFor();
+    await locationA.getByText(copy.locationStatusDemo, { exact: true }).waitFor();
 
     await demoSwitchB.click();
-    await locationCardA.getByText(copy.locationStatusOff, { exact: true }).waitFor();
-    await locationCardA.getByText(copy.locationModeUnselected, { exact: true }).waitFor();
-    assert.equal(await locationCardA.getByText(copy.locationStatusPaused, { exact: true }).count(), 0);
-    assert.equal(await locationCardA.getByText(copy.locationModeLive, { exact: true }).count(), 0);
+    await locationA.getByText(copy.locationStatusOff, { exact: true }).waitFor();
+    await locationA.getByText(copy.locationModeUnselected, { exact: true }).waitFor();
+    assert.equal(await locationA.getByText(copy.locationStatusPaused, { exact: true }).count(), 0);
+    assert.equal(await locationA.getByText(copy.locationModeLive, { exact: true }).count(), 0);
   } finally { await context.close(); }
 });
 
-test('Settings progress switch meets 44px touch target and reset dialog actions have flex gap', async () => {
-  const page = await browser.newPage({ viewport: { width: 390, height: 800 }, reducedMotion: 'reduce' });
+test('Settings switches and dock items meet 44px touch targets; dialog actions do not overlap', async () => {
+  const page = await browser.newPage({ viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });
   page.setDefaultTimeout(8000);
   const copy = await copyFor('en');
   const button = name => page.getByRole('button', { name, exact: true });
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    for (const box of await page.locator('.dock-item').evaluateAll(items => items.map(el => el.getBoundingClientRect().toJSON()))) {
+      assert.ok(box.width >= 44 && box.height >= 44);
+    }
     await button(copy.navSettings).click();
-
-    const switchRow = page.locator('.settings-switch');
-    const checkbox = page.getByRole('checkbox');
-    await switchRow.waitFor();
-    const rowBox = await switchRow.boundingBox();
-    const inputBox = await checkbox.boundingBox();
-    assert.ok(rowBox && rowBox.width >= 44 && rowBox.height >= 44);
-    assert.ok(inputBox && inputBox.width >= 44 && inputBox.height >= 44);
-
-    await checkbox.click();
-    await page.getByRole('checkbox', { checked: true }).waitFor();
-    assert.equal(await switchRow.getAttribute('data-checked'), 'true');
-    await checkbox.click();
-    await page.getByRole('checkbox', { checked: false }).waitFor();
+    const offPeak = page.getByRole('switch', { name: copy.offPeakSimulateSwitch.replace('{multiplier}', '2.0') });
+    const box = await offPeak.boundingBox();
+    assert.ok(box && box.width >= 44 && box.height >= 44);
+    const switchName = copy.offPeakSimulateSwitch.replace('{multiplier}', '2.0');
+    await offPeak.click();
+    await page.getByRole('switch', { name: switchName, checked: true }).waitFor();
+    assert.equal((await snapshot(page)).offPeak, true);
+    await offPeak.click();
+    await page.getByRole('switch', { name: switchName, checked: false }).waitFor();
 
     await button(copy.gameReset).click();
-    const actions = page.locator('dialog .game-actions');
+    const actions = page.locator('dialog .dialog-actions');
     await actions.waitFor();
-    const gap = await actions.evaluate(el => parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || '0'));
-    assert.ok(gap > 0);
     const cancelBox = await actions.getByRole('button', { name: copy.gameCancel, exact: true }).boundingBox();
     const confirmBox = await actions.getByRole('button', { name: copy.gameConfirm, exact: true }).boundingBox();
     assert.ok(cancelBox && confirmBox);

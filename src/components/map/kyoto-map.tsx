@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
-import { Bike, ChevronRight, Coffee, Ellipsis, Flower2, Landmark, List, LocateFixed, MapPinned, Navigation, Search, Trees, Waves, X, type LucideIcon } from "lucide-react";
-import { COUPONS, GAME } from "@/config/game";
+import { ArrowLeft, Bike, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, Luggage, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, X, type LucideIcon } from "lucide-react";
+import { GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
-import { activeRun, balance, type Game } from "@/lib/game";
+import { activeRun, offPeakWindow, walkReward, type Game } from "@/lib/game";
 import { act } from "@/lib/game-store";
-import { BottomSheet, Button, MarkerPlaceholder, Pill } from "@/components/ui";
+import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, useNow, type Snap } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
-import { SAMPLE_CONGESTION_CUES, type SampleCongestionCue } from "@/data/sample-congestion";
-import { translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { SAMPLE_CONGESTION_CUES, sampleWalkCrowd, type CrowdLevel } from "@/data/sample-congestion";
+import { formatKyotoTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { classifyFix, DEMO_POSITION, INITIAL_LOCATION_STATE, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
 import { discoverRoutes, type MatchReason, type RouteFilter } from "@/lib/route-discovery";
 import type { CuratedPlace, CuratedWalk } from "@/types/routes";
@@ -20,64 +20,123 @@ const KYOTO_CENTER: [number, number] = [135.7677, 35.0034];
 const MAP_ZOOM = 13.9;
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
-type RoutePanel = "location" | "results" | "details" | "stops" | "place" | "more" | null;
 const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[] = [
   { label: "mapCategoryCulture", icon: Landmark, filter: "culture" },
   { label: "mapCategoryRiverside", icon: Waves, filter: "riverside" },
   { label: "mapCategoryPark", icon: Trees, filter: "park" },
+  { label: "mapCategoryHidden", icon: Eye, filter: "hidden" },
   { label: "mapCategoryCafes", icon: Coffee, filter: "cafes" },
+  { label: "mapCategoryNature", icon: Leaf, filter: "nature" },
+  { label: "mapCategoryLuggage", icon: Luggage, filter: "luggage" },
+  { label: "mapCategorySeasonal", icon: Sun, filter: "seasonal" },
   { label: "mapCategoryBike", icon: Bike, filter: "bike" },
 ];
-const moreCategories: { label: MessageKey; filter: RouteFilter }[] = [
-  { label: "mapCategoryHistory", filter: "culture" },
-  { label: "mapCategoryNature", filter: "nature" },
-  { label: "mapCategoryHidden", filter: "hidden" },
-  { label: "mapCategoryLuggage", filter: "luggage" },
-  { label: "mapCategorySeasonal", filter: "seasonal" },
-];
-const routeColors: Record<CuratedWalk["theme"], string> = { culture: "#a2477e", riverside: "#387d94", park: "#668153" };
+const themeIcons: Record<CuratedWalk["theme"], LucideIcon> = { culture: Landmark, riverside: Waves, park: Trees };
+const routeColors: Record<CuratedWalk["theme"], string> = { culture: "#a8453c", riverside: "#3d5f86", park: "#5d7a3e" };
 const reasonKeys: Record<Exclude<MatchReason, null>, MessageKey> = { place: "routesReasonPlace", theme: "routesReasonTheme", time: "routesReasonTime", available: "routesReasonAvailable" };
+const crowdKeys: Record<CrowdLevel, MessageKey> = { calm: "crowdCalm", moderate: "crowdModerate", busy: "crowdBusy" };
 const placeThemes: Record<string, CuratedWalk["theme"]> = {
   "shijo-kawaramachi": "culture", "shijo-ohashi": "riverside", "yasaka-west-view": "culture",
   "kawabata-riverside": "riverside", "sanjo-ohashi": "riverside",
   "maruyama-cherry-path": "park", "chionin-south-gate-path": "park",
 };
-
-function WalkOption({ walk, locale, reason, onSelect }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; onSelect: () => void }) {
-  return <button type="button" className={`map-route-option map-route-option--${walk.theme}`} onClick={onSelect}>
-    <span className="map-route-option-icon" aria-hidden="true">{walk.theme === "culture" ? <Landmark size={20} /> : walk.theme === "riverside" ? <Waves size={20} /> : <Trees size={20} />}</span>
-    <span className="map-route-option-copy"><strong>{walk.name[locale]}</strong><small>{walk.description[locale]}</small>{reason && <span className="map-route-option-reason">{translate(locale, reasonKeys[reason])}</span>}<em>{translate(locale, "routesDemoEstimate", { minutes: String(walk.estimatedMinutes), meters: String(walk.estimatedMeters) })}</em></span>
-    <ChevronRight size={18} aria-hidden="true" />
-  </button>;
+// 1.5px-stroke glyphs drawn inside each pin. Static strings only.
+const pinGlyphs: Record<CuratedWalk["theme"], string> = {
+  culture: '<path d="M5 7h14M7 7v11M17 7v11M6 10.5h12M4.5 5.5c2.5.8 12.5.8 15 0"/>',
+  riverside: '<path d="M4 9c2.7-2 5.3 2 8 0s5.3 2 8 0M4 14c2.7-2 5.3 2 8 0s5.3 2 8 0"/>',
+  park: '<path d="M12 19V10M12 10c0-3.5 2.5-5.5 6-5.5 0 3.6-2.4 5.5-6 5.5ZM12 13c0-2.6-2-4.2-5-4.2 0 2.7 2 4.2 5 4.2Z"/>',
+};
+function pinMarkup(theme: CuratedWalk["theme"], number: number | null) {
+  const inner = number === null
+    ? `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${pinGlyphs[theme]}</svg>`
+    : `<span class="map-place-pin-number">${number}</span>`;
+  return `<span class="map-place-pin-head">${inner}</span><span class="map-place-pin-tail"></span>`;
 }
+const motionDuration = (ms: number) => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms;
+const googleMapsUrl = (walk: CuratedWalk) => {
+  const points = walk.placeIds.map(id => CURATED_PLACES.find(place => place.id === id)!.location).map(([lng, lat]) => `${lat},${lng}`);
+  const params = new URLSearchParams({ api: "1", origin: points[0], destination: points.at(-1)!, travelmode: "walking" });
+  if (points.length > 2) params.set("waypoints", points.slice(1, -1).join("|"));
+  return `https://www.google.com/maps/dir/?${params}`;
+};
 
 function RouteDataCredit({ locale }: { locale: Locale }) {
   return <p className="route-data-credit">{translate(locale, "routesDataCredit")} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap / ODbL</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">{translate(locale, "routesFixMap")}</a></p>;
+}
+
+function RewardLine({ walk, multiplier, locale }: { walk: CuratedWalk; multiplier: number; locale: Locale }) {
+  const reward = walkReward(walk.id, multiplier);
+  return <p className="reward-line">
+    <Sparkles size={15} strokeWidth={ICON_STROKE} aria-hidden="true" />
+    <span>{translate(locale, "routeRewardNow", { points: String(reward.now) })}</span>
+    {multiplier > 1 && <><s aria-label={translate(locale, "routeRewardStandardLabel", { points: String(reward.standard) })}>{reward.standard}</s><em>{translate(locale, "offPeakShort", { multiplier: multiplier.toFixed(1) })}</em></>}
+  </p>;
+}
+
+function WalkMeta({ walk, locale }: { walk: CuratedWalk; locale: Locale }) {
+  return <p className="walk-meta">
+    <span>{translate(locale, "walkMinutes", { minutes: String(walk.estimatedMinutes) })}</span>
+    <span>{translate(locale, "walkKm", { km: (walk.estimatedMeters / 1000).toFixed(1) })}</span>
+    <span>{translate(locale, walk.mappedSteps ? "walkMappedStairs" : "walkNoMappedSteps")}</span>
+  </p>;
+}
+
+function RouteCard({ walk, locale, reason, multiplier, onPreview }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; multiplier: number; onPreview: () => void }) {
+  const Icon = themeIcons[walk.theme];
+  const crowd = sampleWalkCrowd(walk.placeIds);
+  return <article className={`route-card route-card--${walk.theme}`}>
+    <header>
+      <span className="route-card-icon" aria-hidden="true"><Icon size={18} strokeWidth={ICON_STROKE} /></span>
+      <h3>{walk.name[locale]}</h3>
+    </header>
+    <p className="route-card-hook">{walk.description[locale]}</p>
+    <WalkMeta walk={walk} locale={locale} />
+    <div className="route-card-tags">
+      <CrowdBadge level={crowd} label={translate(locale, "crowdSampleLevel", { level: translate(locale, crowdKeys[crowd]) })} />
+      {reason && <span className="match-tag">{translate(locale, reasonKeys[reason])}</span>}
+    </div>
+    <RewardLine walk={walk} multiplier={multiplier} locale={locale} />
+    <Button variant="secondary" className="full-width" onClick={onPreview}>{translate(locale, "routePreview")}<ChevronRight size={17} strokeWidth={ICON_STROKE} aria-hidden="true" /></Button>
+  </article>;
+}
+
+export function OffPeakBanner({ game, locale }: { game: Game; locale: Locale }) {
+  const now = useNow(30_000);
+  const window_ = offPeakWindow(game, now);
+  const time = formatKyotoTime(window_.changesAt);
+  return <div className="offpeak-banner" data-active={window_.active}>
+    <Sparkles size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />
+    <p><strong>{window_.active ? translate(locale, window_.simulated ? "offPeakSimulated" : "offPeakActive", { multiplier: window_.multiplier.toFixed(1), time }) : translate(locale, "offPeakInactive", { time })}</strong>
+      <small>{translate(locale, "offPeakSource")}</small></p>
+  </div>;
 }
 
 type KyotoMapProps = {
   game: Game;
   selectedWalkId: string | null;
   setSelectedWalkId: (id: string | null) => void;
+  query: string;
+  setQuery: (query: string) => void;
+  routeFilter: RouteFilter;
+  setRouteFilter: (filter: RouteFilter) => void;
   locale: Locale;
   location: LocationState;
   onLocationChange: Dispatch<SetStateAction<LocationState>>;
   settingsRecenterRequest: boolean;
   onSettingsRecenterHandled: () => void;
-  onRewards: () => void;
+  onWallet: () => void;
 };
 
 export function KyotoMap({
-  game, selectedWalkId, setSelectedWalkId, locale, location, onLocationChange,
-  settingsRecenterRequest, onSettingsRecenterHandled, onRewards,
+  game, selectedWalkId, setSelectedWalkId, query, setQuery, routeFilter, setRouteFilter, locale, location, onLocationChange,
+  settingsRecenterRequest, onSettingsRecenterHandled, onWallet,
 }: KyotoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<MapLibreMarker | null>(null);
   const markerRootRef = useRef<Root | null>(null);
   const placeMarkerRefs = useRef<Map<string, MapLibreMarker>>(new Map());
-  const congestionMarkerRefs = useRef<{ cue: SampleCongestionCue; marker: MapLibreMarker }[]>([]);
-  const initialLocaleRef = useRef(locale);
+  const congestionMarkerRefs = useRef<{ cue: (typeof SAMPLE_CONGESTION_CUES)[number]; marker: MapLibreMarker }[]>([]);
   const selectedWalkIdRef = useRef<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const watchVersionRef = useRef(0);
@@ -85,15 +144,12 @@ export function KyotoMap({
   const useLocationButtonRef = useRef<HTMLButtonElement>(null);
   const initialCenterRef = useRef(location.mode === "demo" ? DEMO_POSITION : KYOTO_CENTER);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [showCongestion, setShowCongestion] = useState(false);
-  const [query, setQuery] = useState("");
-  const [panel, setPanel] = useState<RoutePanel>(null);
-  const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
+  const [showCrowd, setShowCrowd] = useState(false);
+  const [snap, setSnap] = useState<Snap>(selectedWalkId ? "full" : "peek");
+  const [view, setView] = useState<"routes" | "walk" | "place">(selectedWalkId ? "walk" : "routes");
   const [mapAttempt, setMapAttempt] = useState(0);
-  const listButtonRef = useRef<HTMLButtonElement>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
-  const [placeReturnPanel, setPlaceReturnPanel] = useState<"results" | "details" | "stops">("results");
+  const [finishedWalkId, setFinishedWalkId] = useState<string | null>(null);
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const liveTracking = location.mode === "live" && ["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const selectedWalk = CURATED_WALKS.find((walk) => walk.id === selectedWalkId) ?? null;
@@ -101,18 +157,16 @@ export function KyotoMap({
   const results = discoverRoutes(query, routeFilter, CURATED_WALKS, CURATED_PLACES);
   const run = activeRun(game);
   const playing = run && selectedWalkId === run.walkId;
-  const coins = balance(game);
-  const nextCoupon = COUPONS.find(c => !game.claims.some(claim => claim.id === c.id));
+  const now = useNow(30_000);
+  const { multiplier } = offPeakWindow(game, now);
   const [confirmStop, setConfirmStop] = useState<string | null>(null);
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const [celebration, setCelebration] = useState(false);
   const demoPoint = useRef<readonly [number, number]>(DEMO_POSITION);
   const updateDemoMarker = useCallback((point: readonly [number, number]) => {
     demoPoint.current = point;
     markerRef.current?.setLngLat([...point]);
   }, []);
-  const searchResults = discoverRoutes(query, null, CURATED_WALKS, CURATED_PLACES);
 
   const stopWatch = useCallback(() => {
     watchVersionRef.current += 1;
@@ -126,9 +180,7 @@ export function KyotoMap({
 
   const prevDemoRef = useRef(game.demo);
   useEffect(() => {
-    if (!prevDemoRef.current && game.demo) {
-      stopWatch();
-    }
+    if (!prevDemoRef.current && game.demo) stopWatch();
     prevDemoRef.current = game.demo;
   }, [game.demo, stopWatch]);
 
@@ -142,6 +194,14 @@ export function KyotoMap({
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [onLocationChange, stopWatch]);
+
+  const openPlace = useCallback((place: CuratedPlace) => {
+    setFocusedPlaceId(place.id);
+    setView("place");
+    setSnap("half");
+    mapRef.current?.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, -90], duration: motionDuration(500) });
+  }, []);
+  const openPlaceRef = useRef(openPlace);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -171,24 +231,22 @@ export function KyotoMap({
         map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
         map.addControl(new maplibregl.AttributionControl({ compact: false }), "bottom-left");
 
-        // The same replaceable avatar shell is used for live and simulated fixes.
         const markerElement = document.createElement("div");
         markerElement.style.pointerEvents = "none";
         markerRootRef.current = createRoot(markerElement);
-        markerRef.current = new maplibregl.Marker({ element: markerElement, anchor: "bottom" }).setLngLat(DEMO_POSITION).addTo(map);
+        markerRef.current = new maplibregl.Marker({ element: markerElement, anchor: "center" }).setLngLat(DEMO_POSITION).addTo(map);
 
         map.once("load", () => {
           if (disposed) return;
-          // A few restrained color changes keep the geographic basemap close to
-          // the warm reference while retaining OpenFreeMap's roads and labels.
+          // Washi-toned basemap that keeps OpenFreeMap's real roads and labels.
           const colors = [
-            ["background", "background-color", "#fff8f1"],
-            ["water", "fill-color", "#bddae8"],
-            ["waterway_river", "line-color", "#bddae8"],
-            ["park", "fill-color", "#dce9cf"],
-            ["landuse_residential", "fill-color", "#f5eee7"],
-            ["building", "fill-color", "#eee7df"],
-            ["building", "fill-outline-color", "#e2d6cf"],
+            ["background", "background-color", "#faf8f4"],
+            ["water", "fill-color", "#bccbdc"],
+            ["waterway_river", "line-color", "#bccbdc"],
+            ["park", "fill-color", "#dde4cf"],
+            ["landuse_residential", "fill-color", "#f4f0e8"],
+            ["building", "fill-color", "#ece6dc"],
+            ["building", "fill-outline-color", "#ddd4c6"],
           ] as const;
           for (const [layer, property, color] of colors) {
             if (map.getLayer(layer)) map.setPaintProperty(layer, property, color);
@@ -213,15 +271,9 @@ export function KyotoMap({
             pin.type = "button";
             pin.className = `map-place-pin map-place-pin--${placeThemes[place.id] ?? "culture"}`;
             pin.dataset.placeId = place.id;
-            pin.textContent = "●";
-            pin.setAttribute("aria-label", translate(initialLocaleRef.current, "mapOpenPlace", { name: place.name[initialLocaleRef.current] }));
             pin.addEventListener("click", (event) => {
               event.stopPropagation();
-              setSearchOpen(false);
-              setFocusedPlaceId(place.id);
-              setPlaceReturnPanel(selectedWalkIdRef.current ? "details" : "results");
-              setPanel("place");
-              map.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, 90], duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500 });
+              openPlaceRef.current(place);
             });
             placeMarkers.set(place.id, new maplibregl.Marker({ element: pin, anchor: "bottom" }).setLngLat([...place.location]).addTo(map));
           }
@@ -229,12 +281,9 @@ export function KyotoMap({
             const place = CURATED_PLACES.find((item) => item.id === cue.placeId);
             if (!place) continue;
             const label = document.createElement("div");
-            label.className = `map-congestion-cue map-congestion-cue--${cue.level}`;
-            const level = translate(initialLocaleRef.current, cue.level === "busy" ? "mapSampleBusy" : "mapSampleModerate");
-            label.textContent = level;
+            label.className = `map-congestion-cue crowd-badge crowd-badge--${cue.level}`;
             label.setAttribute("role", "img");
-            label.setAttribute("aria-label", translate(initialLocaleRef.current, "mapSampleCongestionAt", { level, place: place.name[initialLocaleRef.current] }));
-            const offset: [number, number] = cue.level === "moderate" ? [-100, 8] : [0, -37];
+            const offset: [number, number] = cue.level === "moderate" ? [-100, 8] : [0, -46];
             const marker = new maplibregl.Marker({ element: label, anchor: "bottom", offset }).setLngLat([...place.location]).addTo(map);
             congestionMarkers.push({ cue, marker });
           }
@@ -256,7 +305,9 @@ export function KyotoMap({
       disposed = true;
       resizeObserver?.disconnect();
       markerRef.current?.remove();
-      markerRootRef.current?.unmount();
+      // The map unmounts during a React render (tab switch); unmount the marker root afterwards.
+      const markerRoot = markerRootRef.current;
+      window.setTimeout(() => markerRoot?.unmount(), 0);
       for (const marker of placeMarkers.values()) marker.remove();
       placeMarkers.clear();
       for (const { marker } of congestionMarkers) marker.remove();
@@ -276,7 +327,6 @@ export function KyotoMap({
       marker.getElement().style.display = "none";
       return;
     }
-
     marker.getElement().style.display = "";
     const coordinates: [number, number] = location.mode === "live" && location.fix
       ? [location.fix.longitude, location.fix.latitude] : location.mode === "demo" && playing ? [...demoPoint.current] : DEMO_POSITION;
@@ -285,8 +335,9 @@ export function KyotoMap({
       ? translate(locale, "mapLiveMarker", { accuracy: String(Math.round(location.fix?.accuracy ?? 0)) })
       : translate(locale, location.mode === "demo" ? "mapDemoMarker" : "mapSampleLocation");
     const ariaLabel = location.mode === "live" ? label : translate(locale, location.mode === "demo" ? "mapDemoMarkerLabel" : "mapSampleLocationLabel");
-    marker.setOffset(playing && location.mode === "demo" ? [34, 0] : [0, 0]);
-    root.render(<div className="map-sample-marker" role="img" aria-label={ariaLabel}><MarkerPlaceholder />{!playing && <span>{label}</span>}</div>);
+    root.render(<div className="map-fox-marker" role="img" aria-label={ariaLabel} data-live={location.mode === "live"}>
+      <FoxAvatar state={playing ? "walking" : "idle"} />{!playing && <span>{label}</span>}
+    </div>);
   }, [locale, location, state, playing]);
 
   useEffect(() => {
@@ -296,9 +347,9 @@ export function KyotoMap({
     for (const walk of CURATED_WALKS) {
       const layer = `walk-line-${walk.id}`;
       if (!map.getLayer(layer)) continue;
-      map.setPaintProperty(layer, "line-color", selectedWalkId === walk.id ? "#d34d8c" : routeColors[walk.theme]);
+      map.setPaintProperty(layer, "line-color", selectedWalkId === walk.id ? "#782459" : routeColors[walk.theme]);
       map.setPaintProperty(layer, "line-width", selectedWalkId === walk.id ? 6 : 4);
-      map.setPaintProperty(layer, "line-opacity", selectedWalkId && selectedWalkId !== walk.id ? 0.22 : 0.82);
+      map.setPaintProperty(layer, "line-opacity", selectedWalkId && selectedWalkId !== walk.id ? 0.22 : 0.85);
     }
   }, [selectedWalkId, state]);
 
@@ -310,22 +361,23 @@ export function KyotoMap({
       const stopIndex = selectedWalk?.placeIds.indexOf(place.id) ?? -1;
       pin.style.display = selectedWalk && stopIndex === -1 ? "none" : "";
       pin.classList.toggle("map-next-stop", Boolean(playing && stopIndex === run?.stamps.length));
-      pin.textContent = stopIndex >= 0 ? String(stopIndex + 1) : "●";
+      pin.innerHTML = pinMarkup(placeThemes[place.id] ?? "culture", stopIndex >= 0 ? stopIndex + 1 : null);
       pin.setAttribute("aria-label", translate(locale, "mapOpenPlace", { name: place.name[locale] }));
-      pin.setAttribute("aria-pressed", String(panel === "place" && focusedPlaceId === place.id));
+      pin.setAttribute("aria-pressed", String(view === "place" && focusedPlaceId === place.id));
     }
     for (const { cue, marker } of congestionMarkerRefs.current) {
       const place = CURATED_PLACES.find((item) => item.id === cue.placeId);
       const label = marker.getElement();
-      const level = translate(locale, cue.level === "busy" ? "mapSampleBusy" : "mapSampleModerate");
-      label.textContent = level;
-      label.style.display = !showCongestion || playing || selectedWalk && !selectedWalk.placeIds.includes(cue.placeId) ? "none" : "";
+      const level = translate(locale, crowdKeys[cue.level]);
+      label.innerHTML = `<span aria-hidden="true">${cue.level === "busy" ? "■" : "▲"}</span>`;
+      label.append(translate(locale, "crowdSampleLevel", { level }));
+      label.style.display = !showCrowd || playing || selectedWalk && !selectedWalk.placeIds.includes(cue.placeId) ? "none" : "";
       if (place) label.setAttribute("aria-label", translate(locale, "mapSampleCongestionAt", { level, place: place.name[locale] }));
     }
-  }, [focusedPlaceId, locale, panel, selectedWalk, state, playing, run, showCongestion]);
+  }, [focusedPlaceId, locale, view, selectedWalk, state, playing, run, showCrowd]);
 
   const focusMap = useCallback((coordinates: [number, number]) => {
-    mapRef.current?.easeTo({ center: coordinates, offset: [0, 35], zoom: MAP_ZOOM, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
+    mapRef.current?.easeTo({ center: coordinates, offset: [0, -60], zoom: MAP_ZOOM, duration: motionDuration(550) });
   }, []);
 
   useEffect(() => {
@@ -334,9 +386,9 @@ export function KyotoMap({
     const lngs = coordinates.map(([lng]) => lng);
     const lats = coordinates.map(([, lat]) => lat);
     mapRef.current?.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
-      padding: { top: playing ? 70 : 115, right: 48, bottom: 45, left: 48 },
+      padding: { top: playing ? 70 : 150, right: 48, bottom: playing ? 260 : 300, left: 48 },
       maxZoom: 16.5,
-      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 650,
+      duration: motionDuration(650),
     });
   }, [selectedWalk, state, playing]);
 
@@ -350,7 +402,6 @@ export function KyotoMap({
 
   function requestLiveLocation() {
     void act({ type: "demo", enabled: false });
-    setSearchOpen(false);
     stopWatch();
     onLocationChange({ mode: "live", gpsStatus: "requesting", fix: null });
     if (!window.isSecureContext || !navigator.geolocation) {
@@ -389,10 +440,10 @@ export function KyotoMap({
   }
 
   function exploreDemo() {
-    setSearchOpen(false);
     stopWatch();
     onLocationChange(INITIAL_LOCATION_STATE);
     void act({ type: "demo", enabled: true });
+    haptic();
     if (!selectedWalk) focusMap(DEMO_POSITION);
   }
 
@@ -402,142 +453,154 @@ export function KyotoMap({
     if (!started || !mounted.current) return;
     if (demo) exploreDemo();
     else if (!liveTracking) requestLiveLocation();
-    setPanel(null);
+    setFinishedWalkId(null);
     setSelectedWalkId(selectedWalk.id);
   }
 
-  function showResults(filter: RouteFilter = null) {
-    setSearchOpen(false);
-    setQuery("");
-    setRouteFilter(filter);
+  function showRoutes() {
     setSelectedWalkId(null);
-    setPanel("results");
+    setFocusedPlaceId(null);
+    setView("routes");
+    setSnap("half");
   }
 
-  function selectWalk(walk: CuratedWalk) {
+  function toggleFilter(filter: RouteFilter) {
+    setQuery("");
+    setRouteFilter(routeFilter === filter ? null : filter);
+    showRoutes();
+  }
+
+  function previewWalk(walk: CuratedWalk) {
     setSelectedWalkId(walk.id);
-    setSearchOpen(false);
-    setPanel("details");
-  }
-
-  function openPlace(place: CuratedPlace, returnPanel: "results" | "details" | "stops") {
-    setFocusedPlaceId(place.id);
-    setPlaceReturnPanel(returnPanel);
-    setSearchOpen(false);
-    setPanel("place");
-    mapRef.current?.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, 90], duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500 });
+    setFocusedPlaceId(null);
+    setView("walk");
+    setSnap("full");
   }
 
   function backFromPlace() {
     setFocusedPlaceId(null);
-    setPanel(placeReturnPanel);
-  }
-
-  function backToResults() {
-    setSelectedWalkId(null);
-    setPanel("results");
+    setView(selectedWalk ? "walk" : "routes");
   }
 
   function recenter() {
-    setSearchOpen(false);
     if (location.mode === "live") {
       if (location.fix) focusMap([location.fix.longitude, location.fix.latitude]);
     } else focusMap(location.mode === "demo" ? playing ? [...demoPoint.current] : DEMO_POSITION : KYOTO_CENTER);
   }
 
-  const sheetTitle = panel === "details" && selectedWalk ? selectedWalk.name[locale]
-    : panel === "stops" ? t("routesStops")
-      : panel === "place" && focusedPlace ? focusedPlace.name[locale]
-      : panel === "location" ? t("locationTools") : panel === "more" ? t("mapCategoryMore") : t("routesTitle");
+  const busyCues = SAMPLE_CONGESTION_CUES.filter(cue => cue.level === "busy");
+  const calmWalks = CURATED_WALKS.filter(walk => sampleWalkCrowd(walk.placeIds) === "calm");
+  const finishedWalk = CURATED_WALKS.find(walk => walk.id === finishedWalkId);
+  const other = locale === "en" ? "ja" : "en";
+  const sheetHeader = <div className="sheet-peek">
+    <OffPeakBanner game={game} locale={locale} />
+    {snap === "peek" && <p className="crowd-strip" aria-label={t("crowdStripLabel")}>
+      {busyCues.map(cue => <CrowdBadge key={cue.id} level="busy" label={`${t("crowdBusy")} · ${CURATED_PLACES.find(place => place.id === cue.placeId)?.name[locale]}`} />)}
+      {calmWalks.map(walk => <CrowdBadge key={walk.id} level="calm" label={`${t("crowdCalm")} · ${walk.name[locale]}`} />)}
+      <small>{t("crowdSampleNote")}</small>
+    </p>}
+    {finishedWalk ? <div className="completion-receipt" role="status">
+      <FoxAvatar state="reward" size={36} />
+      <p><strong>{t("gameFinished")}</strong><small>{t("gameEarned", { points: String(GAME.completionPoints), walk: finishedWalk.name[locale] })}</small></p>
+      <Button onClick={onWallet}>{t("navWallet")}</Button>
+      <button type="button" className="icon-button" aria-label={t("close")} onClick={() => setFinishedWalkId(null)}><X size={18} strokeWidth={ICON_STROKE} /></button>
+    </div> : run && !playing ? <Button className="full-width" onClick={() => { setSelectedWalkId(run.walkId); setView("walk"); setSnap("peek"); }}>
+      <Footprints size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gameResume")}
+    </Button> : snap === "peek" && <>
+      <div className="location-actions" role="group" aria-label={t("locationActionsLabel")}>
+        <button ref={useLocationButtonRef} type="button" onClick={requestLiveLocation} disabled={state !== "ready"} aria-pressed={liveTracking}><Navigation size={16} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("locationUseMyLocation")}</span></button>
+        <button type="button" onClick={exploreDemo} disabled={state !== "ready"} aria-pressed={location.mode === "demo"}><MapPinned size={16} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>
+      </div>
+      <p className="location-status" role="status">{locationStatusText(locale, location)}</p>
+    </>}
+  </div>;
+
   return <section className="kyoto-map" aria-label={t("mapCanvasLabel")}>
-    <div className="map-layout" inert={state !== "ready"}>
-      <div className="map-window">
-        <div ref={containerRef} className="kyoto-map-canvas" />
-        {!playing && <div className="map-top-ui">
-          <div className="map-search-wrap">
-            <div className="map-search-bar">
-              <Search size={21} aria-hidden="true" />
-              <input type="search" aria-label={t("mapSearchLabel")} placeholder={t("mapSearchPlaceholder")} value={query} onChange={(event) => { setQuery(event.target.value); setRouteFilter(null); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); if (event.key === "Enter" && searchResults.suggestions[0]) selectWalk(searchResults.suggestions[0].walk); }} />
-              <button type="button" className="map-recenter" onClick={recenter} disabled={state !== "ready" || (location.mode === "live" && !location.fix)} aria-label={t(location.mode === "live" ? "mapRecenterLive" : location.mode === "demo" ? "mapRecenterDemo" : "mapRecenterSample")}><LocateFixed size={20} aria-hidden="true" /></button>
-            </div>
-            {searchOpen && <div className="map-search-preview" role="region" aria-label={t("mapSearchPreviewTitle")}>
-              <div className="map-search-heading"><strong>{t("mapSearchPreviewTitle")}</strong><button type="button" onClick={() => setSearchOpen(false)} aria-label={t("close")}><X size={18} /></button></div>
-              <p className="map-search-hint">{t(!query.trim() ? "routesSearchHint" : searchResults.fallback ? "routesSearchFallback" : "routesSearchMatched")}</p>
-              <div className="map-search-results">{searchResults.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div>
-            </div>}
-          </div>
-
-          <div className="map-categories" role="group" aria-label={t("mapCategoriesLabel")}>
-            {categories.map(({ label, icon: Icon, filter }) => <button type="button" key={label} aria-pressed={routeFilter === filter && panel === "results"} onClick={() => showResults(filter)}><Icon size={18} aria-hidden="true" /><span>{t(label)}</span><ChevronRight size={14} aria-hidden="true" /></button>)}
-            <button type="button" onClick={() => { setSearchOpen(false); setPanel("more"); }}><Ellipsis size={19} aria-hidden="true" /><span>{t("mapCategoryMore")}</span></button>
-          </div>
+    <div ref={containerRef} className="kyoto-map-canvas" inert={state !== "ready"} />
+    {state !== "ready" && <div className="kyoto-map-status">
+      <p role="status">{t(state === "loading" ? "mapLoading" : "mapLoadError")}</p>
+      {state === "error" && <Button onClick={() => { setState("loading"); setMapAttempt((attempt) => attempt + 1); }}>{t("mapRetry")}</Button>}
+      <Button variant="secondary" onClick={showRoutes}>{t("mapStoredWalks")}</Button>
+    </div>}
+    {!playing && <div className="map-top-ui" inert={state !== "ready"}>
+      <div className="map-search-bar">
+        <Search size={20} strokeWidth={ICON_STROKE} aria-hidden="true" />
+        <input type="search" aria-label={t("mapSearchLabel")} placeholder={t("mapSearchPlaceholder")} value={query}
+          onChange={(event) => { setQuery(event.target.value); setRouteFilter(null); showRoutes(); }}
+          onKeyDown={(event) => { if (event.key === "Enter" && results.suggestions[0]) previewWalk(results.suggestions[0].walk); }} />
+        <button type="button" className="map-recenter" onClick={recenter} disabled={state !== "ready" || (location.mode === "live" && !location.fix)} aria-label={t(location.mode === "live" ? "mapRecenterLive" : location.mode === "demo" ? "mapRecenterDemo" : "mapRecenterSample")}><LocateFixed size={20} strokeWidth={ICON_STROKE} aria-hidden="true" /></button>
+      </div>
+      <div className="map-categories" role="group" aria-label={t("mapCategoriesLabel")}>
+        {categories.map(({ label, icon: Icon, filter }) => <button type="button" key={label} aria-pressed={routeFilter === filter} onClick={() => toggleFilter(filter)}><Icon size={16} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t(label)}</span></button>)}
+      </div>
+      <div className="crowd-legend-wrap">
+        <button type="button" className="crowd-legend-pill" aria-pressed={showCrowd} aria-expanded={showCrowd} onClick={() => { setShowCrowd(value => !value); haptic(); }}>{t("crowdInfo")}</button>
+        {showCrowd && <div className="crowd-legend" role="note">
+          {(["calm", "moderate", "busy"] as const).map(level => <CrowdBadge key={level} level={level} label={t(crowdKeys[level])} />)}
+          <small>{t("crowdProvenance")}</small>
         </div>}
-        {!playing && state === "ready" && <button type="button" className="map-congestion-legend" aria-pressed={showCongestion} onClick={() => setShowCongestion(value => !value)}>{t("sampleLayer")}</button>}
       </div>
-      <div className="map-dock">
-        {playing ? <div className="active-walk">
-          <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} run={run} locale={locale}
-            location={location} onPosition={updateDemoMarker} onComplete={() => setCelebration(true)} />
-        </div> : null}
-        <div className="map-intro-callout" role="status">{locationStatusText(locale, location)}</div>
-        {playing && <button ref={useLocationButtonRef} className="map-tools" type="button" onClick={() => setPanel("location")}><LocateFixed size={16} />{t("locationTools")}</button>}
-        {!playing && <div className="map-location-actions" role="group" aria-label={t("locationActionsLabel")}>
-          <button ref={useLocationButtonRef} type="button" onClick={requestLiveLocation} disabled={state !== "ready"} aria-pressed={liveTracking} className={liveTracking ? "selected" : ""}><Navigation size={17} aria-hidden="true" /><span>{t("locationUseMyLocation")}</span></button>
-          <button type="button" onClick={exploreDemo} disabled={state !== "ready"} aria-pressed={location.mode === "demo"} className={location.mode === "demo" ? "selected" : ""}><MapPinned size={17} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>
-        </div>}
+    </div>}
 
-        <div className="map-bottom-ui">
-          <button type="button" className={`map-recommended${selectedWalk ? " map-selected-callout" : ""}`} onClick={() => selectedWalk ? setPanel("details") : showResults()}>
-            <span className="map-recommended-icon">{selectedWalk ? <Landmark size={22} aria-hidden="true" /> : <Waves size={22} aria-hidden="true" />}</span>
-            <span><small>{selectedWalk ? t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) }) : t("mapRecommendedEyebrow")}</small><strong>{selectedWalk ? selectedWalk.name[locale] : t("mapRecommendedTitle")}</strong></span>
-            <ChevronRight size={19} aria-hidden="true" />
-          </button>
-          <button type="button" ref={listButtonRef} className="map-list-button" onClick={() => selectedWalk ? setPanel("stops") : showResults()}><List size={22} aria-hidden="true" /><span>{t("mapListButton")}</span></button>
-        </div>
-      </div>
-    </div>
-    {state !== "ready" && (
-      <div className="kyoto-map-status">
-        <p role="status">{t(state === "loading" ? "mapLoading" : "mapLoadError")}</p>
-        {state === "error" && (
-          <Button onClick={() => {
-            setState("loading");
-            setMapAttempt((attempt) => attempt + 1);
-          }}>{t("mapRetry")}</Button>
-        )}
-        <Button variant="secondary" onClick={() => showResults()}>{t("mapStoredWalks")}</Button>
-      </div>
-    )}
-
-    <BottomSheet open={confirmStop !== null} title={t("gameStopWalk")} closeLabel={t("close")} onClose={() => setConfirmStop(null)}>
-      <p>{t("gameStopHint")}</p>
-      <div className="game-actions"><Button variant="secondary" onClick={() => setConfirmStop(null)}>{t("gameCancel")}</Button>
-      <Button onClick={async () => { if (confirmStop) await act({ type: "stop", runId: confirmStop }); setConfirmStop(null); }}>{t("gameStopWalk")}</Button></div>
-    </BottomSheet>
-    <BottomSheet open={celebration} onClose={() => setCelebration(false)} title={t("gameFinished")} closeLabel={t("close")}>
-      <div className="game-celebration"><Flower2 aria-hidden="true" /><p>{t("gameEarned", { coins: String(GAME.completionCoins) })}</p>
-      {nextCoupon && coins >= nextCoupon.cost && <p>{t("gameUnlocked", { coupon: nextCoupon[locale] })}</p>}
-      <Button onClick={onRewards}>{t("navRewards")}</Button></div>
-    </BottomSheet>
-    <BottomSheet fallbackFocusRef={listButtonRef} open={panel !== null} onClose={() => { setPanel(null); setFocusedPlaceId(null); }} title={sheetTitle} closeLabel={t("close")}>
-      {panel === "results" && <div className="route-sheet-content"><p className="route-sheet-intro">{t(results.fallback ? "routesSearchFallback" : "routesMapChecked")}</p>{results.suggestions.length ? <div className="route-sheet-options">{results.suggestions.map(({ walk, reason }) => <WalkOption key={walk.id} walk={walk} locale={locale} reason={reason} onSelect={() => selectWalk(walk)} />)}</div> : <div className="route-empty"><p>{t("routesEmpty")}</p><button type="button" onClick={() => showResults()}>{t("routesShowAll")}</button></div>}<RouteDataCredit locale={locale} /></div>}
-      {panel === "details" && selectedWalk && <div className="route-sheet-content"><p className="route-sheet-intro">{selectedWalk.description[locale]}</p>
-        {run ? <Button onClick={() => { setSelectedWalkId(run.walkId); setPanel(null); }}>{t("gameResume")}</Button> :
-          <div className="game-actions">
-            <Button disabled={state !== "ready"} onClick={() => void startWalk(true)}>{t("gameStartDemo")}</Button>
-            <Button disabled={state !== "ready"} variant="secondary" onClick={() => void startWalk(false)}>{t("gameStartLive")}</Button>
+    <div className="sheet-layer">
+      {playing ? <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} run={run} locale={locale} location={location}
+        onPosition={updateDemoMarker} onComplete={() => { setFinishedWalkId(run.walkId); setSelectedWalkId(null); setView("routes"); setSnap("peek"); }}
+        onExit={() => setConfirmStop(run.id)} onResumeGps={requestLiveLocation} />
+        : <SnapSheet snap={snap} onSnap={setSnap} header={sheetHeader}
+          labels={{ expand: t("sheetExpand"), collapse: t("sheetCollapse"), region: t("sheetRegion") }}>
+          {view === "routes" && <div className="sheet-section">
+            <h2 className="sheet-title">{t("routesTitle")}</h2>
+            {results.suggestions.length ? <div className="route-carousel">
+              {results.suggestions.slice(0, 3).map(({ walk, reason }) => <RouteCard key={walk.id} walk={walk} locale={locale} reason={reason} multiplier={multiplier} onPreview={() => previewWalk(walk)} />)}
+            </div> : <div className="route-empty"><p>{t("routesEmpty")}</p><Button variant="secondary" onClick={() => { setQuery(""); setRouteFilter(null); }}>{t("routesShowAll")}</Button></div>}
+            <p className="sheet-intro">{t(results.fallback ? "routesSearchFallback" : "routesMapChecked")}</p>
+            <RouteDataCredit locale={locale} />
           </div>}
-        {playing && <Button variant="quiet" onClick={() => { setPanel(null); setConfirmStop(run.id); }}>{t("gameStopWalk")}</Button>}
-        <Pill>{t("routesDemoEstimate", { minutes: String(selectedWalk.estimatedMinutes), meters: String(selectedWalk.estimatedMeters) })}</Pill><h3>{t("routesStops")}</h3><ol className="route-stop-list">{selectedWalk.placeIds.map((id) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <li key={id}>{place.name[locale]}</li> : null; })}</ol><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("stops")}>{t("routesSeeStops")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
-      {panel === "stops" && selectedWalk && <div className="route-sheet-content"><div className="route-place-list">{selectedWalk.placeIds.map((id, index) => { const place = CURATED_PLACES.find((item) => item.id === id); return place ? <button type="button" className="route-place-card" key={id} onClick={() => openPlace(place, "stops")} aria-label={t("mapOpenPlace", { name: place.name[locale] })}><span>{index + 1}</span><div><h3>{place.name[locale]}</h3><p>{place.description[locale]}</p><small>{place.accessNotes[locale]}</small></div><ChevronRight size={18} aria-hidden="true" /></button> : null; })}</div><div className="route-sheet-actions"><button type="button" onClick={() => setPanel("details")}>{t("routesDetails")}</button><button type="button" onClick={backToResults}>{t("routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
-      {panel === "place" && focusedPlace && <div className="route-sheet-content"><p className="route-sheet-intro">{focusedPlace.description[locale]}</p><div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{focusedPlace.accessibilityNotes[locale]}</p></div><div className="route-note"><strong>{t("routesAccessNotes")}</strong><p>{focusedPlace.accessNotes[locale]}</p></div><p className="route-community-status">{t("routesCommunityNotConsulted")}</p><a className="route-place-source" href={focusedPlace.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a><div className="route-sheet-actions"><button type="button" onClick={backFromPlace}>{t(placeReturnPanel === "stops" ? "placeBackToStops" : placeReturnPanel === "details" ? "routesDetails" : "routesBack")}</button></div><RouteDataCredit locale={locale} /></div>}
-      {panel === "location" && <div className="route-sheet-content">
-        <p>{locationStatusText(locale, location)}</p>
-        <Button onClick={() => { setPanel(null); requestLiveLocation(); }}>{t("locationUseMyLocation")}</Button>
-        <Button variant="secondary" onClick={() => { setPanel(null); exploreDemo(); }}>{t("locationExploreDemo")}</Button>
-        <Button variant="quiet" disabled={location.mode === "live" && !location.fix} onClick={() => { setPanel(null); recenter(); }}>{t("locationSettingsRecenter")}</Button>
-      </div>}
-      {panel === "more" && <div className="route-sheet-content"><p className="route-sheet-intro">{t("mapCategoryPreviewBody")}</p><div className="map-more-pills">{moreCategories.map(({ label, filter }) => <button type="button" key={label} onClick={() => showResults(filter)}>{t(label)}</button>)}</div></div>}
-    </BottomSheet>
+          {view === "walk" && selectedWalk && <div className="sheet-section">
+            <button type="button" className="sheet-back" onClick={showRoutes}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("routesBack")}</button>
+            <h2 className="sheet-title">{selectedWalk.name[locale]}<small lang={other}>{selectedWalk.name[other]}</small></h2>
+            <p className="sheet-intro">{selectedWalk.description[locale]}</p>
+            <WalkMeta walk={selectedWalk} locale={locale} />
+            <RewardLine walk={selectedWalk} multiplier={multiplier} locale={locale} />
+            <h3 className="sheet-subtitle">{t("routesStops")}</h3>
+            <ol className="stop-timeline">{selectedWalk.placeIds.map((id, index) => {
+              const place = CURATED_PLACES.find((item) => item.id === id);
+              return place ? <li key={id}>
+                <span className="stop-number" aria-hidden="true">{index + 1}</span>
+                <button type="button" onClick={() => openPlace(place)} aria-label={t("mapOpenPlace", { name: place.name[locale] })}>
+                  <strong>{place.name[locale]}</strong><small lang={other}>{place.name[other]}</small>
+                  <span>{place.description[locale]}</span>
+                </button>
+              </li> : null;
+            })}</ol>
+            <div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div>
+            <div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div>
+            <RouteDataCredit locale={locale} />
+            <div className="sheet-sticky-actions">
+              {run ? <Button onClick={() => { setSelectedWalkId(run.walkId); setSnap("peek"); }}>{t("gameResume")}</Button> : <>
+                <Button disabled={state !== "ready"} onClick={() => void startWalk(true)}>{t("gameStartDemo")}</Button>
+                <Button disabled={state !== "ready"} variant="secondary" onClick={() => void startWalk(false)}>{t("gameStartLive")}</Button>
+              </>}
+              <a className="handoff-link" href={googleMapsUrl(selectedWalk)} target="_blank" rel="noreferrer">{t("openGoogleMaps")}</a>
+            </div>
+          </div>}
+          {view === "place" && focusedPlace && <div className="sheet-section">
+            <button type="button" className="sheet-back" onClick={backFromPlace}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t(selectedWalk ? "routesDetails" : "routesBack")}</button>
+            <h2 className="sheet-title">{focusedPlace.name[locale]}<small lang={other}>{focusedPlace.name[other]}</small></h2>
+            <p className="sheet-intro">{focusedPlace.description[locale]}</p>
+            <div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{focusedPlace.accessibilityNotes[locale]}</p></div>
+            <div className="route-note"><strong>{t("routesAccessNotes")}</strong><p>{focusedPlace.accessNotes[locale]}</p></div>
+            <p className="route-community-status">{t("routesCommunityNotConsulted")}</p>
+            <a className="route-place-source" href={focusedPlace.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a>
+            <RouteDataCredit locale={locale} />
+          </div>}
+        </SnapSheet>}
+    </div>
+
+    <ConfirmDialog open={confirmStop !== null} title={t("gameStopWalk")} closeLabel={t("close")} onClose={() => setConfirmStop(null)}>
+      <p>{t("gameStopHint")}</p>
+      <div className="dialog-actions"><Button variant="secondary" onClick={() => setConfirmStop(null)}>{t("gameCancel")}</Button>
+        <Button onClick={async () => { if (confirmStop) await act({ type: "stop", runId: confirmStop }); setConfirmStop(null); }}>{t("gameStopWalk")}</Button></div>
+    </ConfirmDialog>
   </section>;
 }

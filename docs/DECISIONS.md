@@ -40,3 +40,18 @@ No dotted route geometry is drawn in Phase 1. A route line would imply a safe wa
 Settings now has an explicit Kyoto Demo Mode switch. Turning it on selects the simulated Kyoto point and leaves GPS off; turning it off returns to an unselected, GPS-off state. Settings Recenter opens Map and centers the selected demo or default view. A paused live session has no retained fix, so Recenter focuses **Use My Location** on Map for a separate, deliberate GPS request. The Settings switch itself never requests permission. The Map watcher is cleared on tab exit and also on a Map mode switch.
 
 Headless Chrome with controlled Geolocation callbacks passed granted, denied, timeout, unavailable, low-accuracy, outside-Kyoto, stale-callback, tab-exit, mode-switch, Settings switch/recenter, map pan/zoom, and English/Japanese checks at 360 × 800, 390 × 800, and 430 × 800 px. Map attribution remained visible and no horizontal overflow or page errors were observed. These checks emulate phone widths; **no physical phone GPS or PWA installation test was performed**. Browser permission prompts, actual device accuracy, HTTPS deployment behavior, and iOS/Android background suspension remain unverified on real devices.
+
+## 2026-11-24 Kyoto Flow UI refactor
+
+The UI and interaction layer now follows `docs/kyoto_flow_agent_ui_ux_experience_engineering_spec.md`: four tabs (Explore, Quests, Wallet, Settings) with Explore as the home screen, Kyoto Ink & Washi tokens, a draggable peek/half/full sheet, a visible off-peak multiplier, and a bilingual staff redemption flow. The Home dashboard was removed.
+
+Where the spec conflicts with this repo's honesty rules (`.cursor/rules/00-project-guardrails.mdc`, `docs/ARCHITECTURE.md`), the rules win:
+
+- **Vouchers.** The redemption flow is complete, but merchants are fictional and marked “(fictional)”, and every redemption screen carries a permanent “Demo only · not accepted at any shop” strip. No real shop, transit operator or programme is named.
+- **Crowd data.** Labelled “Pilot sample schedule · illustrative, not live data”, not attributed to Kyoto Smart Navi or any real source.
+- **Off-peak window.** 06:00–10:00 Kyoto time at 2.0× is a sample schedule, labelled “not an official city programme”. A Settings switch simulates it for demos at other hours.
+- **Resident-Approved badges** are omitted, because every fixture is still `communityInputStatus: "not-consulted"`.
+- **Fox mascot.** `FoxAvatar` implements the five states as an API but draws a neutral ring until team-owned art arrives.
+- **Points, not coins.** Rewards are “quest points” that unlock vouchers, per spec §1.4. Saved v1 progress is upgraded in place; the retired postcard/tea/journal claims are refunded.
+
+Dependencies: added `motion` (14.14.0) for the spring values the spec specifies. `vaul`, `zustand` and `next-intl` were not added: the existing sheet, store and dictionary cover what the spec needs from them. Fonts load through `next/font/google` with no new package.

@@ -1,17 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { Navigation, X } from "lucide-react";
 import { GAME } from "@/config/game";
-import { liveEligible, placeById, walkById, type Run } from "@/lib/game";
+import { distanceMeters, liveEligible, placeById, walkById, type Run } from "@/lib/game";
 import { act } from "@/lib/game-store";
-import { translate, type Locale } from "@/lib/i18n";
+import { translate, type Locale, type MessageKey } from "@/lib/i18n";
 import type { LocationState } from "@/lib/location";
 import type { LngLat } from "@/types/routes";
+import { FoxAvatar, haptic, ICON_STROKE, SPRING } from "./ui";
 
 // The caller keys this component by run, leg and mode. A remount resumes
-// from the last stamp with movement paused, including after leaving Map.
-export function WalkControls({ run, location, locale, onPosition, onComplete }: {
+// from the last stamp with movement paused, including after leaving Explore.
+export function WalkControls({ run, location, locale, onPosition, onComplete, onExit, onResumeGps }: {
   run: Run; location: LocationState; locale: Locale;
-  onPosition: (point: LngLat) => void; onComplete: () => void;
+  onPosition: (point: LngLat) => void; onComplete: () => void; onExit: () => void; onResumeGps: () => void;
 }) {
   const walk = walkById(run.walkId)!;
   const step = run.stamps.length;
@@ -28,11 +31,13 @@ export function WalkControls({ run, location, locale, onPosition, onComplete }: 
   const start = step ? nearest(placeById(walk.placeIds[step - 1])!.location, 0) : 0;
   const end = nearest(target.location, start);
   const [elapsed, setElapsed] = useState(0);
-  const [motion, setMotion] = useState<"idle" | "moving" | "paused">("idle");
-  const moving = motion === "moving";
+  const [motionState, setMotion] = useState<"idle" | "moving" | "paused">("idle");
+  const moving = motionState === "moving";
   const [now, setNow] = useState(Date.now);
+  const reduced = useReducedMotion();
   const demo = location.mode === "demo";
   const arrived = start === end || elapsed >= GAME.demoLegMs;
+  const demoIndex = start + Math.round((end - start) * elapsed / GAME.demoLegMs);
   useEffect(() => {
     if (!demo || !moving || arrived) return;
     let last = performance.now();
@@ -45,10 +50,8 @@ export function WalkControls({ run, location, locale, onPosition, onComplete }: 
     return () => clearInterval(timer);
   }, [demo, moving, arrived]);
   useEffect(() => {
-    if (!demo) return;
-    const index = start + Math.round((end - start) * elapsed / GAME.demoLegMs);
-    onPosition(line[index]);
-  }, [demo, elapsed, end, line, onPosition, start]);
+    if (demo) onPosition(line[demoIndex]);
+  }, [demo, demoIndex, line, onPosition]);
   useEffect(() => {
     if (location.mode !== "live") return;
     const sync = window.setTimeout(() => setNow(Date.now()), 0);
@@ -58,25 +61,45 @@ export function WalkControls({ run, location, locale, onPosition, onComplete }: 
       window.clearInterval(timer);
     };
   }, [location.mode, location.fix?.timestamp]);
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const checkNow = location.fix && location.fix.timestamp > now &&
     location.fix.timestamp - now <= GAME.maxClockSkewMs
     ? location.fix.timestamp : now;
   const eligible = demo ? arrived : liveEligible(location, target.location, checkNow);
-  return <div className="walk-controls">
-    {step > 0 && <small role="status">{translate(locale, "gameStamped", { coins: String(run.stamps[step - 1].coins) })}</small>}
-    <strong>{t("gameStop")} {step + 1}/{walk.placeIds.length} · {target.name[locale]}</strong>
-    {demo && !arrived && <button onClick={() => {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setElapsed(GAME.demoLegMs);
-      else setMotion(moving ? "paused" : "moving");
-    }}>{t(moving ? "gamePause" : motion === "paused" ? "gameContinue" : "gameMove")}</button>}
-    {demo && (motion !== "idle" || elapsed > 0) && <button onClick={() => { setMotion("idle"); setElapsed(0); }}>{t("gameResetLeg")}</button>}
-    <button disabled={!eligible} onClick={async () => {
-      const awarded = await act({ type: "collect", runId: run.id, placeId: target.id, location });
-      if (awarded && step + 1 === walk.placeIds.length) onComplete();
-    }}>{t(demo ? "gameSimulate" : "gameCheck")}</button>
-    {!demo && !eligible && <small>{translate(locale, "gameGpsHint", {
-      radius: String(GAME.radiusMeters), accuracy: String(GAME.maxAccuracyMeters),
-    })}</small>}
+  const here: LngLat | null = demo ? line[demoIndex] : location.fix ? [location.fix.longitude, location.fix.latitude] : null;
+  const remaining = here ? Math.round(distanceMeters(here, target.location) / 10) * 10 : null;
+  const last = step > 0 ? run.stamps[step - 1] : null;
+  const gpsIdle = location.mode === "live" && !["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
+  const other = locale === "en" ? "ja" : "en";
+  return <div className="follow-card">
+    {last && <motion.p role="status" className="stamp-receipt" initial={reduced ? false : { scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
+      <span className="stamp-seal" aria-hidden="true">印</span>
+      <span><strong>{t("receiptEarned", { points: String(last.points) })}</strong>
+        <small>{last.multiplier > 1 ? t("receiptOffPeak", { base: String(GAME.checkpointPoints), multiplier: last.multiplier.toFixed(1) }) : t("receiptStandard", { base: String(GAME.checkpointPoints) })}</small></span>
+    </motion.p>}
+    <div className="follow-head">
+      <FoxAvatar state={eligible ? "arrived" : moving ? "walking" : "idle"} size={40} />
+      <div>
+        <small className="follow-progress">{t("followStop", { current: String(step + 1), total: String(walk.placeIds.length) })}{remaining !== null && ` · ${t("followRemaining", { meters: String(remaining) })}`}</small>
+        <strong className="follow-title">{target.name[locale]}</strong>
+        <small lang={other}>{target.name[other]}</small>
+      </div>
+      <button type="button" className="icon-button" aria-label={t("gameStopWalk")} onClick={onExit}><X size={20} strokeWidth={ICON_STROKE} /></button>
+    </div>
+    <div className="follow-actions">
+      {demo && !arrived && <button type="button" className="follow-secondary" onClick={() => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setElapsed(GAME.demoLegMs);
+        else setMotion(moving ? "paused" : "moving");
+      }}>{t(moving ? "gamePause" : motionState === "paused" ? "gameContinue" : "gameMove")}</button>}
+      {demo && (motionState !== "idle" || elapsed > 0) && <button type="button" className="follow-secondary" onClick={() => { setMotion("idle"); setElapsed(0); }}>{t("gameResetLeg")}</button>}
+      {gpsIdle && <button type="button" className="follow-secondary" onClick={onResumeGps}><Navigation size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationUseMyLocation")}</button>}
+      <button type="button" className="follow-check" data-ready={eligible} disabled={!eligible} onClick={async () => {
+        const awarded = await act({ type: "collect", runId: run.id, placeId: target.id, location });
+        if (!awarded) return;
+        haptic();
+        if (step + 1 === walk.placeIds.length) onComplete();
+      }}>{t(demo ? "gameSimulate" : "gameCheck")}</button>
+    </div>
+    {!demo && !eligible && <small className="follow-hint">{t("gameGpsHint", { radius: String(GAME.radiusMeters), accuracy: String(GAME.maxAccuracyMeters) })}</small>}
   </div>;
 }

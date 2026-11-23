@@ -3,8 +3,10 @@ import { after, before, test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
-const url = process.env.PHASE2_URL || 'http://localhost:3000';
+const url = process.env.PHASE3_URL || process.env.PHASE2_URL || 'http://localhost:3000';
 const style = { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] };
+// 12:00 Kyoto time, outside the sample off-peak window.
+const NOON = new Date('2026-11-24T03:00:00Z');
 let browser;
 before(async () => { browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] }); });
 after(async () => { await browser?.close(); });
@@ -14,6 +16,7 @@ for (const locale of ['en', 'ja']) {
   for (const width of [360, 390, 430]) {
     test(`${locale} discovery, map recovery and route continuity at ${width}px`, async () => {
       const page = await browser.newPage({ viewport: { width, height: 800 }, reducedMotion: 'reduce' });
+      await page.clock.setFixedTime(NOON);
       page.setDefaultTimeout(8000);
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
@@ -23,50 +26,58 @@ for (const locale of ['en', 'ja']) {
       await page.route('https://tiles.openfreemap.org/styles/liberty', (route) =>
         failStyle ? route.abort() : route.fulfill({ json: style }));
       const button = (name) => page.getByRole('button', { name, exact: true });
-      const dialog = page.getByRole('dialog');
+      const sheet = page.locator('.snap-sheet');
       try {
         await page.goto(url);
         await button(locale === 'en' ? 'English' : '日本語').click();
         await button(copy.startExploring).click();
         await button(copy.mapRetry).waitFor();
+        // The stored walks stay browsable while the basemap is down.
         await button(copy.mapStoredWalks).click();
-        assert.equal(await dialog.locator('.map-route-option').count(), 3);
-        await dialog.locator('.map-route-option').first().click();
-        await button(copy.routesSeeStops).click();
-        await dialog.locator('.route-place-card').first().click();
-        await dialog.getByRole('link', { name: copy.placeMapSource }).waitFor();
-        await button(copy.placeBackToStops).click();
-        await page.keyboard.press('Escape');
-        assert.equal(await button(copy.mapStoredWalks).evaluate(el => el === document.activeElement), true);
+        await page.locator('.snap-sheet[data-snap="half"]').waitFor();
+        assert.equal(await sheet.locator('.route-card').count(), 3);
+        await sheet.getByRole('button', { name: copy.routePreview }).first().click();
+        await page.locator('.snap-sheet[data-snap="full"]').waitFor();
+        assert.equal(await sheet.locator('.stop-timeline li').count(), 3);
+        await sheet.locator('.stop-timeline button').first().click();
+        await sheet.getByRole('link', { name: copy.placeMapSource }).waitFor();
+        await button(copy.routesDetails).click();
+        await button(copy.routesBack).click();
+        assert.equal(await sheet.locator('.route-card').count(), 3);
+        assert.equal(await page.getByRole('dialog').count(), 0);
 
         failStyle = false;
         await button(copy.mapRetry).click();
+        await page.locator('.map-place-pin').first().waitFor();
         const search = page.getByRole('searchbox');
         await search.fill(locale === 'en' ? 'river within 9 minutes' : '9分以内の川沿い');
-        const result = page.locator('.map-search-results .map-route-option');
-        assert.equal(await result.count(), 1);
-        await result.click();
-        const walk = await dialog.getByRole('heading', { level: 2 }).innerText();
-        await button(copy.close).click();
+        assert.equal(await sheet.locator('.route-card').count(), 1);
+        const walk = await sheet.locator('.route-card h3').innerText();
+        await sheet.getByRole('button', { name: copy.routePreview }).click();
+        assert.equal(await sheet.locator('.sheet-title').evaluate(el => el.firstChild.textContent), walk);
+
+        // Search, the selected walk and its pins survive a tab switch.
         await button(copy.navSettings).click();
-        await button(copy.navMap).click();
+        await button(copy.navExplore).click();
         await page.locator('.map-place-pin[data-place-id="kawabata-riverside"]').waitFor();
-        assert.equal(await page.locator('.map-selected-callout strong').innerText(), walk);
+        assert.equal(await page.getByRole('searchbox').inputValue(), locale === 'en' ? 'river within 9 minutes' : '9分以内の川沿い');
+        assert.equal(await sheet.locator('.sheet-title').evaluate(el => el.firstChild.textContent), walk);
         assert.equal(await page.locator('.map-place-pin:visible').count(), 3);
-        await button(copy.mapListButton).click();
-        assert.equal(await dialog.locator('.route-place-card').count(), 3);
-        assert.equal(await dialog.locator('h2').evaluate(el => el === document.activeElement), true);
-        assert.ok(await dialog.evaluate(el => el.matches(':modal')));
-        await page.locator('nav button').first().evaluate(el => el.focus());
-        assert.ok(await dialog.evaluate(el => el.contains(document.activeElement)));
-        await page.keyboard.press('Tab');
-        assert.equal(await button(copy.close).evaluate(el => el === document.activeElement), true);
-        await dialog.locator('.route-place-card').nth(1).click();
-        await button(copy.placeBackToStops).click();
-        await dialog.getByRole('button', { name: copy.routesBack, exact: true }).click();
-        assert.equal(await dialog.locator('.map-route-option').count(), 3);
-        await page.keyboard.press('Escape');
-        assert.equal(await button(copy.mapListButton).evaluate(el => el === document.activeElement), true);
+
+        // The sheet handle is keyboard operable and cycles through the snap points.
+        const handle = page.locator('.snap-sheet-handle');
+        assert.equal(await handle.getAttribute('aria-label'), copy.sheetCollapse);
+        await handle.click();
+        await page.locator('.snap-sheet[data-snap="peek"]').waitFor();
+        await handle.focus();
+        await page.keyboard.press('Enter');
+        await page.locator('.snap-sheet[data-snap="half"]').waitFor();
+
+        // Crowd info pairs colour with a shape and text, and is labelled as a sample.
+        await button(copy.crowdInfo).click();
+        const legend = page.locator('.crowd-legend');
+        assert.deepEqual(await legend.locator('.crowd-badge').allTextContents(), [`●${copy.crowdCalm}`, `▲${copy.crowdModerate}`, `■${copy.crowdBusy}`]);
+        await legend.getByText(copy.crowdProvenance).waitFor();
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         assert.deepEqual(errors, []);
       } finally {
@@ -76,7 +87,7 @@ for (const locale of ['en', 'ja']) {
   }
 }
 
-test('keeping a selected route never resumes GPS after leaving Map', async () => {
+test('keeping a selected route never resumes GPS after leaving Explore', async () => {
   const page = await browser.newPage();
   try {
     await page.route('https://tiles.openfreemap.org/styles/liberty', route => route.fulfill({ json: style }));
@@ -89,15 +100,13 @@ test('keeping a selected route never resumes GPS after leaving Map', async () =>
     });
     await page.goto(url);
     await page.getByRole('button', { name: 'Start exploring', exact: true }).click();
-    const gps = page.getByRole('button', { name: 'Use My Location', exact: true });
-    await gps.click();
-    await page.locator('.map-list-button').click();
-    await page.locator('dialog .map-route-option').first().click();
-    await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Home', exact: true }).click();
-    await page.getByRole('button', { name: 'Map', exact: true }).click();
-    await page.locator('.map-congestion-legend').waitFor();
-    assert.ok(await page.locator('.map-selected-callout').isVisible());
+    await page.getByRole('button', { name: 'Use My Location', exact: true }).click();
+    await page.getByRole('button', { name: 'Expand walk panel' }).click();
+    await page.getByRole('button', { name: 'Preview route' }).first().click();
+    await page.getByRole('button', { name: 'Quests', exact: true }).click();
+    await page.getByRole('button', { name: 'Explore', exact: true }).click();
+    await page.locator('.crowd-legend-pill').waitFor();
+    assert.ok(await page.locator('.sheet-title').isVisible());
     assert.deepEqual(await page.evaluate(() => window.gpsCalls), ['start', 27]);
   } finally {
     await page.close();
