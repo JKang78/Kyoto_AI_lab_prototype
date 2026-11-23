@@ -1,6 +1,5 @@
 ---
 description: Design fidelity, interaction, accessibility, and localization rules for front-end UI
-globs: "**/*.tsx,**/*.css"
 alwaysApply: false
 ---
 # Frontend and design constraints
