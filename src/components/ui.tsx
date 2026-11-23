@@ -127,10 +127,10 @@ export function SnapSheet({ snap, onSnap, header, children, labels }: {
 }
 
 export type FoxState = "idle" | "walking" | "arrived" | "reward" | "warning";
-/** Replaceable mascot shell. Until original art arrives it draws a neutral ring, never a substitute character. */
+/** Team-provided fox art per state, framed in a cream-and-gold ring. Falls back to a neutral ring without art. */
 export function FoxAvatar({ state = "idle", size = 44 }: { state?: FoxState; size?: number }) {
-  return <span className={`fox-avatar fox-avatar--${state}`} style={{ width: size, height: size }} aria-hidden="true">
-    {assetPaths.mascot ? <Image src={assetPaths.mascot} width={size} height={size} alt="" /> :
+  return <span className={`fox-avatar fox-avatar--${state}`} data-art={Boolean(assetPaths.mascot)} style={{ width: size, height: size }} aria-hidden="true">
+    {assetPaths.mascot ? <Image src={assetPaths.mascot[state]} width={size * 2} height={size * 2} sizes={`${size}px`} alt="" /> :
       <svg viewBox="0 0 44 44" fill="none" strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="22" cy="22" r="20" className="fox-ring" />
         <circle cx="22" cy="22" r="14.5" className="fox-face" />

@@ -126,6 +126,8 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 /* Fox avatar: neutral placeholder until original art arrives */
 .fox-avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; background: var(--bg-ivory); box-shadow: 0 4px 12px rgb(28 25 23 / 18%); }
 .fox-avatar svg, .fox-avatar img { width: 100%; height: 100%; }
+.fox-avatar[data-art="true"] { overflow: hidden; border: 2.5px solid var(--antique-gold); background: #fbf6ea; }
+.fox-avatar[data-art="true"] img { object-fit: contain; transform: scale(1.18) translateY(6%); }
 .fox-ring { stroke: var(--antique-gold); stroke-width: 3; fill: #fbf6ea; }
 .fox-face { fill: var(--bg-ivory); stroke: rgb(198 156 77 / 50%); }
 .fox-mark { stroke: var(--torii-vermilion); stroke-width: 2.2; }
