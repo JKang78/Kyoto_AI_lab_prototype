@@ -10,6 +10,7 @@ import { activeBonus, activeRun, balance, circlePolygon, liveEligible, placeById
 import { Celebration } from "@/components/celebration";
 import { HelpSheet } from "@/components/help-sheet";
 import { PREVIEW_CONTROLS } from "@/config/environment";
+import { applyPixelLook, clearPixelPatterns, pixelLookRequested } from "@/components/map/pixel-look";
 import { PlacePhoto, PlaceStory } from "@/components/place-media";
 import { glyphSvg, PlaceSeal, placeSealSvg, placeTheme } from "@/components/glyphs";
 import { act } from "@/lib/game-store";
@@ -250,6 +251,8 @@ export function KyotoMap({
   );
   const standardPaintRef = useRef<Map<string, unknown>>(new Map());
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  // EXPERIMENT: `?look=pixel` in dev/preview builds only. Read once on the client; it doesn't change rendered markup.
+  const [pixelLook] = useState(() => typeof window !== "undefined" && pixelLookRequested(window.location.search, PREVIEW_CONTROLS));
   const [showCrowd, setShowCrowd] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [chipNote, setChipNote] = useState<MessageKey | null>(null);
@@ -490,6 +493,20 @@ export function KyotoMap({
       if (value !== undefined) map.setPaintProperty(layer, property, value as never);
     }
   }, [mapStyle, state]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!pixelLook || !map || state !== "ready") return;
+    if (mapStyle === "illustrated") applyPixelLook(map);
+    else clearPixelPatterns(map);
+    // Zooming loads new tiles and can refresh the style; re-assert the pixel paints when that happens.
+    // EXPERIMENT debug hook: lets you inspect the live map from the browser console in `?look=pixel` mode.
+    (window as unknown as { __kyotoMap?: MapLibreMap }).__kyotoMap = map;
+    const reassert = () => { if (mapStyle === "illustrated") applyPixelLook(map); };
+    map.on("styledata", reassert);
+    map.on("idle", reassert);
+    return () => { map.off("styledata", reassert); map.off("idle", reassert); };
+  }, [mapStyle, pixelLook, state]);
 
   useEffect(() => {
     if (!initialPlaceId || state !== "ready") return;

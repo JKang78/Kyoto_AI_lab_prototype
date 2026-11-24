@@ -44,7 +44,7 @@
 * { box-sizing: border-box; }
 html { background: var(--bg-stone); }
 body { margin: 0; color: var(--ink-sumi); background: var(--bg-stone); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-button, input { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; padding: 0; }
 button:disabled { cursor: not-allowed; }
 :where(button, input, a, summary, [tabindex]):focus-visible { outline: 2px solid var(--antique-gold); outline-offset: 2px; }
@@ -108,6 +108,7 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 
 /* Explore: full-height map with floating chrome */
 .kyoto-map { position: relative; height: 100dvh; min-height: 520px; overflow: hidden; background: var(--bg-washi); }
+.kyoto-map .maplibregl-map { font-family: var(--font-body); }
 .kyoto-map-canvas { position: absolute; inset: 0; }
 .kyoto-map-status { position: absolute; z-index: 4; inset: 0 0 calc(var(--dock-h) + var(--peek-h)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: var(--bg-washi); color: var(--ink-slate); text-align: center; font-size: 14px; font-weight: 600; }
 .map-top-ui { position: absolute; z-index: 5; top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; display: grid; gap: 8px; pointer-events: none; }
@@ -945,19 +946,42 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 @font-face {
   font-family: "Macadam Satoshi";
   src: url("/fonts/macadam-preview/satoshi.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300 900;
   font-display: swap;
 }
 @font-face {
   font-family: "Macadam Yalla";
   src: url("/fonts/macadam-preview/yalla.woff2") format("woff2");
-  font-weight: 900;
+  font-style: normal;
+  font-weight: 100 900;
   font-display: swap;
 }
 html[data-font-preview="macadam"] {
   --font-ui: "Macadam Satoshi";
   --font-display: "Macadam Yalla";
+  --font-body: var(--font-ui), var(--font-ui-ja), "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   --font-title: var(--font-display), var(--font-ui-ja), sans-serif;
+  font-synthesis-weight: none;
 }
+html[data-font-preview="macadam"]:lang(ja),
 html[data-font-preview="macadam"] :lang(ja) {
-  --font-title: var(--font-ui-ja), sans-serif;
+  --font-body: var(--font-ui-ja), var(--font-ui), "Hiragino Kaku Gothic ProN", sans-serif;
+  --font-title: var(--font-ui-ja), var(--font-display), sans-serif;
+}
+html[data-font-preview="macadam"] .home-hero-number strong,
+html[data-font-preview="macadam"] .home-status-copy,
+html[data-font-preview="macadam"] .settings-section h2,
+html[data-font-preview="macadam"] .sheet-subtitle,
+html[data-font-preview="macadam"] .walk-list-item h4,
+html[data-font-preview="macadam"] .redeem-code {
+  font-family: var(--font-title);
+  font-weight: 700;
+}
+html[data-font-preview="macadam"] .home-hero-number strong,
+html[data-font-preview="macadam"] .home-status-copy {
+  letter-spacing: 0;
+}
+html[data-font-preview="macadam"] .kyoto-map .maplibregl-map {
+  font-family: var(--font-body);
 }
