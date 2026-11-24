@@ -41,10 +41,11 @@ Navigation decision applied: **Explore / Missions / Rewards / Me** (settings ins
 ### Still outstanding
 
 - **No backend (R1, P2 below).** Points, check-ins and voucher state remain in `localStorage` and are editable. The redemption code is still a predictable client hash; it is now honestly labelled as unchecked. Real issuance and redemption require ENGINEERING_SPEC §5–7.
-- **Demo controls are visible in every build.** They are labelled, and no real reward exists, but ENG §3 asks for simulation UI only in development/preview. Hide them behind a preview build flag before any public deployment.
+- ~~**Demo controls are visible in every build.**~~ **Resolved:** gated behind `NEXT_PUBLIC_KYOTO_FLOW_PREVIEW=1` (or dev); verified against a plain production build by `tests/browser/public-build.mjs`.
 - **Live GPS check-ins still earn the same demo points** as simulated ones (both are demo; the receipt says which). A future server must reject `mode: "demo"` events in production.
 - **Deep link path** is `/?route=` (as requested), not the spec's `/explore?route=`.
-- **Unchanged P1 items:** contrast token (`--ink-muted` 3.44:1) and 9–12 px captions; manual starting-point picker; Map/List and Illustrated/Standard toggles; voucher expiry (JST) and expired state; mission criteria/expiry text; etiquette toast (`warning` fox); fox on Welcome and voucher unlock; "Luggage-friendly", "Hidden gems" and clickable "Bike" chips; localized loading screen and manifest; Delete-local-data and privacy notice; service worker/offline; real-device testing; native Japanese review.
+- **Resolved in the release pass:** contrast (`--ink-muted` now 5.0:1, all text ≥ 12 px), Map/List toggle (list view), etiquette toast, Bike and Luggage chips (unavailable with explanations). The fox appears on voucher unlock (toast) and celebration.
+- **Still open:** manual starting-point picker; Illustrated/Standard map style toggle; voucher expiry (JST) and expired state; mission criteria/expiry text; fox on Welcome; "Hidden gems" chip wording; localized loading screen and manifest; Delete-local-data and privacy notice; service worker/offline; real-device testing; native Japanese review.
 - **Mascot:** confirm ownership/licence of the five files; one faint speck remains beside the walking fox's ear (inside the cleanup distance, not visible at UI sizes); low-accuracy marker treatment not built.
 - **Tooling:** Turbopack's dev watcher stopped picking up `globals.css` edits twice; deleting `.next/dev` and restarting fixes it.
 

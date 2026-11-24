@@ -29,6 +29,23 @@ The map needs an internet connection to load OpenFreeMap tiles. It uses no API k
 Location permission is requested after **Use My Location** or **Start GPS walk** is tapped. Browser GPS requires HTTPS or localhost. A live fix stays at its actual coordinates, including outside Kyoto; low accuracy and errors are shown. **Demo Mode** uses a clearly labelled simulated point near Gion-Shijo and turns GPS off. GPS also stops when Explore is left; returning requires another tap to resume. The app does not save location history.
 The MapLibre worker is served from `public/vendor/` because Next.js did not load its automatic worker URL reliably. When upgrading MapLibre, replace that worker file with the matching package version and retain its license notice.
 
+## Presenter vs public builds
+
+Demo Mode, simulated check-ins and the bonus-scenario switch appear only in development (`npm run dev`) and in builds made for presenters:
+
+```bash
+NEXT_PUBLIC_KYOTO_FLOW_PREVIEW=1 npm run build   # presenter / demo deployment
+npm run build                                    # public build: GPS walking only
+```
+
+A public build removes those controls and clears any demo state a browser saved earlier. All rewards stay demo-only in both.
+
+## Accessibility and etiquette
+
+- **List view:** the rail's **List** button replaces the map with every walk, its stops (photo, accessibility and access notes, story), and the same actions as the map. **Map view** returns.
+- **Unavailable modes:** the **Bike · pilot planned** and **Luggage · not surveyed** chips explain why they're unavailable instead of filtering.
+- **Etiquette notice:** during a walk, three example zones (Yasaka's west gate, Maruyama Park's paths, the Kawabata riverside sidewalk) show a short, dismissible notice with the fox, at most once per zone per Kyoto day. Messages restate each walk's resident note and are labelled as example zones.
+
 ## Quality checks
 
 ```bash
@@ -44,6 +61,8 @@ With the app running at localhost:3000, run the browser checks in a second termi
 npx playwright install chromium
 npm run test:browser
 ```
+
+`tests/browser/public-build.mjs` checks a public build. It skips unless `PUBLIC_URL` points at one, for example `npm run build && npx next start -p 3002`, then `PUBLIC_URL=http://localhost:3002 node --test tests/browser/public-build.mjs`.
 
 ## Structure
 

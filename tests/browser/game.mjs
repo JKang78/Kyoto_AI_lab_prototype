@@ -189,6 +189,8 @@ test('GPS check-in requires an explicit tap and an eligible live fix', async () 
     await report(12, 60_000);
     assert.ok(await button(copy.gameCheck).isDisabled());
     await report(12, 300);
+    // Wait for React to re-render with the eligible fix instead of sampling the button instantly.
+    await page.waitForFunction(() => document.querySelector('.follow-check')?.disabled === false);
     assert.equal(await button(copy.gameCheck).isDisabled(), false);
     assert.equal(await button(copy.gameCheck).getAttribute('data-ready'), 'true');
     assert.equal((await snapshot(page)).runs[0].stamps.length, 0);
@@ -607,4 +609,51 @@ test('P2: credited place photos, locked then unlocked draft stories, per-place s
     await page.getByRole('dialog').getByText(copy.storyDraft).waitFor();
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
+});
+
+test('release pass: unavailable chips explain themselves, list view replaces the map, etiquette toast shows once per day', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  try {
+    await prepare(page);
+    await button(copy.startExploring).click();
+    // Item 1: Bike and Luggage are unavailable, explain why, and never filter the walks.
+    const bike = button(copy.chipBike);
+    assert.equal(await bike.getAttribute('aria-disabled'), 'true');
+    await bike.dispatchEvent('click');
+    await page.locator('#chip-note').getByText(copy.chipBikeNote).waitFor();
+    await button(copy.chipLuggage).dispatchEvent('click');
+    await page.locator('#chip-note').getByText(copy.chipLuggageNote).waitFor();
+    assert.equal(await page.locator('.map-categories [aria-pressed="true"]').count(), 0);
+    // Item 3: the list view shows every walk with its stops, details and actions, without the map.
+    await button(copy.railList).click();
+    const list = page.locator('.walk-list');
+    await list.getByRole('heading', { name: copy.listTitle }).waitFor();
+    assert.equal(await list.locator('.walk-list-item').count(), 3);
+    assert.equal(await page.locator('.snap-sheet').count(), 0);
+    await list.locator('summary').first().click();
+    await list.locator('.walk-list-place').first().getByText(copy.storyLocked).waitFor();
+    await list.getByRole('button', { name: copy.listMapView }).click();
+    await page.locator('.snap-sheet').waitFor();
+    // Item 5: starting at Yasaka's gate shows the etiquette toast with the demo label.
+    await button(copy.railList).click();
+    await list.locator('.walk-list-item').filter({ hasText: 'Yasaka and Maruyama Park' }).getByRole('button', { name: copy.gameStartDemo }).click();
+    const toast = page.locator('.etiquette-toast');
+    await toast.getByText(copy.etiquetteDemo).waitFor();
+    await toast.locator('.fox-avatar--warning').waitFor();
+    assert.equal(await page.locator('.walk-hud').count(), 1);
+    await toast.getByRole('button', { name: copy.close }).click();
+    await toast.waitFor({ state: 'detached' });
+    // Same zone, same Kyoto day: no repeat after a reload.
+    await page.reload();
+    await page.locator('.walk-hud').waitFor();
+    await page.waitForTimeout(500);
+    assert.equal(await page.locator('.etiquette-toast').count(), 0);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
 });

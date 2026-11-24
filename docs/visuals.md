@@ -126,7 +126,7 @@ Each row names the reference pattern, why it works, our version, and the rule th
 | Route labels on lines | ❌ → **E7** |
 | "Coupon Quest!" sunburst marker | ❌ → **E8** |
 | Place popup with photo, tags, walk time | ◐ Text-only place view in the sheet → **E9** |
-| "Please be mindful in residential areas" callout | ❌ Planned as the etiquette toast with the `warning` fox (PRD FR-17) |
+| "Please be mindful in residential areas" callout | ✅ Built 2026-11-24 as a non-blocking etiquette toast with the `warning` fox, in three example zones, once per zone per Kyoto day |
 | "Heavy traffic" red road bands | ✗ Intentionally not built: no live data (PRD FR-07). Demo cues stay as labelled sample badges |
 | Illustrated bridges and textures | ✗ Map stays a restyled real basemap (DS §1.3) |
 

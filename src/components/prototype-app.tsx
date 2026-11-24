@@ -8,6 +8,7 @@ import { Rewards } from "@/components/rewards-screen";
 import { act, useGame } from "@/lib/game-store";
 import { activeRun, balance, walkById, type Game } from "@/lib/game";
 import { COUPONS, type CampaignKind } from "@/config/game";
+import { PREVIEW_CONTROLS } from "@/config/environment";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
 import { KyotoMap } from "@/components/map/kyoto-map";
 import { Button, ConfirmDialog, FoxAvatar, haptic, ICON_STROKE, Segmented } from "@/components/ui";
@@ -88,11 +89,11 @@ function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, 
         <div><dt>{t("locationSettingsMode")}</dt><dd>{locationModeText(locale, location.mode)}</dd></div>
         <div><dt>{t("locationSettingsGps")}</dt><dd>{locationStatusText(locale, location)}</dd></div>
       </dl>
-      <Switch checked={location.mode === "demo"} onChange={onDemoChange}>{t("locationSettingsDemoSwitch")}</Switch>
+      {PREVIEW_CONTROLS && <Switch checked={location.mode === "demo"} onChange={onDemoChange}>{t("locationSettingsDemoSwitch")}</Switch>}
       <Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><LocateFixed size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationSettingsRecenter")}</Button>
       <p className="settings-hint">{t("locationSettingsHint")}</p>
     </section>
-    <section className="settings-section demo-controls">
+    {PREVIEW_CONTROLS && <section className="settings-section demo-controls">
       <h2><FlaskConical size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("demoControlsHeading")}</h2>
       <p className="form-label">{t("scenarioLabel")}</p>
       <Segmented<"none" | CampaignKind> label={t("scenarioLabel")} value={game.scenario ?? "none"}
@@ -102,7 +103,7 @@ function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, 
           { id: "quiet_hour", label: t("scenarioQuiet") },
         ]} />
       <p className="settings-hint">{t("scenarioHint")}</p>
-    </section>
+    </section>}
     <section className="settings-section">
       <h2><Sparkles size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gameProgress")}</h2>
       <Button variant="secondary" className="full-width" onClick={() => setResetOpen(true)}>{t("gameReset")}</Button>
@@ -140,6 +141,7 @@ export function PrototypeApp() {
   // Search and filters survive tab switches for the session.
   const [query, setQuery] = useState("");
   const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
+  const [viewMode, setViewMode] = useState<"map" | "list">("map");
   const [deviceLocation, setDeviceLocation] = useState<LocationState>(INITIAL_LOCATION_STATE);
   const handleLocationChange = useCallback((next: SetStateAction<LocationState>) => {
     setDeviceLocation((current) => {
@@ -160,6 +162,12 @@ export function PrototypeApp() {
     }
   }, [game.demo]);
   const [settingsRecenterRequest, setSettingsRecenterRequest] = useState(false);
+  // A public build has no simulation controls, so clear any demo state saved by an earlier preview build.
+  useEffect(() => {
+    if (PREVIEW_CONTROLS) return;
+    if (game.demo) void act({ type: "demo", enabled: false });
+    if (game.scenario) void act({ type: "scenario", kind: null });
+  }, [game.demo, game.scenario]);
   const [celebrating, setCelebrating] = useState(false);
   const [stampBookFocus, setStampBookFocus] = useState(false);
 
@@ -204,7 +212,7 @@ export function PrototypeApp() {
   }
   return <div className="app-shell" data-tab={activeTab}>
     <main key={activeTab} id="main-content" className="app-main">
-      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} />}
+      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} viewMode={viewMode} setViewMode={setViewMode} />}
       {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
       {activeTab === "me" && <MeScreen game={game} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}

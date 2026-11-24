@@ -81,3 +81,11 @@ The fonts are now self-hosted: `scripts/fetch_fonts.py` downloads Google's woff2
 - **Seals** are code-drawn placeholders in the pin line style, one per stop, to be replaced by designer art.
 - **Trail** is a demo collection goal with no deadline and no extra reward. A real seasonal campaign needs an owner, dates and data first.
 - **Fox poses:** no new poses were made. Any new pose needs commissioned artwork and team approval.
+
+## 2026-11-24 Release-readiness pass (polished demo)
+
+- **Bike and Luggage-friendly chips** stay visible as unavailable ("Bike · pilot planned", "Luggage · not surveyed") and explain why when tapped. They never filter walks or imply validated cycling or step-free routes (design_system §5, §6.1).
+- **Preview-only simulation:** Demo Mode, simulated walks and bonus scenarios render only when `NEXT_PUBLIC_KYOTO_FLOW_PREVIEW=1` or in development. A public build hides them, rewrites status texts that mentioned Demo Mode, and clears saved demo state. This is a product safeguard, not security.
+- **List view** gives map/list equivalence (FR-04): every walk, stop, photo, note, story and action is available without the map.
+- **Contrast and type:** `--ink-muted` is now `#706A62` (design_system §3.1). Text is at least 12 px; the design system's 13 px caption guidance is met for body copy, and 12 px is used for chips, dock labels and credits, checked at 360 px. Gold numerals appear only on dark or purple backgrounds.
+- **Etiquette toast** (FR-17) uses three example zones whose messages restate the existing resident notes. They are not official designations and are labelled as examples.

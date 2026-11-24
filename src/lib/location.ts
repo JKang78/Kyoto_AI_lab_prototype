@@ -1,4 +1,5 @@
 import { translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { PREVIEW_CONTROLS } from "@/config/environment";
 
 export type LocationMode = "unselected" | "live" | "demo";
 export type GpsStatus = "off" | "requesting" | "active" | "lowAccuracy" | "outsideKyoto" | "denied" | "timeout" | "unavailable" | "paused";
@@ -26,14 +27,16 @@ export function locationModeText(locale: Locale, mode: LocationMode): string {
 
 export function locationStatusText(locale: Locale, location: LocationState): string {
   if (location.mode === "demo") return translate(locale, "locationStatusDemo");
-  if (location.mode === "unselected") return translate(locale, "locationStatusOff");
+  // Public builds have no Demo Mode, so their status texts don't suggest it.
+  if (location.mode === "unselected") return translate(locale, PREVIEW_CONTROLS ? "locationStatusOff" : "locationStatusOffPublic");
   if (location.gpsStatus === "lowAccuracy" && location.fix && !isInKyotoDemoArea(location.fix)) {
     return translate(locale, "locationStatusLowAccuracyOutside", { accuracy: String(Math.round(location.fix.accuracy)) });
   }
   const key: Record<GpsStatus, MessageKey> = {
     off: "locationStatusOff", requesting: "locationStatusRequesting", active: "locationStatusActive",
     lowAccuracy: "locationStatusLowAccuracy", outsideKyoto: "locationStatusOutsideKyoto",
-    denied: "locationStatusDenied", timeout: "locationStatusTimeout",
+    denied: PREVIEW_CONTROLS ? "locationStatusDenied" : "locationStatusDeniedPublic",
+    timeout: PREVIEW_CONTROLS ? "locationStatusTimeout" : "locationStatusTimeoutPublic",
     unavailable: "locationStatusUnavailable", paused: "locationStatusPaused",
   };
   return translate(locale, key[location.gpsStatus], { accuracy: String(Math.round(location.fix?.accuracy ?? 0)) });

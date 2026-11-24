@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Landmark, Trees, Waves } from "lucide-react";
 import { DEMO_TRAIL } from "@/config/game";
+import { PREVIEW_CONTROLS } from "@/config/environment";
 import { CURATED_WALKS } from "@/data/kyoto-walks";
 import { activeBonus, activeRun, placeById, scenarioByKind, walkById, walkReward, walkStatus, type Game, type Stamp } from "@/lib/game";
 import { bonusNameKey, bonusScenarioKey, formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
@@ -24,7 +25,7 @@ function BonusCard({ game, locale }: { game: Game; locale: Locale }) {
       walk: scenario.walkIds.map(id => walkById(id)?.name[locale]).join(", "),
     }) : t("missionsBonusNone")}</p>
     {scenario && <p className="surge-why">{t(bonusScenarioKey[scenario.kind])}</p>}
-    <p className="surge-why">{t("missionsBonusBody")}</p>
+    <p className="surge-why">{t(PREVIEW_CONTROLS ? "missionsBonusBody" : "missionsBonusBodyPublic")}</p>
     <small>{t("missionsVerifyNote")}</small>
   </section>;
 }

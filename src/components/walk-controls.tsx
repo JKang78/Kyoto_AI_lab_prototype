@@ -11,6 +11,7 @@ import type { LngLat } from "@/types/routes";
 import { FoxAvatar, haptic, ICON_STROKE, SPRING } from "./ui";
 import { kyotoSeason, PlaceSeal, SeasonSprite } from "./glyphs";
 import { StoryDialog } from "./place-media";
+import { ETIQUETTE_ZONES, etiquetteZoneAt, kyotoDay, markEtiquetteSeen, readEtiquetteSeen, shouldShowEtiquette, type EtiquetteZone } from "@/lib/etiquette";
 
 // The caller keys this component by run, leg and mode. A remount resumes
 // from the last stamp with movement paused, including after leaving Explore.
@@ -76,14 +77,39 @@ export function WalkControls({ run, location, locale, onPosition, onComplete, on
   // Seasonal sprites by Kyoto month (visuals.md E10): maple Oct–Dec, cherry Mar–Apr, sparkle otherwise.
   const [season] = useState(() => kyotoSeason(Date.now()));
   const [storyPlace, setStoryPlace] = useState<string | null>(null);
+  const [etiquette, setEtiquette] = useState<EtiquetteZone | null>(null);
   useEffect(() => {
     if (!celebrating) return;
     const timer = window.setTimeout(() => setCelebrating(false), 900);
     return () => window.clearTimeout(timer);
   }, [celebrating]);
+  // Non-blocking etiquette toast (design_system §6.1, FR-17): once per zone per Kyoto day, auto-hides after 6 s.
+  const zone = etiquetteZoneAt(here);
+  const zoneId = zone?.id;
+  useEffect(() => {
+    if (!zoneId) return;
+    const today = kyotoDay(Date.now());
+    if (!shouldShowEtiquette(zoneId, readEtiquetteSeen(), today)) return;
+    // Mark the zone seen only once the toast is really shown (dev Strict Mode runs effects twice).
+    const show = window.setTimeout(() => {
+      markEtiquetteSeen(zoneId, today);
+      setEtiquette(ETIQUETTE_ZONES.find(item => item.id === zoneId) ?? null);
+    }, 0);
+    return () => window.clearTimeout(show);
+  }, [zoneId]);
+  useEffect(() => {
+    if (!etiquette) return;
+    const timer = window.setTimeout(() => setEtiquette(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [etiquette]);
   const gpsIdle = location.mode === "live" && !["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const other = locale === "en" ? "ja" : "en";
   return <div className="follow-card" data-demo={demo}>
+    {etiquette && <div className="etiquette-toast" role="status" aria-label={t("etiquetteLabel")}>
+      <FoxAvatar state="warning" size={40} />
+      <p><span>{etiquette.message[locale]}</span><small>{t("etiquetteDemo")}</small></p>
+      <button type="button" className="icon-button" aria-label={t("close")} onClick={() => setEtiquette(null)}><X size={18} strokeWidth={ICON_STROKE} /></button>
+    </div>}
     {celebrating && !reduced && <span className="season-burst" data-season={season} aria-hidden="true">
       {Array.from({ length: 7 }, (_, index) => <span key={index} style={{ "--i": index } as CSSProperties}><SeasonSprite season={season} /></span>)}
     </span>}
