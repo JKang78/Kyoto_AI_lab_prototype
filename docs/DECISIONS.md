@@ -43,7 +43,7 @@ Headless Chrome with controlled Geolocation callbacks passed granted, denied, ti
 
 ## 2026-11-24 Kyoto Flow UI refactor
 
-The UI and interaction layer now follows `docs/kyoto_flow_agent_ui_ux_experience_engineering_spec.md`: four tabs (Explore, Quests, Wallet, Settings) with Explore as the home screen, Kyoto Ink & Washi tokens, a draggable peek/half/full sheet, a visible off-peak multiplier, and a bilingual staff redemption flow. The Home dashboard was removed.
+The original Kyoto Flow interaction specification introduced four tabs (Explore, Quests, Wallet, Settings) with Explore as the home screen, Kyoto Ink & Washi tokens, a draggable peek/half/full sheet, a visible off-peak multiplier, and a bilingual staff redemption flow. The Home dashboard was removed.
 
 Where the spec conflicts with this repo's honesty rules (`.cursor/rules/00-project-guardrails.mdc`, `docs/ARCHITECTURE.md`), the rules win:
 
@@ -89,3 +89,9 @@ The fonts are now self-hosted: `scripts/fetch_fonts.py` downloads Google's woff2
 - **List view** gives map/list equivalence (FR-04): every walk, stop, photo, note, story and action is available without the map.
 - **Contrast and type:** `--ink-muted` is now `#706A62` (design_system §3.1). Text is at least 12 px; the design system's 13 px caption guidance is met for body copy, and 12 px is used for chips, dock labels and credits, checked at 360 px. Gold numerals appear only on dark or purple backgrounds.
 - **Etiquette toast** (FR-17) uses three example zones whose messages restate the existing resident notes. They are not official designations and are labelled as examples.
+
+## 2026-11-24 Macadam-style Home screen as default entry
+
+- **Five-tab navigation, Home first:** Expanded the dock from four tabs to five (**Home · Explore · Missions · Rewards · Me**) and made **Home** the default landing screen on app entry and immediately after onboarding. This deliberately supersedes the earlier four-tab "map is home" rule in `docs/design_system.md` §4 for the prototype showcase.
+- **Honest metrics on the Macadam layout:** Adopted the visual hierarchy of `references/macadam_4.png` (top balance pill, greeting + status badge, oversized `tabular-nums` hero readout, stat chips, horizontal milestone track, and full-width bottom action pill) using Kyoto Ink & Washi tokens and the pixel `FoxAvatar`. Replaced Macadam's pedometer steps, calories, weekly rank, and midnight step-validation button with real locally derived metrics: spendable demo points, walked route distance, collected seals, shared voucher thresholds, and a context-aware walk/voucher CTA.
+- **QR deep links deferred:** Opening `/?route=<walk-id>` no longer bypasses onboarding or jumps straight to Explore; every entry opens Home while QR deep-link routing is deferred for a later decision.

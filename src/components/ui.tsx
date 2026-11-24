@@ -3,7 +3,6 @@
 import { useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { animate, motion, useDragControls, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { ChevronRight, ChevronUp, X } from "lucide-react";
-import Image from "next/image";
 import { assetPaths } from "@/config/assets";
 import type { CrowdLevel } from "@/data/sample-congestion";
 
@@ -11,8 +10,28 @@ export const SPRING = { type: "spring", stiffness: 380, damping: 32, mass: 0.9 }
 export const ICON_STROKE = 1.5;
 export const haptic = () => { try { navigator.vibrate?.(12); } catch { /* Unsupported. */ } };
 
-export function Button({ children, className = "", variant = "primary", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" }) {
-  return <button className={`ui-button ui-button--${variant} ${className}`} {...props}>{children}</button>;
+export function Button({ children, className = "", variant = "primary", disabled, onPointerDown, onPointerUp, onPointerCancel, onPointerLeave, onKeyDown, onKeyUp, onBlur, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" }) {
+  const [pressed, setPressed] = useState(false);
+  const reduced = useReducedMotion();
+  if (variant !== "primary") {
+    return <button className={`ui-button ui-button--${variant} ${className}`} disabled={disabled}
+      onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onPointerLeave={onPointerLeave}
+      onKeyDown={onKeyDown} onKeyUp={onKeyUp} onBlur={onBlur} {...props}>{children}</button>;
+  }
+  const active = Boolean(pressed && !disabled);
+  return <button className={`ui-button ui-button--primary ${className}`} disabled={disabled} data-pressed={active}
+    onPointerDown={(event) => { if (!disabled) setPressed(true); onPointerDown?.(event); }}
+    onPointerUp={(event) => { setPressed(false); onPointerUp?.(event); }}
+    onPointerCancel={(event) => { setPressed(false); onPointerCancel?.(event); }}
+    onPointerLeave={(event) => { setPressed(false); onPointerLeave?.(event); }}
+    onKeyDown={(event) => { if (!disabled && (event.key === " " || event.key === "Enter")) setPressed(true); onKeyDown?.(event); }}
+    onKeyUp={(event) => { if (event.key === " " || event.key === "Enter") setPressed(false); onKeyUp?.(event); }}
+    onBlur={(event) => { setPressed(false); onBlur?.(event); }}
+    {...props}>
+    <motion.span className="ui-button-face" animate={{ y: active ? 3 : 0 }} transition={reduced ? { duration: 0 } : SPRING}>
+      {children}
+    </motion.span>
+  </button>;
 }
 
 export function Segmented<T extends string>({ value, options, onChange, label }: {
@@ -117,10 +136,10 @@ export function SnapSheet({ snap, onSnap, header, children, labels }: {
 }
 
 export type FoxState = "idle" | "walking" | "arrived" | "reward" | "warning";
-/** Team-provided fox art per state, framed in a cream-and-gold ring. Falls back to a neutral ring without art. */
+/** Pixel sprites share a 64 px frame. The idle sheet holds three breathing frames. */
 export function FoxAvatar({ state = "idle", size = 44 }: { state?: FoxState; size?: number }) {
   return <span className={`fox-avatar fox-avatar--${state}`} data-art={Boolean(assetPaths.mascot)} style={{ width: size, height: size }} aria-hidden="true">
-    {assetPaths.mascot ? <Image src={assetPaths.mascot[state]} width={size * 2} height={size * 2} sizes={`${size}px`} alt="" /> :
+    {assetPaths.mascot ? <span className="fox-sprite" style={{ backgroundImage: `url(${assetPaths.mascot[state]})` }} /> :
       <svg viewBox="0 0 44 44" fill="none" strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="22" cy="22" r="20" className="fox-ring" />
         <circle cx="22" cy="22" r="14.5" className="fox-face" />

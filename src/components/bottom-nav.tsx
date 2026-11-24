@@ -1,12 +1,13 @@
 "use client";
 
-import { Compass, Stamp, Ticket, type LucideIcon } from "lucide-react";
+import { Compass, Home, Stamp, Ticket, type LucideIcon } from "lucide-react";
 import type { Locale, MessageKey } from "@/lib/i18n";
 import { translate } from "@/lib/i18n";
 import { FoxAvatar, haptic, ICON_STROKE } from "./ui";
 
-export type Tab = "explore" | "missions" | "rewards" | "me";
+export type Tab = "home" | "explore" | "missions" | "rewards" | "me";
 const items: { id: Tab; label: MessageKey; icon: LucideIcon | null }[] = [
+  { id: "home", label: "navHome", icon: Home },
   { id: "explore", label: "navExplore", icon: Compass },
   { id: "missions", label: "navMissions", icon: Stamp },
   { id: "rewards", label: "navRewards", icon: Ticket },

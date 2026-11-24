@@ -4,7 +4,7 @@ alwaysApply: false
 ---
 # Frontend and design constraints
 - Read `docs/DESIGN_GUIDELINES.md` and relevant parts of `docs/PROJECT_SPEC.md` before implementing UI. Compare Map-tab changes against `references/map-tab-reference.png`.
-- Keep the map as the dominant canvas. Preserve the floating reward header, destination search, category chips, illustrated/pastel geographic basemap, custom fox marker, colored dotted routes, place popups, floating route/list controls, and fixed five-tab navigation.
+- Keep the map as the dominant canvas. Preserve the floating reward header, destination search, category chips, illustrated/pastel geographic basemap, custom fox marker, colored dotted routes, place popups, floating route/list controls, and fixed four-tab navigation.
 - Use theme tokens and reusable React/TypeScript components. Anchor color: Kyoto Purple `#782459`; warm cream and pale yellow accents; avoid an overly pink, generic SaaS look.
 - The real basemap must remain pannable and zoomable. Do not use the reference screenshot as a fake map background.
 - Use replaceable placeholders for original fox/icon artwork until assets are supplied. Do not generate substitute branded characters.

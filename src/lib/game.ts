@@ -66,6 +66,78 @@ export function distanceMeters([lng, lat]: LngLat, [lng2, lat2]: LngLat) {
     Math.cos(lat * rad) * Math.cos(lat2 * rad) * Math.sin((lng - lng2) * rad / 2) ** 2;
   return 6371000 * 2 * Math.asin(Math.sqrt(a));
 }
+
+/** Geographic polygon approximating a circle of `radiusMeters` around `center` so it scales with map zoom. */
+export function circlePolygon([lng, lat]: LngLat, radiusMeters: number, steps = 48): [number, number][] {
+  const earth = 6371000;
+  const latRad = (lat * Math.PI) / 180;
+  const dLat = (radiusMeters / earth) * (180 / Math.PI);
+  const dLng = dLat / Math.max(0.01, Math.cos(latRad));
+  const ring: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * Math.PI * 2;
+    ring.push([lng + Math.cos(angle) * dLng, lat + Math.sin(angle) * dLat]);
+  }
+  return ring;
+}
+
+export type VoucherSegment = {
+  stopOffset: number;
+  points: number;
+  cumulative: number;
+  unlocksTarget: boolean;
+  isFinalStop: boolean;
+};
+
+export type VoucherProjection = {
+  target: (typeof COUPONS)[number] | null;
+  points: number;
+  status: "all_claimed" | "ready" | "reachable_on_walk" | "short_after_walk" | "no_walk";
+  stopsNeeded: number | null;
+  shortfall: number;
+  segments: VoucherSegment[];
+};
+
+/** Projects remaining stops on the active walk (with bonus multiplier + completion bonus on the last stop) toward the cheapest unclaimed voucher. */
+export function voucherProjection(game: Game): VoucherProjection {
+  const points = balance(game);
+  const target = [...COUPONS]
+    .filter(coupon => !game.claims.some(claim => claim.id === coupon.id))
+    .sort((a, b) => a.cost - b.cost)[0] ?? null;
+
+  if (!target) {
+    return { target: null, points, status: "all_claimed", stopsNeeded: null, shortfall: 0, segments: [] };
+  }
+
+  const run = activeRun(game);
+  const walk = run ? walkById(run.walkId) : undefined;
+  const remaining = walk && run ? Math.max(0, walk.placeIds.length - run.stamps.length) : 0;
+  const multiplier = walk ? (activeBonus(game, walk.id)?.multiplier ?? 1) : 1;
+  const segments: VoucherSegment[] = [];
+  let running = points;
+  let stopsNeeded: number | null = null;
+
+  for (let i = 1; i <= remaining; i++) {
+    const isFinalStop = i === remaining;
+    const gain = GAME.checkpointPoints * multiplier + (isFinalStop ? GAME.completionPoints : 0);
+    const prev = running;
+    running += gain;
+    const unlocksTarget = prev < target.cost && running >= target.cost;
+    if (unlocksTarget && stopsNeeded === null) stopsNeeded = i;
+    segments.push({ stopOffset: i, points: gain, cumulative: running, unlocksTarget, isFinalStop });
+  }
+
+  if (points >= target.cost) {
+    return { target, points, status: "ready", stopsNeeded: 0, shortfall: 0, segments };
+  }
+  if (remaining === 0) {
+    return { target, points, status: "no_walk", stopsNeeded: null, shortfall: target.cost - points, segments: [] };
+  }
+  if (stopsNeeded !== null) {
+    return { target, points, status: "reachable_on_walk", stopsNeeded, shortfall: 0, segments };
+  }
+  return { target, points, status: "short_after_walk", stopsNeeded: null, shortfall: target.cost - running, segments };
+}
 export function liveEligible(location: LocationState, point: LngLat, now: number) {
   const fix = location.fix;
   if (location.mode !== "live" || location.gpsStatus !== "active" || !fix ||

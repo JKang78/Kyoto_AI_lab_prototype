@@ -1,10 +1,14 @@
 # Mascot artwork
 
-The official fox artwork is the source of truth for the character: proportions, colours, face, the vermilion-brown neckerchief and the illustration style. Do not redraw it, replace it with generic icons or rebuild it in CSS, and do not add new states without approval.
+The five official illustrations define the fox’s proportions, colours, face and vermilion-brown neckerchief. The app uses pixel-art versions of those same poses. New character states require approval.
+
+## In-app pixel sprites
+
+`src/config/assets.ts` maps each pose to a PNG in `public/assets/mascot/pixel/`. Each frame is 64 × 64 with a transparent margin for the avatar ring. The idle PNG contains three frames side by side. `FoxAvatar` plays them in the order rest, halfway, inhale, halfway across 2.4 seconds. The paws stay anchored. Reduced-motion mode displays the resting frame. The other four PNGs each hold one frame.
 
 ## Files
 
-| State | Master (never edited) | Served copy | Used for |
+| State | Master (never edited) | Illustration reference | Used for |
 |---|---|---|---|
 | `idle` | `design/mascot/originals/fox-idle.png` | `public/assets/mascot/fox-idle.png` | Map location marker; follow card before moving |
 | `walking` | `design/mascot/originals/fox-walking.png` | `public/assets/mascot/fox-walking.png` | Map marker and follow card while a walk is moving |
@@ -18,7 +22,7 @@ Masters are 2048 × 2048 RGBA PNGs (about 2 MB each). Served copies are 512 × 5
 python3 scripts/normalize_mascot.py   # requires Pillow
 ```
 
-The script removes stray transparent-background specks (pixels more than about 16 px at master resolution from the fox's solid body; anti-aliased edges are kept), then centres and scales each state so all five fit the circular avatar ring with the same margin and a similar apparent size. It only crops, scales and clears background pixels; it never alters the drawing. `FoxAvatar` (`src/components/ui.tsx`) frames the result in a cream-and-gold ring with `object-fit: contain` and no per-state cropping.
+The script removes stray transparent-background specks, then centres and scales each illustration reference. The pixel sprites are maintained separately.
 
 ## Open items
 

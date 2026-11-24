@@ -1,5 +1,7 @@
 # Kyoto AI Lab prototype — Product Requirements Document (PRD)
 
+**Current navigation.** Explore opens on the map. The other tabs are Missions, Rewards and Me. The five-tab descriptions below record the original baseline. [Current product requirements](PRODUCT_REQUIREMENTS.md#7-functional-requirements-and-acceptance-criteria)
+
 **Version:** 1.0 (baseline)  
 **Prepared:** 2026-11-18  
 **Product name:** Kyoto AI Lab prototype (working name, confirmed by project owner)  

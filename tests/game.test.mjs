@@ -3,7 +3,7 @@ import test from 'node:test';
 import { GAME, COUPONS } from '../src/config/game.ts';
 import { REWARD_MODE } from '../src/config/environment.ts';
 import { sampleWalkCrowd } from '../src/data/sample-congestion.ts';
-import { emptyGame, balance, activeRun, transition, liveEligible, decodeGame, placeById, walkStatus, activeBonus, walkReward, redemptionCode, clientMayUnlock } from '../src/lib/game.ts';
+import { emptyGame, balance, activeRun, transition, liveEligible, decodeGame, placeById, walkStatus, activeBonus, walkReward, redemptionCode, clientMayUnlock, circlePolygon, distanceMeters, voucherProjection } from '../src/lib/game.ts';
 
 // 12:00 and 08:00 Kyoto time (UTC+9).
 const NOON = Date.UTC(2026, 10, 24, 3);
@@ -265,4 +265,74 @@ test('crowd levels default to unknown, never calm, when no sample exists', () =>
   assert.equal(sampleWalkCrowd(['kawabata-riverside', 'sanjo-ohashi']), 'unknown');
   assert.equal(sampleWalkCrowd(['yasaka-west-view']), 'moderate');
   assert.equal(sampleWalkCrowd(['shijo-ohashi', 'yasaka-west-view']), 'busy');
+});
+
+test('voucherProjection tracks remaining check-ins, bonus scenarios, shortfalls, ready and all-claimed states', () => {
+  // No active walk at 0 pts -> 60 pt gap to matcha
+  const idle = voucherProjection(emptyGame);
+  assert.equal(idle.status, 'no_walk');
+  assert.equal(idle.target?.id, 'matcha');
+  assert.equal(idle.shortfall, 60);
+
+  // Start a standard 3-stop walk at 0 pts -> 3rd check-in unlocks 60-pt matcha
+  const started = start(emptyGame, 'proj-1');
+  const p0 = voucherProjection(started);
+  assert.equal(p0.status, 'reachable_on_walk');
+  assert.equal(p0.stopsNeeded, 3);
+  assert.deepEqual(p0.segments.map(s => s.points), [10, 10, 40]);
+  assert.deepEqual(p0.segments.map(s => s.unlocksTarget), [false, false, true]);
+
+  // After 1st stamp (10 pts) -> 2 check-ins remaining
+  const afterOne = stamp(started, 'proj-1', stops[0]);
+  const p1 = voucherProjection(afterOne);
+  assert.equal(p1.status, 'reachable_on_walk');
+  assert.equal(p1.stopsNeeded, 2);
+
+  // With bus-relief 2x scenario on shijo-yasaka after 1st stamp (10 pts): next stop +20 (30), last stop +50 (80)
+  const withBonus = transition(afterOne, { type: 'scenario', kind: 'bus_relief' });
+  const pb = voucherProjection(withBonus);
+  assert.equal(pb.status, 'reachable_on_walk');
+  assert.equal(pb.stopsNeeded, 2);
+  assert.deepEqual(pb.segments.map(s => s.points), [20, 50]);
+
+  // Unlock matcha (60), then at 0 pts start a walk -> max 60 pts falls 30 pts short of 90-pt sento
+  let completed = afterOne;
+  completed = stamp(completed, 'proj-1', stops[1]);
+  completed = stamp(completed, 'proj-1', stops[2]);
+  assert.equal(voucherProjection(completed).status, 'ready');
+  const unlockedMatcha = unlock(completed);
+  const secondWalk = start(unlockedMatcha, 'proj-2');
+  const shortProj = voucherProjection(secondWalk);
+  assert.equal(shortProj.status, 'short_after_walk');
+  assert.equal(shortProj.target?.id, 'sento');
+  assert.equal(shortProj.shortfall, 30);
+
+  // Claim all 3 vouchers -> all_claimed
+  let rich = unlockedMatcha;
+  for (let n = 3; n <= 6; n++) {
+    rich = start(rich, `proj-${n}`);
+    for (const s of stops) rich = stamp(rich, `proj-${n}`, s);
+  }
+  rich = transition(rich, { type: 'unlock', id: 'sento' });
+  rich = transition(rich, { type: 'unlock', id: 'postcards' });
+  assert.equal(voucherProjection(rich).status, 'all_claimed');
+});
+
+test('60 m geographic fox halo scales around coordinates and 65 m GPS fix remains eligible for 75 m check-in', () => {
+  const point = placeById(stops[0]).location;
+  const ring = circlePolygon(point, 60, 32);
+  assert.equal(ring.length, 33);
+  assert.deepEqual(ring[0], ring[32]);
+  for (const vertex of ring) {
+    const d = distanceMeters(point, vertex);
+    assert.ok(d > 58 && d < 62, `expected ~60 m, got ${d}`);
+  }
+  // At 65 m (outside the 60 m visual halo, inside the 75 m check-in radius), a fresh accurate fix is eligible.
+  const now = Date.now();
+  const at65m = {
+    mode: 'live',
+    gpsStatus: 'active',
+    fix: { longitude: point[0], latitude: point[1] + 65 * 180 / (Math.PI * 6371000), accuracy: 15, timestamp: now },
+  };
+  assert.equal(liveEligible(at65m, point, now), true);
 });

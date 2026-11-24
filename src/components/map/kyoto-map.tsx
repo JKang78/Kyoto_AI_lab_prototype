@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { ArrowLeft, Map as MapIcon, Bike, CircleHelp, ListTree, Lock, Ticket, Users, X, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, Luggage, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, type LucideIcon } from "lucide-react";
 import { COUPONS, GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
-import { activeBonus, activeRun, balance, placeById, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
+import { activeBonus, activeRun, balance, circlePolygon, liveEligible, placeById, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
 import { Celebration } from "@/components/celebration";
 import { HelpSheet } from "@/components/help-sheet";
 import { PREVIEW_CONTROLS } from "@/config/environment";
@@ -19,7 +19,8 @@ import { SAMPLE_CONGESTION_CUES, sampleWalkCrowd, type CrowdLevel } from "@/data
 import { bonusNameKey, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { classifyFix, DEMO_POSITION, INITIAL_LOCATION_STATE, locationStatusText, type LocationFix, type LocationState } from "@/lib/location";
 import { discoverRoutes, type MatchReason, type RouteFilter } from "@/lib/route-discovery";
-import type { CuratedPlace, CuratedWalk } from "@/types/routes";
+import { placeWalkTime } from "@/lib/place-walk-time";
+import type { CuratedPlace, CuratedWalk, LngLat } from "@/types/routes";
 
 // Centred on the three curated walks so their lines, pins and labels open in view.
 const KYOTO_CENTER: [number, number] = [135.7738, 35.0052];
@@ -53,7 +54,16 @@ function pinMarkup(placeId: string, number: number | null, { sealed = false, nex
   // Collected stops carry a small seal; the next stop gets an attention bubble (visuals.md E4).
   const seal = sealed ? `<span class="map-place-pin-seal" aria-hidden="true">${placeSealSvg(placeId, 12, 2)}</span>` : "";
   const bubble = next ? `<span class="map-place-pin-bubble" aria-hidden="true">!</span>` : "";
-  return `${bubble}<span class="map-place-pin-head">${inner}${seal}</span><span class="map-place-pin-tail"></span>`;
+  return `<span class="map-place-pin-body">${bubble}<span class="map-place-pin-head">${inner}${seal}</span><span class="map-place-pin-tail"></span></span>`;
+}
+const FOX_HALO_METERS = 60;
+const emptyGeoJson = { type: "FeatureCollection" as const, features: [] };
+function haloGeoJson(center: LngLat | null) {
+  if (!center) return emptyGeoJson;
+  return {
+    type: "FeatureCollection" as const,
+    features: [{ type: "Feature" as const, properties: {}, geometry: { type: "Polygon" as const, coordinates: [circlePolygon(center, FOX_HALO_METERS)] } }],
+  };
 }
 const motionDuration = (ms: number) => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms;
 const googleMapsUrl = (walk: CuratedWalk) => {
@@ -62,6 +72,42 @@ const googleMapsUrl = (walk: CuratedWalk) => {
   if (points.length > 2) params.set("waypoints", points.slice(1, -1).join("|"));
   return `https://www.google.com/maps/dir/?${params}`;
 };
+
+// Expire the displayed GPS estimate even when the watcher sends no further fixes.
+function usePlaceOrigin(location: LocationState): LngLat | null {
+  const fix = location.fix;
+  const subscribe = useCallback((refresh: () => void) => {
+    if (!fix) return () => {};
+    const delay = fix.timestamp + GAME.maxFixAgeMs + 1 - Date.now();
+    if (!(delay > 0 && delay <= GAME.maxFixAgeMs + GAME.maxClockSkewMs + 1)) return () => {};
+    const timer = window.setTimeout(refresh, delay);
+    return () => window.clearTimeout(timer);
+  }, [fix]);
+  const fresh = useSyncExternalStore(subscribe, () => Boolean(fix &&
+    liveEligible(location, [fix.longitude, fix.latitude], Date.now())), () => false);
+  return fresh && fix ? [fix.longitude, fix.latitude] : null;
+}
+
+function PlaceWalkInfo({ place, walk, origin, locale }: {
+  place: CuratedPlace; walk?: CuratedWalk | null; origin: LngLat | null; locale: Locale;
+}) {
+  const walks = walk ? [walk] : CURATED_WALKS.filter(item => item.placeIds.some(id => id === place.id));
+  const estimates = walks.map(item => ({ walk: item, ...placeWalkTime(item, place, origin) }));
+  const estimate = estimates.find(item => item.fromPosition) ?? estimates[0];
+  if (!estimate) return null;
+  const { fromPosition, minutes } = estimate;
+  const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
+  const start = placeById(estimate.walk.placeIds[0])!;
+  const time = minutes ? t("placeWalkMinutes", { minutes: String(minutes) }) : t("placeWalkUnderMinute");
+  const [lng, lat] = place.location;
+  const params = new URLSearchParams({ api: "1", destination: `${lat},${lng}`, travelmode: "walking" });
+  return <div className="place-walk-info">
+    <span className="match-tag">{t(themeLabelKeys[placeTheme(place.id)])}</span>
+    <span>{fromPosition ? t("placeWalkFromGps", { time })
+      : place.id === start.id ? t("placeWalkStart") : t("placeWalkFromStart", { time, name: start.name[locale] })}</span>
+    {!fromPosition && <a href={`https://www.google.com/maps/dir/?${params}`} target="_blank" rel="noreferrer">{t("placeDirections")}</a>}
+  </div>;
+}
 
 function RouteDataCredit({ locale }: { locale: Locale }) {
   return <p className="route-data-credit">{translate(locale, "routesDataCredit")} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap / ODbL</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">{translate(locale, "routesFixMap")}</a></p>;
@@ -189,6 +235,7 @@ export function KyotoMap({
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const liveTracking = location.mode === "live" && ["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
   const selectedWalk = CURATED_WALKS.find((walk) => walk.id === selectedWalkId) ?? null;
+  const placeOrigin = usePlaceOrigin(location);
   const focusedPlace = CURATED_PLACES.find((place) => place.id === focusedPlaceId) ?? null;
   const results = discoverRoutes(query, routeFilter, CURATED_WALKS, CURATED_PLACES);
   const run = activeRun(game);
@@ -227,6 +274,7 @@ export function KyotoMap({
   const updateDemoMarker = useCallback((point: readonly [number, number]) => {
     demoPoint.current = point;
     markerRef.current?.setLngLat([...point]);
+    (mapRef.current?.getSource("fox-halo") as GeoJSONSource | undefined)?.setData(haloGeoJson(point));
   }, []);
 
   const stopWatch = useCallback(() => {
@@ -314,6 +362,10 @@ export function KyotoMap({
             if (map.getLayer(layer)) map.setPaintProperty(layer, property, color);
           }
           const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+          // Geographic 60 m fox proximity halo (docs/visuals.md): scales with zoom, hidden when no live/demo fix is active.
+          map.addSource("fox-halo", { type: "geojson", data: emptyGeoJson });
+          map.addLayer({ id: "fox-halo-fill", type: "fill", source: "fox-halo", paint: { "fill-color": "#782459", "fill-opacity": 0.12 } }, firstLabel);
+          map.addLayer({ id: "fox-halo-ring", type: "line", source: "fox-halo", paint: { "line-color": "#782459", "line-opacity": 0.36, "line-width": 1.5 } }, firstLabel);
           for (const walk of CURATED_WALKS) {
             // Only the reviewed fixture geometry is passed to MapLibre. No endpoints are joined at runtime.
             map.addSource(`walk-${walk.id}`, {
@@ -408,14 +460,19 @@ export function KyotoMap({
     const marker = markerRef.current;
     const root = markerRootRef.current;
     if (!marker || !root || state !== "ready") return;
+    const haloSource = mapRef.current?.getSource("fox-halo") as GeoJSONSource | undefined;
     if (location.mode === "live" && !location.fix) {
       marker.getElement().style.display = "none";
+      haloSource?.setData(emptyGeoJson);
       return;
     }
     marker.getElement().style.display = "";
     const coordinates: [number, number] = location.mode === "live" && location.fix
       ? [location.fix.longitude, location.fix.latitude] : location.mode === "demo" && playing ? [...demoPoint.current] : DEMO_POSITION;
     marker.setLngLat(coordinates);
+    // Show the 60 m halo only for a usable live fix or explicit Demo Mode, never for unselected/sample state.
+    const haloCenter: LngLat | null = location.mode === "live" && location.fix ? coordinates : location.mode === "demo" ? coordinates : null;
+    haloSource?.setData(haloGeoJson(haloCenter));
     const label = location.mode === "live"
       ? translate(locale, "mapLiveMarker", { accuracy: String(Math.round(location.fix?.accuracy ?? 0)) })
       : translate(locale, location.mode === "demo" ? "mapDemoMarker" : "mapSampleLocation");
@@ -604,7 +661,6 @@ export function KyotoMap({
   const busyCues = SAMPLE_CONGESTION_CUES.filter(cue => cue.level === "busy");
   const other = locale === "en" ? "ja" : "en";
   const sheetHeader = <div className="sheet-peek">
-    <BonusBanner game={game} locale={locale} />
     {snap === "peek" && <p className="crowd-strip" aria-label={t("crowdStripLabel")}>
       {busyCues.map(cue => <CrowdBadge key={cue.id} level="busy" label={`${t("crowdBusy")} · ${CURATED_PLACES.find(place => place.id === cue.placeId)?.name[locale]}`} />)}
       <small>{t("crowdSampleNote")}</small>
@@ -645,6 +701,7 @@ export function KyotoMap({
               <span><strong>{place.name[locale]}</strong><small lang={other}>{place.name[other]}</small></span></summary>
             <div className="walk-list-place">
               <PlacePhoto placeId={id} locale={locale} />
+              <PlaceWalkInfo place={place} walk={walk} origin={placeOrigin} locale={locale} />
               <p>{place.description[locale]}</p>
               <div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{place.accessibilityNotes[locale]}</p></div>
               <div className="route-note"><strong>{t("routesAccessNotes")}</strong><p>{place.accessNotes[locale]}</p></div>
@@ -700,6 +757,7 @@ export function KyotoMap({
         <span>{nextVoucher ? t("rewardPillValue", { points: String(Math.min(points, nextVoucher.cost)), target: String(nextVoucher.cost) }) : t("rewardPillAll")}</span>
         {nextVoucher && <span className="reward-pill-bar" aria-hidden="true"><span style={{ transform: `scaleX(${Math.min(1, points / nextVoucher.cost)})` }} /></span>}
       </button>
+      <BonusBanner game={game} locale={locale} />
       </div>
     </div>}
     {/* Side rail (visuals.md E5): labelled 44 px tools, always in the same place. */}
@@ -719,16 +777,19 @@ export function KyotoMap({
         <small>{t("crowdProvenance")}</small>
       </div>}
     </div>}
-    {playing && <div className="walk-hud" role="group" aria-label={t("hudLabel")}>
-      {(() => { const Icon = themeIcons[walkById(run.walkId)!.theme]; return <Icon size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />; })()}
-      <span className="walk-hud-text"><strong>{walkById(run.walkId)!.name[locale]}</strong>
-        <small>{t("followStop", { current: String(Math.min(run.stamps.length + 1, walkById(run.walkId)!.placeIds.length)), total: String(walkById(run.walkId)!.placeIds.length) })}</small></span>
-      <StopBeads total={walkById(run.walkId)!.placeIds.length} done={run.stamps.length}
-        label={t("hudBeads", { stamps: String(run.stamps.length), total: String(walkById(run.walkId)!.placeIds.length) })} />
+    {playing && <div className="map-follow-hud">
+      <div className="walk-hud" role="group" aria-label={t("hudLabel")}>
+        {(() => { const Icon = themeIcons[walkById(run.walkId)!.theme]; return <Icon size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />; })()}
+        <span className="walk-hud-text"><strong>{walkById(run.walkId)!.name[locale]}</strong>
+          <small>{t("followStop", { current: String(Math.min(run.stamps.length + 1, walkById(run.walkId)!.placeIds.length)), total: String(walkById(run.walkId)!.placeIds.length) })}</small></span>
+        <StopBeads total={walkById(run.walkId)!.placeIds.length} done={run.stamps.length}
+          label={t("hudBeads", { stamps: String(run.stamps.length), total: String(walkById(run.walkId)!.placeIds.length) })} />
+      </div>
+      <BonusBanner game={game} locale={locale} />
     </div>}
 
     {!listMode && <div className="sheet-layer">
-      {playing ? <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} run={run} locale={locale} location={location}
+      {playing ? <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} game={game} run={run} locale={locale} location={location}
         onPosition={updateDemoMarker} onComplete={() => { setFinishedWalkId(run.walkId); setCelebrationRunId(run.id); setSelectedWalkId(null); setView("routes"); setSnap("peek"); }}
         onExit={() => setConfirmStop(run.id)} onResumeGps={requestLiveLocation} />
         : <SnapSheet snap={snap} onSnap={setSnap} header={sheetHeader}
@@ -773,6 +834,7 @@ export function KyotoMap({
             <button type="button" className="sheet-back" onClick={backFromPlace}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t(selectedWalk ? "routesDetails" : "routesBack")}</button>
             <PlacePhoto placeId={focusedPlace.id} locale={locale} />
             <h2 className="sheet-title">{focusedPlace.name[locale]}<small lang={other}>{focusedPlace.name[other]}</small></h2>
+            <PlaceWalkInfo place={focusedPlace} walk={selectedWalk} origin={placeOrigin} locale={locale} />
             <p className="sheet-intro">{focusedPlace.description[locale]}</p>
             <PlaceStory placeId={focusedPlace.id} locale={locale} unlocked={collectedPlaces.has(focusedPlace.id)} />
             <div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{focusedPlace.accessibilityNotes[locale]}</p></div>

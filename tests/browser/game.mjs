@@ -50,7 +50,8 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       await button(lang === 'en' ? 'English' : '日本語').click();
       await page.locator('#nickname').fill('Aki');
       await button(copy.startExploring).click();
-      assert.equal(await page.locator('.dock-item').count(), 4);
+      await page.locator('.home-screen').waitFor();
+      assert.equal(await page.locator('.dock-item').count(), 5);
       await button(copy.navMissions).click();
       await button(copy.gameViewMap).first().click();
       await button(copy.gameStartDemo).click();
@@ -68,8 +69,11 @@ for (const [lang, width] of [['en', 360], ['ja', 390]]) {
       await button(otherCopy.navMe).click();
       await button(lang === 'en' ? 'English' : '日本語').click();
 
-      // The active walk resumes after a reload with movement paused.
+      // Reloading lands on Home with the active walk ready to resume via the primary CTA.
       await page.reload();
+      await page.locator('.home-screen').waitFor();
+      await page.locator('[data-home-points]').getByText('10', { exact: true }).waitFor();
+      await page.locator('.home-cta').getByText(copy.homeCtaContinue).click();
       await button(copy.gameMove).click();
       if (lang === 'en') {
         await button(copy.gamePause).click();
@@ -176,6 +180,7 @@ test('GPS check-in requires an explicit tap and an eligible live fix', async () 
     });
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     await button(copy.sheetExpand).click();
     await button(copy.routePreview).first().click();
     await button(copy.gameStartLive).click();
@@ -209,6 +214,7 @@ test('aborted replay keeps the completed mission and its seals', async () => {
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     await button(copy.sheetExpand).click();
     await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
@@ -252,6 +258,7 @@ test('multi-tab Demo Mode stays synchronized on toggle, reset, and cross-tab act
   try {
     await prepare(tabA);
     await tabA.getByRole('button', { name: copy.startExploring, exact: true }).click();
+    await tabA.getByRole('button', { name: copy.navExplore, exact: true }).click();
     await tabA.locator('.map-rail').waitFor();
     const demoBtnA = tabA.getByRole('button', { name: copy.locationExploreDemo, exact: true });
     const liveBtnA = tabA.getByRole('button', { name: copy.locationUseMyLocation, exact: true });
@@ -348,7 +355,7 @@ test('Me controls and dock items meet 44px touch targets; dialog actions do not 
   } finally { await page.close(); }
 });
 
-test('QR deep link opens the route without onboarding and completes a clearly labelled demo reward journey', async () => {
+test('Macadam-style Home screen is the default entry, syncs points/seals/milestones, and defers QR deep links', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', locale: 'en-US' });
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
@@ -357,40 +364,49 @@ test('QR deep link opens the route without onboarding and completes a clearly la
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   try {
+    // QR deep-link routing is deferred: visiting /?route=kamo-riverside still goes through normal entry.
     await page.clock.setFixedTime(NOON);
     await page.route('https://tiles.openfreemap.org/styles/liberty', route => route.fulfill({
       json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] },
     }));
     await page.goto(`${url}/?route=kamo-riverside`);
-    const title = page.locator('.sheet-title');
-    await title.getByText('Kamo riverside sidewalk').waitFor();
-    assert.equal(await page.locator('#nickname').count(), 0);
-    assert.equal(await page.locator('.snap-sheet').getAttribute('data-snap'), 'full');
-    await page.locator('.snap-sheet .walk-meta').getByText(copy.walkStepFreeUnknown).waitFor();
-    assert.equal(await page.getByText('No mapped steps').count(), 0);
-    // No bonus is shown unless a presenter switches a scenario on.
-    assert.equal(await page.locator('.bonus-banner').count(), 0);
-    assert.equal(await page.locator('.reward-line em').count(), 0);
+    await page.locator('#nickname').fill('Aki');
+    await button(copy.startExploring).click();
 
+    // Lands on Home with Macadam anatomy in Kyoto Ink & Washi.
+    await page.locator('.home-screen').waitFor();
+    assert.equal(await page.locator('.dock-item').count(), 5);
+    await page.locator('.home-hello').getByText(copy.homeGreeting.replace('{name}', 'Aki')).waitFor();
+    assert.equal(await page.locator('[data-home-points]').innerText(), '0');
+    assert.equal(await page.locator('.home-track-node').count(), 3);
+    for (const sel of ['.home-points-pill', '.home-icon-btn', '.home-avatar-btn', '.home-stat-plus', '.home-cta']) {
+      const box = await page.locator(sel).boundingBox();
+      assert.ok(box && box.width >= 44 && box.height >= 44, sel);
+    }
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+
+    // Primary CTA opens Explore; complete a walk and return to Home to verify synced state.
+    await page.locator('.home-cta').getByText(copy.homeCtaExplore).click();
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
-    await page.locator('.follow-card').getByText(copy.followDemoBadge).waitFor();
     await walkAllStops(page, copy);
-    await page.locator('.celebration').getByRole('button', { name: copy.navRewards }).click();
-    await page.locator('.rewards-points').getByText(pts(copy, 60), { exact: true }).waitFor();
-    assert.equal(await page.locator('.ticket-card').count(), 3);
-    assert.equal(await page.locator('.ticket-card .demo-badge').count(), 3);
-    assert.equal(await page.locator('.ticket-card').filter({ hasText: /transit|subway|rail ride/i }).count(), 0);
+    await page.locator('.celebration').getByRole('button', { name: copy.close }).click();
+    await button(copy.navHome).click();
+    assert.equal(await page.locator('[data-home-points]').innerText(), '60');
+    assert.deepEqual(
+      await page.locator('.home-track-node').evaluateAll(els => els.map(el => el.dataset.state)),
+      ['ready', 'locked', 'locked'],
+    );
+    await page.locator('.home-cta').getByText(copy.homeCtaUnlock).click();
+    await page.getByRole('heading', { name: copy.navRewards, level: 1 }).waitFor();
     await button(copy.rewardsUnlock).click();
-    await page.getByRole('button', { name: copy.rewardsMine.replace('{count}', '1') }).click();
-    await button(copy.rewardsRedeem).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByText(copy.demoNotRedeemable, { exact: true }).waitFor();
-    await slideToConfirm(page);
-    await dialog.getByRole('status').getByText(copy.redeemVerified).waitFor();
-    await dialog.getByRole('button', { name: copy.close }).first().click();
-    await button(copy.rewardsUsed).click();
-    await page.locator('[data-coupon-state="redeemed"]').waitFor();
-    await page.locator('.activity-log').getByText(copy.logDemo, { exact: false }).first().waitFor();
+    await button(copy.navHome).click();
+    assert.equal(await page.locator('[data-home-points]').innerText(), '0');
+    assert.deepEqual(
+      await page.locator('.home-track-node').evaluateAll(els => els.map(el => el.dataset.state)),
+      ['done', 'locked', 'locked'],
+    );
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
@@ -414,9 +430,12 @@ test('P0 interaction layer: reward pill, walk HUD beads, pin seals, celebration,
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     // E1: the pill shows progress toward the cheapest voucher and opens Rewards.
     const pill = page.locator('.reward-pill');
     assert.equal(await pill.innerText(), copy.rewardPillValue.replace('{points}', '0').replace('{target}', '60'));
+    const pillBox = await pill.boundingBox();
+    assert.ok(pillBox.width >= 44 && pillBox.height >= 44);
     await pill.click();
     await page.getByRole('heading', { name: copy.navRewards, level: 1 }).waitFor();
     await button(copy.navExplore).click();
@@ -432,7 +451,11 @@ test('P0 interaction layer: reward pill, walk HUD beads, pin seals, celebration,
     assert.equal(await page.getByRole('searchbox').count(), 0);
     assert.equal(await page.locator('.fox-bubble').count(), 0);
     assert.equal(await hud.locator('.stop-beads [data-done="true"]').count(), 0);
+    const followBeads = page.locator('.follow-card .stop-beads');
+    assert.equal(await followBeads.locator('span').count(), 3);
+    assert.equal(await followBeads.locator('[data-done="true"]').count(), 0);
     await button(copy.gameSimulate).click();
+    await followBeads.locator('[data-done="true"]').waitFor();
     await hud.locator('.stop-beads [data-done="true"]').first().waitFor();
     assert.equal(await hud.locator('.stop-beads [data-done="true"]').count(), 1);
     // E4: the stamped stop carries a seal; the next stop has the "!" bubble.
@@ -472,6 +495,7 @@ test('the celebration "See stamp book" opens Missions at the stamp book, and an 
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     await button(copy.sheetExpand).click();
     await button(copy.routePreview).first().click();
     await button(copy.gameStartDemo).click();
@@ -502,6 +526,7 @@ test('P1: side rail, help sheet, route labels, goal marker and glyph seals', asy
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     // E5: every rail tool is a labelled 44 px target.
     for (const name of [copy.railList, copy.crowdInfo, copy.railHelp]) {
       const target = await button(name).locator('span').first().boundingBox();
@@ -579,6 +604,7 @@ test('P2: credited place photos, locked then unlocked draft stories, per-place s
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     await button(copy.sheetExpand).click();
     // Yasaka and Maruyama Park: its Chion-in stop has no licensed photo, so it shows the placeholder.
     await page.locator('.route-card').filter({ hasText: 'Yasaka and Maruyama Park' }).getByRole('button', { name: copy.routePreview }).click();
@@ -622,6 +648,7 @@ test('release pass: unavailable chips explain themselves, list view replaces the
   try {
     await prepare(page);
     await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
     // Item 1: Bike and Luggage are unavailable, explain why, and never filter the walks.
     const bike = button(copy.chipBike);
     assert.equal(await bike.getAttribute('aria-disabled'), 'true');
@@ -651,9 +678,93 @@ test('release pass: unavailable chips explain themselves, list view replaces the
     await toast.waitFor({ state: 'detached' });
     // Same zone, same Kyoto day: no repeat after a reload.
     await page.reload();
+    await page.locator('.home-cta').getByText(copy.homeCtaContinue).click();
     await page.locator('.walk-hud').waitFor();
     await page.waitForTimeout(500);
     assert.equal(await page.locator('.etiquette-toast').count(), 0);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
+});
+
+test('place walking time uses a recent on-path fix and returns to the named route start when it expires', async () => {
+  const page = await browser.newPage({ viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  try {
+    await page.addInitScript(() => Object.defineProperty(navigator, 'geolocation', { value: {
+      watchPosition(onFix) { window.reportFix = onFix; return 42; }, clearWatch() {},
+    } }));
+    await prepare(page);
+    await page.clock.install({ time: NOON });
+    await button(copy.startExploring).click();
+    await button(copy.navExplore).click();
+    await button(copy.locationUseMyLocation).click();
+    await button(copy.railList).click();
+    const stop = page.locator('#walk-list-kamo-riverside').locator('..').locator('details').last();
+    await stop.locator('summary').click();
+    const info = stop.locator('.place-walk-info');
+    const fallback = info.getByText('About 9 min on foot from Shijō Bridge along this walk');
+    await fallback.waitFor();
+    await info.getByText(copy.mapCategoryRiverside, { exact: true }).waitFor();
+    const link = new URL(await info.getByRole('link').getAttribute('href'));
+    assert.equal(link.searchParams.get('destination'), '35.009106,135.772365');
+    assert.equal(link.searchParams.has('origin'), false);
+    await page.evaluate(() => window.reportFix({ timestamp: Date.now(), coords: {
+      latitude: 35.003826, longitude: 135.772116, accuracy: 10,
+    } }));
+    await info.getByText('About 9 min on foot from your GPS position').waitFor();
+    await page.clock.fastForward(31_000);
+    await fallback.waitFor();
+  } finally { await page.close(); }
+});
+
+test('Next UI pass: tactile primary buttons, floating frosted bonus pill, halo help, and synced checkpoint-to-voucher track', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  try {
+    await prepare(page);
+    // Tactile primary button feedback on pointer and keyboard (Space)
+    const startBtn = button(copy.startExploring);
+    await startBtn.focus();
+    await page.keyboard.down('Space');
+    assert.equal(await startBtn.getAttribute('data-pressed'), 'true');
+    await page.keyboard.up('Space');
+    await page.locator('.home-screen').waitFor();
+
+    // Enable bus-relief scenario in Me, then verify floating frosted-washi bonus pill on Explore
+    await button(copy.navMe).click();
+    await button(copy.scenarioBus).click();
+    await button(copy.navExplore).click();
+    await page.locator('.map-top-row .bonus-banner').waitFor();
+    assert.equal(await page.locator('.snap-sheet .bonus-banner').count(), 0);
+
+    // Map Help documents the 60 m fox halo separately from the 75 m check-in rule
+    await button(copy.railHelp).click();
+    const help = page.getByRole('dialog');
+    await help.getByText(copy.helpHaloTitle).waitFor();
+    await help.getByText(copy.helpHaloBody).waitFor();
+    await help.getByRole('button', { name: copy.helpDone }).click();
+
+    // Start Shijō to Yasaka walk: walk-hud takes first position with bonus pill stacked beneath it
+    await button(copy.sheetExpand).click();
+    await button(copy.routePreview).first().click();
+    await button(copy.gameStartDemo).click();
+    await page.locator('.map-follow-hud .walk-hud').waitFor();
+    await page.locator('.map-follow-hud .bonus-banner').waitFor();
+
+    // Collect 1st stamp (20 pts with 2x bus relief); follow card and Rewards show identical checkpoint-to-voucher track
+    await button(copy.gameSimulate).click();
+    const expectedLabel = copy.trackStopsToUnlock
+      .replace('{stops}', '2')
+      .replace('{offer}', '¥150 off a matcha latte');
+    await page.locator('.follow-card .checkpoint-track-label').getByText(expectedLabel).waitFor();
+    await button(copy.navRewards).click();
+    await page.locator('.rewards-summary .checkpoint-track-label').getByText(expectedLabel).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
 });

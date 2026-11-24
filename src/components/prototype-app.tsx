@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SetStateAction } from "react";
 import Image from "next/image";
 import { ArrowRight, FlaskConical, Globe2, LocateFixed, MapPin, Sparkles, UserRound, X } from "lucide-react";
+import { HomeScreen } from "@/components/home-screen";
 import { Missions } from "@/components/missions-screen";
 import { Rewards } from "@/components/rewards-screen";
 import { act, useGame } from "@/lib/game-store";
-import { activeRun, balance, walkById, type Game } from "@/lib/game";
+import { activeRun, balance, type Game } from "@/lib/game";
 import { COUPONS, type CampaignKind } from "@/config/game";
 import { PREVIEW_CONTROLS } from "@/config/environment";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
@@ -129,14 +130,8 @@ export function PrototypeApp() {
   const ready = snapshot !== undefined;
   const storedProfile = ready ? readProfile() : null;
   const [welcomeLocale, setWelcomeLocale] = useState<Locale>(() => typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en");
-  const [activeTab, setActiveTab] = useState<Tab>("explore");
-  // QR deep link: /?route=<walk-id> opens that walk on Explore, skipping the welcome form.
-  const [deepLinkWalk] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const id = new URLSearchParams(window.location.search).get("route");
-    return id && walkById(id) ? id : null;
-  });
-  const [browsedWalk, setSelectedWalkId] = useState<string | null | undefined>(deepLinkWalk ?? undefined);
+  const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [browsedWalk, setSelectedWalkId] = useState<string | null | undefined>(undefined);
   const selectedWalkId = browsedWalk === undefined ? activeRun(game)?.walkId ?? null : browsedWalk;
   // Search and filters survive tab switches for the session.
   const [query, setQuery] = useState("");
@@ -186,8 +181,7 @@ export function PrototypeApp() {
     return () => window.clearTimeout(timer);
   }, [toastId, dismissToast]);
 
-  // A deep-link visitor browses as a guest; nothing is saved until they change a setting.
-  const profile: Profile | null = storedProfile ?? (deepLinkWalk ? { nickname: "", locale: welcomeLocale } : null);
+  const profile: Profile | null = storedProfile;
   const locale = profile?.locale ?? welcomeLocale;
   useEffect(() => { document.documentElement.lang = locale; }, [locale]);
 
@@ -204,14 +198,17 @@ export function PrototypeApp() {
   }
 
   if (!ready) return <div className="loading-screen"><span className="brand-seal" aria-hidden="true">京</span><span>Kyoto AI Lab prototype</span></div>;
-  if (!profile) return <Welcome locale={welcomeLocale} onLocale={setWelcomeLocale} onStart={(nickname) => { saveProfile({ nickname, locale: welcomeLocale }); setActiveTab("explore"); }} />;
+  if (!profile) return <Welcome locale={welcomeLocale} onLocale={setWelcomeLocale} onStart={(nickname) => { saveProfile({ nickname, locale: welcomeLocale }); setActiveTab("home"); }} />;
 
   function openWalk(id: string) {
     setSelectedWalkId(id);
     selectTab("explore");
   }
+  const hasRewardsDot = Boolean(seen && affordable.some(id => !seen.rewards.includes(id)));
+  const hasMissionsDot = Boolean(seen && sealCount > seen.seals);
   return <div className="app-shell" data-tab={activeTab}>
     <main key={activeTab} id="main-content" className="app-main">
+      {activeTab === "home" && <HomeScreen game={game} locale={locale} name={profile.nickname || translate(locale, "guestName")} hasNotice={hasRewardsDot || hasMissionsDot} onExplore={() => selectTab("explore")} onRewards={() => selectTab("rewards")} onMissions={() => selectTab("missions")} onMe={() => selectTab("me")} />}
       {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} viewMode={viewMode} setViewMode={setViewMode} />}
       {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
@@ -225,8 +222,8 @@ export function PrototypeApp() {
       <button type="button" className="icon-button" aria-label={translate(locale, "close")} onClick={() => dismissToast(toastId)}><X size={18} strokeWidth={ICON_STROKE} /></button>
     </div>}
     <BottomNav active={activeTab} locale={locale} onSelect={selectTab} dots={{
-      rewards: activeTab !== "rewards" && Boolean(seen && affordable.some(id => !seen.rewards.includes(id))),
-      missions: activeTab !== "missions" && Boolean(seen && sealCount > seen.seals),
+      rewards: activeTab !== "rewards" && hasRewardsDot,
+      missions: activeTab !== "missions" && hasMissionsDot,
     }} />
   </div>;
 }

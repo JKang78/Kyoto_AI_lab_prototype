@@ -86,4 +86,5 @@ For the verified Phase 0 scope and the starting point for Phase 1, see [`docs/do
 - [Product specification](docs/PROJECT_SPEC.md), [build plan](docs/BUILD_PLAN.md), [architecture](docs/ARCHITECTURE.md), [design guidelines](docs/DESIGN_GUIDELINES.md), and [decision log](docs/DECISIONS.md).
 - [Open decisions](docs/TODOS.md), [known bugs](docs/BUGS.md), [test checklist](docs/TEST_CHECKLIST.md), and [route data and field checks](docs/ROUTE_DATA.md).
 - [Mascot artwork](docs/MASCOT_ASSETS.md) and [pin artwork](docs/PINS_ASSETS.md).
-- [Completed plans, handoffs, reviews, and audits](docs/done/), including the [visual audit](docs/visuals.md). Open follow-up work is tracked in the current documents and in the individual reports.
+- [UI and interaction backlog](docs/visuals.md) for remaining prototype, content-review and pilot work.
+- [Completed plans, handoffs, reviews, and audits](docs/done/).

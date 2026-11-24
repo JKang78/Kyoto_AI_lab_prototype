@@ -31,6 +31,8 @@ for (const locale of ['en', 'ja']) {
         await page.goto(url);
         await button(locale === 'en' ? 'English' : '日本語').click();
         await button(copy.startExploring).click();
+        await page.locator('.home-screen').waitFor();
+        await button(copy.navExplore).click();
         await button(copy.mapRetry).waitFor();
         // The stored walks stay browsable while the basemap is down.
         await button(copy.mapStoredWalks).click();
@@ -100,6 +102,7 @@ test('keeping a selected route never resumes GPS after leaving Explore', async (
     });
     await page.goto(url);
     await page.getByRole('button', { name: 'Start exploring', exact: true }).click();
+    await page.getByRole('button', { name: 'Explore', exact: true }).click();
     await page.getByRole('button', { name: 'Use My Location', exact: true }).click();
     await page.getByRole('button', { name: 'Expand walk panel' }).click();
     await page.getByRole('button', { name: 'Preview route' }).first().click();

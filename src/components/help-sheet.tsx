@@ -4,6 +4,7 @@ import { Button, ConfirmDialog, FoxAvatar } from "./ui";
 
 const POINTS: { title: MessageKey; body: MessageKey }[] = [
   { title: "helpCheckinsTitle", body: "helpCheckinsBody" },
+  { title: "helpHaloTitle", body: "helpHaloBody" },
   { title: "helpScenariosTitle", body: "helpScenariosBody" },
   { title: "helpVouchersTitle", body: "helpVouchersBody" },
   { title: "helpCrowdTitle", body: "helpCrowdBody" },

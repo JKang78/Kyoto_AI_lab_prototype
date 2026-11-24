@@ -10,6 +10,7 @@ import { act } from "@/lib/game-store";
 import { bonusNameKey, formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { RedeemSheet } from "./redeem-sheet";
 import { Button, EmptyState, FoxAvatar, haptic, ICON_STROKE, Segmented } from "./ui";
+import { CheckpointVoucherTrack } from "./voucher-progress";
 
 type Filter = "available" | "mine" | "used";
 type LogEntry = { key: string; at?: number; points: number; title: string; detail: string };
@@ -91,7 +92,6 @@ export function Rewards({ game, locale }: { game: Game; locale: Locale }) {
   const used = COUPONS.filter(coupon => claimOf(coupon)?.redeemedAt !== undefined);
   const [filter, setFilter] = useState<Filter>("available");
   const [redeeming, setRedeeming] = useState<string | null>(null);
-  const next = COUPONS.filter(coupon => !game.claims.some(claim => claim.id === coupon.id)).sort((a, b) => a.cost - b.cost)[0];
   const shown = filter === "available" ? COUPONS.filter(coupon => !claimOf(coupon)) : filter === "mine" ? mine : used;
   const log = activity(game, locale, t);
   const redeemCoupon = COUPONS.find(coupon => coupon.id === redeeming);
@@ -100,7 +100,7 @@ export function Rewards({ game, locale }: { game: Game; locale: Locale }) {
     <h1>{t("navRewards")}</h1>
     <section className="rewards-summary">
       <p className="rewards-points">{t("pointsValue", { points: String(points) })}</p>
-      <p>{next ? points >= next.cost ? t("rewardsReady", { offer: next.offer[locale] }) : t("rewardsNext", { points: String(next.cost - points), offer: next.offer[locale] }) : t("rewardsAllUnlocked")}</p>
+      <CheckpointVoucherTrack game={game} locale={locale} />
       <VoucherTrack game={game} points={points} locale={locale} />
     </section>
     <p className="demo-strip"><strong>{t("demoNotRedeemable")}</strong> · {t("rewardsDisclosure")}</p>

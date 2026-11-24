@@ -3,20 +3,21 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Navigation, X } from "lucide-react";
 import { GAME } from "@/config/game";
-import { distanceMeters, liveEligible, placeById, walkById, type Run } from "@/lib/game";
+import { distanceMeters, liveEligible, placeById, walkById, type Game, type Run } from "@/lib/game";
 import { act } from "@/lib/game-store";
 import { bonusNameKey, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import type { LocationState } from "@/lib/location";
 import type { LngLat } from "@/types/routes";
-import { FoxAvatar, haptic, ICON_STROKE, SPRING } from "./ui";
+import { Button, FoxAvatar, haptic, ICON_STROKE, SPRING, StopBeads } from "./ui";
+import { CheckpointVoucherTrack } from "./voucher-progress";
 import { kyotoSeason, PlaceSeal, SeasonSprite } from "./glyphs";
 import { StoryDialog } from "./place-media";
 import { ETIQUETTE_ZONES, etiquetteZoneAt, kyotoDay, markEtiquetteSeen, readEtiquetteSeen, shouldShowEtiquette, type EtiquetteZone } from "@/lib/etiquette";
 
 // The caller keys this component by run, leg and mode. A remount resumes
 // from the last stamp with movement paused, including after leaving Explore.
-export function WalkControls({ run, location, locale, onPosition, onComplete, onExit, onResumeGps }: {
-  run: Run; location: LocationState; locale: Locale;
+export function WalkControls({ game, run, location, locale, onPosition, onComplete, onExit, onResumeGps }: {
+  game: Game; run: Run; location: LocationState; locale: Locale;
   onPosition: (point: LngLat) => void; onComplete: () => void; onExit: () => void; onResumeGps: () => void;
 }) {
   const walk = walkById(run.walkId)!;
@@ -129,7 +130,10 @@ export function WalkControls({ run, location, locale, onPosition, onComplete, on
     <div className="follow-head">
       <FoxAvatar state={celebrating ? "reward" : eligible ? "arrived" : moving ? "walking" : "idle"} size={40} />
       <div>
-        <small className="follow-progress">{t("followStop", { current: String(step + 1), total: String(walk.placeIds.length) })}{remaining !== null && ` · ${t("followRemaining", { meters: String(remaining) })}`}</small>
+        <div className="follow-step">
+          <small className="follow-progress">{t("followStop", { current: String(step + 1), total: String(walk.placeIds.length) })}{remaining !== null && ` · ${t("followRemaining", { meters: String(remaining) })}`}</small>
+          <StopBeads total={walk.placeIds.length} done={step} label={t("hudBeads", { stamps: String(step), total: String(walk.placeIds.length) })} />
+        </div>
         <strong className="follow-title">{target.name[locale]}</strong>
         <small lang={other}>{target.name[other]}</small>
       </div>
@@ -142,13 +146,14 @@ export function WalkControls({ run, location, locale, onPosition, onComplete, on
       }}>{t(moving ? "gamePause" : motionState === "paused" ? "gameContinue" : "gameMove")}</button>}
       {demo && (motionState !== "idle" || elapsed > 0) && <button type="button" className="follow-secondary" onClick={() => { setMotion("idle"); setElapsed(0); }}>{t("gameResetLeg")}</button>}
       {gpsIdle && <button type="button" className="follow-secondary" onClick={onResumeGps}><Navigation size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationUseMyLocation")}</button>}
-      <button type="button" className="follow-check" data-ready={eligible} disabled={!eligible} onClick={async () => {
+      <Button type="button" className="follow-check" data-ready={eligible} disabled={!eligible} onClick={async () => {
         const awarded = await act({ type: "collect", runId: run.id, placeId: target.id, location });
         if (!awarded) return;
         haptic();
         if (step + 1 === walk.placeIds.length) onComplete();
-      }}>{t(demo ? "gameSimulate" : "gameCheck")}</button>
+      }}>{t(demo ? "gameSimulate" : "gameCheck")}</Button>
     </div>
+    <CheckpointVoucherTrack game={game} locale={locale} compact />
     {!demo && !eligible && <small className="follow-hint">{t("gameGpsHint", { radius: String(GAME.radiusMeters), accuracy: String(GAME.maxAccuracyMeters) })}</small>}
   </div>;
 }
