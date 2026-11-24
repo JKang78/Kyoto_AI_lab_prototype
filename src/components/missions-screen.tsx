@@ -130,6 +130,7 @@ export function Missions({ game, locale, onWalk, focusStampBook = false }: { gam
             <span style={{ transform: `scaleX(${status.stamps / total})` }} />
           </div>
           <p className="quest-meta"><span>{t("missionProgress", { stamps: String(status.stamps), total: String(total) })}</span><span>{t("routeRewardNow", { points: String(reward.now) })}{bonus && ` · ${t("bonusShort", { name: t(bonusNameKey[bonus.kind]), multiplier: bonus.multiplier.toFixed(1) })}`}</span></p>
+          <p className="quest-eligibility">{t("missionEligibility", { total: String(total) })} · {t("missionNoDeadline")}</p>
           {status.status === "stopped" && <small className="quest-note">{t("gameStopped")}</small>}
           {status.completedCount > 0 && <small className="quest-note">{t("missionCompletedCount", { count: String(status.completedCount) })}</small>}
           <Button variant={status.status === "active" ? "primary" : "secondary"} onClick={() => onWalk(walk.id)}>{t("gameViewMap")}</Button>

@@ -14,6 +14,8 @@ export const emptyGame: Game = { version: 3, demo: false, scenario: null, runs: 
 export const walkById = (id: string) => CURATED_WALKS.find(w => w.id === id);
 export const placeById = (id: string) => CURATED_PLACES.find(p => p.id === id);
 export const couponById = (id: string) => COUPONS.find(c => c.id === id);
+/** True when an offer has passed its Kyoto-time validity expiry (independent of the 5-minute preview code timer). */
+export const isCouponExpired = (coupon: { expiresAt: number }, now = Date.now()) => Number.isFinite(now) && now > coupon.expiresAt;
 /** The client ledger may only ever hold demo vouchers. Real offers need the server path (src/config/environment.ts). */
 export const clientMayUnlock = (coupon: { isDemo: boolean }) => REWARD_MODE === "demo" && coupon.isDemo === true;
 
@@ -236,12 +238,13 @@ export function transition(game: Game, action: Action, now = Date.now()): Game {
       return { ...game, runs: [...game.runs.slice(0, -1), { ...run, stopped: true }] };
     case "unlock": {
       const coupon = couponById(action.id);
-      if (!coupon || !clientMayUnlock(coupon) || game.claims.some(c => c.id === coupon.id) || balance(game) < coupon.cost) return game;
+      if (!coupon || !clientMayUnlock(coupon) || isCouponExpired(coupon, now) || game.claims.some(c => c.id === coupon.id) || balance(game) < coupon.cost) return game;
       return { ...game, claims: [...game.claims, { id: coupon.id, cost: coupon.cost, at: now }] };
     }
     case "redeem": {
       const claim = game.claims.find(c => c.id === action.id);
-      if (!claim || claim.redeemedAt !== undefined || !Number.isFinite(now)) return game;
+      const coupon = claim ? couponById(claim.id) : undefined;
+      if (!claim || !coupon || isCouponExpired(coupon, now) || claim.redeemedAt !== undefined || !Number.isFinite(now)) return game;
       return { ...game, claims: game.claims.map(c => c === claim ? { ...c, redeemedAt: now } : c) };
     }
     case "collect": {

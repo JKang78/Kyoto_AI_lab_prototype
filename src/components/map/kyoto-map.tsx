@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
-import { ArrowLeft, Map as MapIcon, Bike, CircleHelp, ListTree, Lock, Ticket, Users, X, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, Luggage, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Map as MapIcon, Bike, CircleHelp, Heart, Layers, ListTree, Lock, Ticket, Users, X, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, Luggage, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, type LucideIcon } from "lucide-react";
 import { COUPONS, GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
 import { activeBonus, activeRun, balance, circlePolygon, liveEligible, placeById, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
@@ -13,6 +13,7 @@ import { PREVIEW_CONTROLS } from "@/config/environment";
 import { PlacePhoto, PlaceStory } from "@/components/place-media";
 import { glyphSvg, PlaceSeal, placeSealSvg, placeTheme } from "@/components/glyphs";
 import { act } from "@/lib/game-store";
+import { toggleSavedPlace, toggleSavedWalk, type SavedItems } from "@/lib/saved";
 import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, StopBeads, type Snap } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, sampleWalkCrowd, type CrowdLevel } from "@/data/sample-congestion";
@@ -130,13 +131,33 @@ function WalkMeta({ walk, locale }: { walk: CuratedWalk; locale: Locale }) {
   </p>;
 }
 
-function RouteCard({ walk, locale, reason, bonus, onPreview }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; bonus: ActiveBonus | null; onPreview: () => void }) {
+const START_LANDMARK_IDS = ["shijo-kawaramachi", "shijo-ohashi", "yasaka-west-view", "sanjo-ohashi"] as const;
+const ILLUSTRATED_PAINTS = [
+  ["background", "background-color", "#faf8f4"],
+  ["water", "fill-color", "#bccbdc"],
+  ["waterway_river", "line-color", "#bccbdc"],
+  ["park", "fill-color", "#dde4cf"],
+  ["landuse_residential", "fill-color", "#f4f0e8"],
+  ["building", "fill-color", "#ece6dc"],
+  ["building", "fill-outline-color", "#ddd4c6"],
+] as const;
+
+function SaveButton({ saved, locale, onToggle }: { saved: boolean; locale: Locale; onToggle: () => void }) {
+  const label = translate(locale, saved ? "savedAction" : "saveAction");
+  return <button type="button" className="save-button" aria-pressed={saved} onClick={() => { haptic(); onToggle(); }}>
+    <Heart size={16} strokeWidth={ICON_STROKE} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+    <span>{label}</span>
+  </button>;
+}
+
+function RouteCard({ walk, locale, reason, bonus, saved, onToggleSave, onPreview }: { walk: CuratedWalk; locale: Locale; reason?: MatchReason; bonus: ActiveBonus | null; saved: boolean; onToggleSave: () => void; onPreview: () => void }) {
   const Icon = themeIcons[walk.theme];
   const crowd = sampleWalkCrowd(walk.placeIds);
   return <article className={`route-card route-card--${walk.theme}`}>
     <header>
       <span className="route-card-icon" aria-hidden="true"><Icon size={18} strokeWidth={ICON_STROKE} /></span>
       <h3>{walk.name[locale]}</h3>
+      <SaveButton saved={saved} locale={locale} onToggle={onToggleSave} />
     </header>
     <p className="route-card-hook">{walk.description[locale]}</p>
     <WalkMeta walk={walk} locale={locale} />
@@ -178,11 +199,19 @@ type KyotoMapProps = {
   onCelebrationChange: (open: boolean) => void;
   viewMode: "map" | "list";
   setViewMode: (mode: "map" | "list") => void;
+  mapStyle: "illustrated" | "standard";
+  setMapStyle: (style: "illustrated" | "standard") => void;
+  startPlaceId: string | null;
+  setStartPlaceId: (id: string | null) => void;
+  saved: SavedItems;
+  initialPlaceId: string | null;
+  onInitialPlaceHandled: () => void;
 };
 
 export function KyotoMap({
   game, selectedWalkId, setSelectedWalkId, query, setQuery, routeFilter, setRouteFilter, locale, location, onLocationChange,
   settingsRecenterRequest, onSettingsRecenterHandled, onRewards, onStampBook, onCelebrationChange, viewMode, setViewMode,
+  mapStyle, setMapStyle, startPlaceId, setStartPlaceId, saved, initialPlaceId, onInitialPlaceHandled,
 }: KyotoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -215,7 +244,11 @@ export function KyotoMap({
   const watchVersionRef = useRef(0);
   const settingsRecenterHandledRef = useRef(false);
   const useLocationButtonRef = useRef<HTMLButtonElement>(null);
-  const initialCenterRef = useRef(location.mode === "demo" ? DEMO_POSITION : KYOTO_CENTER);
+  const startPlace = startPlaceId ? placeById(startPlaceId) : undefined;
+  const initialCenterRef = useRef<[number, number]>(
+    location.mode === "demo" ? DEMO_POSITION : startPlace ? [...startPlace.location] : KYOTO_CENTER,
+  );
+  const standardPaintRef = useRef<Map<string, unknown>>(new Map());
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [showCrowd, setShowCrowd] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -225,10 +258,10 @@ export function KyotoMap({
     const timer = window.setTimeout(() => setChipNote(null), 8000);
     return () => window.clearTimeout(timer);
   }, [chipNote]);
-  const [snap, setSnap] = useState<Snap>(selectedWalkId ? "full" : "peek");
-  const [view, setView] = useState<"routes" | "walk" | "place">(selectedWalkId ? "walk" : "routes");
+  const [snap, setSnap] = useState<Snap>(initialPlaceId ? "half" : selectedWalkId ? "full" : "peek");
+  const [view, setView] = useState<"routes" | "walk" | "place">(initialPlaceId ? "place" : selectedWalkId ? "walk" : "routes");
   const [mapAttempt, setMapAttempt] = useState(0);
-  const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
+  const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(initialPlaceId);
   const [finishedWalkId, setFinishedWalkId] = useState<string | null>(null);
   const [celebrationRunId, setCelebrationRunId] = useState<string | null>(null);
   const [dismissedBubble, setDismissedBubble] = useState<string | null>(null);
@@ -348,18 +381,10 @@ export function KyotoMap({
 
         map.once("load", () => {
           if (disposed) return;
-          // Washi-toned basemap that keeps OpenFreeMap's real roads and labels.
-          const colors = [
-            ["background", "background-color", "#faf8f4"],
-            ["water", "fill-color", "#bccbdc"],
-            ["waterway_river", "line-color", "#bccbdc"],
-            ["park", "fill-color", "#dde4cf"],
-            ["landuse_residential", "fill-color", "#f4f0e8"],
-            ["building", "fill-color", "#ece6dc"],
-            ["building", "fill-outline-color", "#ddd4c6"],
-          ] as const;
-          for (const [layer, property, color] of colors) {
-            if (map.getLayer(layer)) map.setPaintProperty(layer, property, color);
+          // Capture original OpenFreeMap standard paint values so the Illustrated/Standard switch preserves camera & layers.
+          standardPaintRef.current.clear();
+          for (const [layer, property] of ILLUSTRATED_PAINTS) {
+            if (map.getLayer(layer)) standardPaintRef.current.set(`${layer}:${property}`, map.getPaintProperty(layer, property));
           }
           const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
           // Geographic 60 m fox proximity halo (docs/visuals.md): scales with zoom, hidden when no live/demo fix is active.
@@ -457,6 +482,23 @@ export function KyotoMap({
   }, [mapAttempt, layoutRouteLabels]);
 
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map || state !== "ready") return;
+    for (const [layer, property, color] of ILLUSTRATED_PAINTS) {
+      if (!map.getLayer(layer)) continue;
+      const value = mapStyle === "illustrated" ? color : standardPaintRef.current.get(`${layer}:${property}`);
+      if (value !== undefined) map.setPaintProperty(layer, property, value as never);
+    }
+  }, [mapStyle, state]);
+
+  useEffect(() => {
+    if (!initialPlaceId || state !== "ready") return;
+    const place = placeById(initialPlaceId);
+    if (place) mapRef.current?.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, -90], duration: motionDuration(500) });
+    onInitialPlaceHandled();
+  }, [initialPlaceId, onInitialPlaceHandled, state]);
+
+  useEffect(() => {
     const marker = markerRef.current;
     const root = markerRootRef.current;
     if (!marker || !root || state !== "ready") return;
@@ -470,14 +512,15 @@ export function KyotoMap({
     const coordinates: [number, number] = location.mode === "live" && location.fix
       ? [location.fix.longitude, location.fix.latitude] : location.mode === "demo" && playing ? [...demoPoint.current] : DEMO_POSITION;
     marker.setLngLat(coordinates);
-    // Show the 60 m halo only for a usable live fix or explicit Demo Mode, never for unselected/sample state.
-    const haloCenter: LngLat | null = location.mode === "live" && location.fix ? coordinates : location.mode === "demo" ? coordinates : null;
+    // Show the 60 m halo only for an accurate live fix or explicit Demo Mode; hide when unselected or low-accuracy.
+    const lowAccuracy = location.mode === "live" && location.gpsStatus === "lowAccuracy";
+    const haloCenter: LngLat | null = location.mode === "live" && location.fix && !lowAccuracy ? coordinates : location.mode === "demo" ? coordinates : null;
     haloSource?.setData(haloGeoJson(haloCenter));
     const label = location.mode === "live"
       ? translate(locale, "mapLiveMarker", { accuracy: String(Math.round(location.fix?.accuracy ?? 0)) })
       : translate(locale, location.mode === "demo" ? "mapDemoMarker" : "mapSampleLocation");
     const ariaLabel = location.mode === "live" ? label : translate(locale, location.mode === "demo" ? "mapDemoMarkerLabel" : "mapSampleLocationLabel");
-    root.render(<div className="map-fox-marker" data-live={location.mode === "live"}>
+    root.render(<div className="map-fox-marker" data-live={location.mode === "live"} data-low-accuracy={lowAccuracy}>
       {bubbleVisible && <button type="button" className="fox-bubble" onClick={() => bubbleActionRef.current()}>{bubbleText}</button>}
       <span role="img" aria-label={ariaLabel} className="map-fox-figure"><FoxAvatar state={playing ? "walking" : "idle"} /></span>
       {!playing && <span className="map-fox-label">{label}</span>}
@@ -607,6 +650,11 @@ export function KyotoMap({
     }
   }
 
+  function pauseLiveLocation() {
+    stopWatch();
+    onLocationChange({ mode: "live", gpsStatus: "paused", fix: null });
+  }
+
   function exploreDemo(walk: CuratedWalk | null = selectedWalk) {
     stopWatch();
     onLocationChange(INITIAL_LOCATION_STATE);
@@ -673,6 +721,17 @@ export function KyotoMap({
         {PREVIEW_CONTROLS && <button type="button" onClick={() => exploreDemo()} disabled={state !== "ready"} aria-pressed={location.mode === "demo"}><MapPinned size={16} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("locationExploreDemo")}</span></button>}
       </div>
       <p className="location-status" role="status">{locationStatusText(locale, location)}</p>
+      {["denied", "timeout", "unavailable"].includes(location.gpsStatus) && <div className="start-point-picker" role="group" aria-label={t("startPointPickerTitle")}>
+        <p><strong>{t("startPointPickerTitle")}</strong><small>{t("startPointPickerHint")}</small></p>
+        <div className="start-point-chips">{START_LANDMARK_IDS.map(id => {
+          const place = placeById(id);
+          return place ? <button type="button" key={id} aria-pressed={startPlaceId === id} onClick={() => {
+            setStartPlaceId(id);
+            focusMap([...place.location]);
+            showRoutes();
+          }}>{place.name[locale]}</button> : null;
+        })}</div>
+      </div>}
     </>}
   </div>;
 
@@ -685,7 +744,10 @@ export function KyotoMap({
     {results.suggestions.length ? results.suggestions.map(({ walk, reason }) => {
       const crowd = sampleWalkCrowd(walk.placeIds);
       return <article key={walk.id} className="walk-list-item" aria-labelledby={`walk-list-${walk.id}`}>
-        <h3 id={`walk-list-${walk.id}`}>{walk.name[locale]}<small lang={other}>{walk.name[other]}</small></h3>
+        <div className="walk-list-item-head">
+          <h3 id={`walk-list-${walk.id}`}>{walk.name[locale]}<small lang={other}>{walk.name[other]}</small></h3>
+          <SaveButton saved={saved.walks.includes(walk.id)} locale={locale} onToggle={() => toggleSavedWalk(walk.id)} />
+        </div>
         <p className="sheet-intro">{walk.description[locale]}</p>
         <WalkMeta walk={walk} locale={locale} />
         <div className="route-card-tags">
@@ -765,6 +827,10 @@ export function KyotoMap({
     {!listMode && <div className="map-rail" data-playing={Boolean(playing)} inert={state !== "ready"}>
       {!playing && <button type="button" className="map-rail-button" aria-pressed={false} onClick={() => setViewMode("list")}>
         <span><ListTree size={20} strokeWidth={ICON_STROKE} aria-hidden="true" /></span>{t("railList")}</button>}
+      <button type="button" className="map-rail-button" aria-pressed={mapStyle === "standard"}
+        aria-label={t("railStyleAria", { next: t(mapStyle === "illustrated" ? "railStyleStandard" : "railStyleIllustrated") })}
+        onClick={() => { haptic(); setMapStyle(mapStyle === "illustrated" ? "standard" : "illustrated"); }}>
+        <span><Layers size={20} strokeWidth={ICON_STROKE} aria-hidden="true" /></span>{t(mapStyle === "illustrated" ? "railStyleStandard" : "railStyleIllustrated")}</button>
       {!playing && <button type="button" className="map-rail-button" aria-pressed={showCrowd} aria-expanded={showCrowd} onClick={() => { setShowCrowd(value => !value); haptic(); }}>
         <span><Users size={20} strokeWidth={ICON_STROKE} aria-hidden="true" /></span>{t("crowdInfo")}</button>}
       <button type="button" className="map-rail-button" onClick={recenter} disabled={location.mode === "live" && !location.fix}
@@ -791,19 +857,22 @@ export function KyotoMap({
     {!listMode && <div className="sheet-layer">
       {playing ? <WalkControls key={`${run.id}-${run.stamps.length}-${location.mode}`} game={game} run={run} locale={locale} location={location}
         onPosition={updateDemoMarker} onComplete={() => { setFinishedWalkId(run.walkId); setCelebrationRunId(run.id); setSelectedWalkId(null); setView("routes"); setSnap("peek"); }}
-        onExit={() => setConfirmStop(run.id)} onResumeGps={requestLiveLocation} />
+        onExit={() => setConfirmStop(run.id)} onResumeGps={requestLiveLocation} onPauseGps={pauseLiveLocation} />
         : <SnapSheet snap={snap} onSnap={setSnap} header={sheetHeader}
           labels={{ expand: t("sheetExpand"), collapse: t("sheetCollapse"), region: t("sheetRegion") }}>
           {view === "routes" && <div className="sheet-section">
             <h2 className="sheet-title">{t("routesTitle")}</h2>
             {results.suggestions.length ? <div className="route-carousel">
-              {results.suggestions.slice(0, 3).map(({ walk, reason }) => <RouteCard key={walk.id} walk={walk} locale={locale} reason={reason} bonus={activeBonus(game, walk.id)} onPreview={() => previewWalk(walk)} />)}
+              {results.suggestions.slice(0, 3).map(({ walk, reason }) => <RouteCard key={walk.id} walk={walk} locale={locale} reason={reason} bonus={activeBonus(game, walk.id)} saved={saved.walks.includes(walk.id)} onToggleSave={() => toggleSavedWalk(walk.id)} onPreview={() => previewWalk(walk)} />)}
             </div> : <div className="route-empty"><p>{t("routesEmpty")}</p><Button variant="secondary" onClick={() => { setQuery(""); setRouteFilter(null); }}>{t("routesShowAll")}</Button></div>}
             <p className="sheet-intro">{t(results.fallback ? "routesSearchFallback" : "routesMapChecked")}</p>
             <RouteDataCredit locale={locale} />
           </div>}
           {view === "walk" && selectedWalk && <div className="sheet-section">
-            <button type="button" className="sheet-back" onClick={showRoutes}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("routesBack")}</button>
+            <div className="sheet-top-bar">
+              <button type="button" className="sheet-back" onClick={showRoutes}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("routesBack")}</button>
+              <SaveButton saved={saved.walks.includes(selectedWalk.id)} locale={locale} onToggle={() => toggleSavedWalk(selectedWalk.id)} />
+            </div>
             <h2 className="sheet-title">{selectedWalk.name[locale]}<small lang={other}>{selectedWalk.name[other]}</small></h2>
             <p className="sheet-intro">{selectedWalk.description[locale]}</p>
             <WalkMeta walk={selectedWalk} locale={locale} />
@@ -831,7 +900,10 @@ export function KyotoMap({
             </div>
           </div>}
           {view === "place" && focusedPlace && <div className="sheet-section">
-            <button type="button" className="sheet-back" onClick={backFromPlace}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t(selectedWalk ? "routesDetails" : "routesBack")}</button>
+            <div className="sheet-top-bar">
+              <button type="button" className="sheet-back" onClick={backFromPlace}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t(selectedWalk ? "routesDetails" : "routesBack")}</button>
+              <SaveButton saved={saved.places.includes(focusedPlace.id)} locale={locale} onToggle={() => toggleSavedPlace(focusedPlace.id)} />
+            </div>
             <PlacePhoto placeId={focusedPlace.id} locale={locale} />
             <h2 className="sheet-title">{focusedPlace.name[locale]}<small lang={other}>{focusedPlace.name[other]}</small></h2>
             <PlaceWalkInfo place={focusedPlace} walk={selectedWalk} origin={placeOrigin} locale={locale} />

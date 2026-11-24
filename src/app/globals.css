@@ -898,3 +898,45 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .checkpoint-track-seg { display: block; height: 100%; background: rgb(120 36 89 / 24%); border-radius: 2px; }
 .checkpoint-track-seg[data-unlocks="true"] { background: var(--kyoto-purple); }
 .checkpoint-track-goal { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink-sumi); transform: translateX(-1px); }
+
+/* Prototype batch: guest entry, save & return, low-accuracy marker, itinerary list, offline & privacy/safety */
+.welcome-top { justify-content: space-between; }
+.welcome-brand { display: inline-flex; align-items: center; gap: 10px; }
+.welcome-skip { min-height: 44px; padding: 6px 12px; border-radius: 99px; color: var(--kyoto-purple); font-size: 13px; font-weight: 700; }
+.welcome-fox-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.welcome-fox-head h1 { margin: 0; }
+.start-point-picker { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border-hairline); }
+.start-point-picker p { margin: 0; display: grid; gap: 2px; font-size: 13px; }
+.start-point-picker small { color: var(--ink-slate); font-size: 12px; }
+.start-point-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.start-point-chips button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--border-hairline); border-radius: 99px; background: var(--bg-ivory); color: var(--ink-sumi); font-size: 12px; font-weight: 700; }
+.start-point-chips button[aria-pressed="true"] { border-color: var(--kyoto-purple); background: var(--kyoto-purple-soft); color: var(--kyoto-purple); }
+
+.save-button { flex: none; margin-left: auto; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-hairline); border-radius: 99px; background: var(--bg-ivory); color: var(--ink-slate); font-size: 12px; font-weight: 700; }
+.save-button[aria-pressed="true"] { border-color: var(--kyoto-purple); background: var(--kyoto-purple-soft); color: var(--kyoto-purple); }
+.sheet-top-bar, .walk-list-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.saved-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.saved-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-hairline); border-radius: 12px; background: var(--bg-ivory); font-size: 13px; font-weight: 700; }
+.saved-list-actions { display: flex; gap: 6px; flex: none; }
+.saved-list-actions button { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border-hairline); border-radius: 10px; background: var(--bg-washi); color: var(--kyoto-purple); font-size: 12px; font-weight: 700; }
+
+/* Distinct low-accuracy GPS fox marker treatment (design_system §6.1, MASCOT_ASSETS.md) */
+.map-fox-marker[data-low-accuracy="true"] .map-fox-figure { opacity: .68; outline: 3px dashed var(--crowd-moderate); outline-offset: 4px; border-radius: 50%; }
+
+.follow-itinerary { max-height: 180px; overflow-y: auto; padding-top: 8px; border-top: 1px solid var(--border-hairline); }
+.follow-itinerary ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.follow-itinerary li { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; }
+.follow-itinerary li > span:nth-child(2) { flex: 1; display: grid; gap: 2px; }
+.follow-itinerary li small { color: var(--ink-slate); font-size: 12px; }
+.follow-itinerary-index { flex: none; width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--bg-stone); color: var(--ink-sumi); font-weight: 800; font-variant-numeric: tabular-nums; }
+.follow-itinerary li[data-state="next"] .follow-itinerary-index { background: var(--kyoto-purple); color: #fff; }
+.follow-itinerary li[data-state="done"] .follow-itinerary-index { background: var(--antique-gold); color: var(--ink-sumi); }
+.follow-itinerary-badge { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-slate); }
+
+.quest-eligibility, .ticket-expiry { margin: 0; color: var(--ink-slate); font-size: 12px; line-height: 1.4; }
+.ticket-expiry[data-expired="true"] { color: var(--torii-vermilion); font-weight: 700; }
+
+.offline-banner { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--ink-sumi); color: var(--bg-ivory); font-size: 12px; font-weight: 700; }
+.safety-links { display: grid; gap: 8px; }
+.safety-links a { min-height: 44px; display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid var(--border-hairline); border-radius: 12px; background: var(--bg-ivory); font-size: 13px; font-weight: 700; }
+.report-form { display: grid; gap: 8px; }

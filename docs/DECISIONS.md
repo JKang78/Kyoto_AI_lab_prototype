@@ -58,7 +58,7 @@ Dependencies: added `motion` (14.14.0) for the spring values the spec specifies.
 
 ## 2026-11-24 Audit remediation (Phase 1–2)
 
-Follows `IMPLEMENTATION_AUDIT.md`. Navigation is now **Explore / Missions / Rewards / Me** (settings inside Me), per PRD §5 and design system §4.
+Follows `done/IMPLEMENTATION_AUDIT.md`. Navigation is now **Explore / Missions / Rewards / Me** (settings inside Me), per PRD §5 and design system §4.
 
 - **Incentives are two separate concepts** (PRD §9, AC-04): `bus_relief` and `quiet_hour`. The invented 06:00–10:00 "off-peak" schedule was removed. With no real bus or crowd data, each exists only as a **hypothetical demo scenario** a presenter switches on in Me → Demo controls, scoped to one walk, and labelled "demo scenario" wherever it appears. Copy claiming that walking relieves buses was removed; receipts say a check-in confirms a visit, not how you travelled.
 - **Vouchers** are all `isDemo: true` and labelled `DEMO — NOT REDEEMABLE` on every ticket and in both languages on the redemption preview. The "Show this to staff" framing is gone. The unverified transit voucher was replaced by a fictional washi postcard set. The Rewards tabs are Available / My vouchers / Used.

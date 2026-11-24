@@ -38,3 +38,13 @@ export function saveProfile(profile: Profile): void {
   }
   window.dispatchEvent(new Event(PROFILE_EVENT));
 }
+
+export function clearProfile(): void {
+  memorySnapshot = null;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Ignore blocked storage.
+  }
+  window.dispatchEvent(new Event(PROFILE_EVENT));
+}

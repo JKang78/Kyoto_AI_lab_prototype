@@ -38,11 +38,16 @@ export type CouponDefinition = {
   isDemo: true;
   category: CouponCategory;
   cost: number;
+  /** Offer expiry in UTC ms (displayed in Kyoto JST, independent of the 5-minute redemption preview timer). */
+  expiresAt: number;
   merchant: Text;
   offer: Text;
   terms: Text;
   hours: Text;
 };
+
+// Demo offer validity horizon: 2027-03-31 23:59:59 JST.
+const DEMO_OFFER_EXPIRES_AT = Date.parse("2027-03-31T23:59:59+09:00");
 
 export const COUPONS: readonly CouponDefinition[] = [
   {
@@ -50,6 +55,7 @@ export const COUPONS: readonly CouponDefinition[] = [
     isDemo: true,
     category: "cafe",
     cost: 60,
+    expiresAt: DEMO_OFFER_EXPIRES_AT,
     merchant: { en: "Hanami Tea Stand (fictional)", ja: "はなみ茶房（架空）" },
     offer: { en: "¥150 off a matcha latte", ja: "抹茶ラテ 150円引き" },
     terms: { en: "Example terms · min. spend ¥500 · 1 per visit", ja: "条件の例 · 500円以上のご利用で · 1回につき1枚" },
@@ -60,6 +66,7 @@ export const COUPONS: readonly CouponDefinition[] = [
     isDemo: true,
     category: "experience",
     cost: 90,
+    expiresAt: DEMO_OFFER_EXPIRES_AT,
     merchant: { en: "Kawa-no-yu Bathhouse (fictional)", ja: "川の湯（架空）" },
     offer: { en: "Free sake-lees soap with entry", ja: "入浴で酒粕石けんプレゼント" },
     terms: { en: "Example terms · with paid entry · 1 per person", ja: "条件の例 · 入浴料のお支払い時 · お一人様1個" },
@@ -70,6 +77,7 @@ export const COUPONS: readonly CouponDefinition[] = [
     isDemo: true,
     category: "shop",
     cost: 120,
+    expiresAt: DEMO_OFFER_EXPIRES_AT,
     merchant: { en: "Kamo Paper Shop (fictional)", ja: "鴨川紙店（架空）" },
     offer: { en: "Free set of three washi postcards", ja: "和紙ポストカード3枚セット進呈" },
     terms: { en: "Example terms · 1 set per person", ja: "条件の例 · お一人様1セット" },

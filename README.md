@@ -29,6 +29,31 @@ The map needs an internet connection to load OpenFreeMap tiles. It uses no API k
 Location permission is requested after **Use My Location** or **Start GPS walk** is tapped. Browser GPS requires HTTPS or localhost. A live fix stays at its actual coordinates, including outside Kyoto; low accuracy and errors are shown. **Demo Mode** uses a clearly labelled simulated point near Gion-Shijo and turns GPS off. GPS also stops when Explore is left; returning requires another tap to resume. The app does not save location history.
 The MapLibre worker is served from `public/vendor/` because Next.js did not load its automatic worker URL reliably. When upgrading MapLibre, replace that worker file with the matching package version and retain its license notice.
 
+## Open the app on a phone
+
+Use two terminals on your Mac. Your phone needs internet access but does not have to share the Mac's Wi-Fi.
+
+```bash
+# Terminal 1: start the dev server
+npm run dev
+
+# Terminal 2: start an HTTPS tunnel to it
+npx cloudflared tunnel --url http://localhost:3000
+```
+
+1. Wait for the tunnel to print a URL like `https://<random-words>.trycloudflare.com`. The first run asks `Ok to proceed? (y)`; answer `y`.
+2. Open that URL on your phone. It can take a few seconds to become reachable.
+3. Tap **Use My Location** or **Start GPS walk** to test real GPS. The tunnel is HTTPS, which browsers require for location.
+
+Notes:
+
+- The URL changes every time you restart the tunnel. Copy the new one from the terminal each session.
+- `next.config.ts` sets `allowedDevOrigins: ["*.trycloudflare.com"]`. Without it Next.js blocks the tunnel hostname in dev and the phone only shows the loading screen. Restart `npm run dev` after changing that file.
+- Anyone with the URL can reach your dev server while the tunnel runs. Press Ctrl+C in Terminal 2 when you are done.
+- If the tunnel shows a 502 error, the dev server in Terminal 1 is not running on port 3000. If you started it on another port, change the port in the tunnel command.
+- To test simulated walks and check-ins on the phone from a production build, run `NEXT_PUBLIC_KYOTO_FLOW_PREVIEW=1 npm run build && npm start`, then point the tunnel at the same port (`http://localhost:3000` by default). This build needs no `allowedDevOrigins` setting.
+- Same-Wi-Fi access without a tunnel works with `npm run dev -- -H 0.0.0.0` and `http://<your-mac-ip>:3000`, but GPS is blocked because the page is not HTTPS. Add your Mac's IP to `allowedDevOrigins` if the page loads but does not respond.
+
 ## Presenter vs public builds
 
 Demo Mode, simulated check-ins and the bonus-scenario switch appear only in development (`npm run dev`) and in builds made for presenters:
@@ -84,7 +109,7 @@ For the verified Phase 0 scope and the starting point for Phase 1, see [`docs/do
 ## Project documents
 
 - [Product specification](docs/PROJECT_SPEC.md), [build plan](docs/BUILD_PLAN.md), [architecture](docs/ARCHITECTURE.md), [design guidelines](docs/DESIGN_GUIDELINES.md), and [decision log](docs/DECISIONS.md).
-- [Open decisions](docs/TODOS.md), [known bugs](docs/BUGS.md), [test checklist](docs/TEST_CHECKLIST.md), and [route data and field checks](docs/ROUTE_DATA.md).
+- [Open tasks](TODO.md), [known bugs](docs/BUGS.md), [test checklist](docs/TEST_CHECKLIST.md), and [route data and field checks](docs/ROUTE_DATA.md).
 - [Mascot artwork](docs/MASCOT_ASSETS.md) and [pin artwork](docs/PINS_ASSETS.md).
 - [UI and interaction backlog](docs/visuals.md) for remaining prototype, content-review and pilot work.
 - [Completed plans, handoffs, reviews, and audits](docs/done/).

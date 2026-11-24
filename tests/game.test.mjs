@@ -3,7 +3,7 @@ import test from 'node:test';
 import { GAME, COUPONS } from '../src/config/game.ts';
 import { REWARD_MODE } from '../src/config/environment.ts';
 import { sampleWalkCrowd } from '../src/data/sample-congestion.ts';
-import { emptyGame, balance, activeRun, transition, liveEligible, decodeGame, placeById, walkStatus, activeBonus, walkReward, redemptionCode, clientMayUnlock, circlePolygon, distanceMeters, voucherProjection } from '../src/lib/game.ts';
+import { emptyGame, balance, activeRun, walkStatus, transition, liveEligible, decodeGame, placeById, walkById, activeBonus, walkReward, redemptionCode, clientMayUnlock, circlePolygon, distanceMeters, voucherProjection, isCouponExpired } from '../src/lib/game.ts';
 
 // 12:00 and 08:00 Kyoto time (UTC+9).
 const NOON = Date.UTC(2026, 10, 24, 3);
@@ -335,4 +335,21 @@ test('60 m geographic fox halo scales around coordinates and 65 m GPS fix remain
     fix: { longitude: point[0], latitude: point[1] + 65 * 180 / (Math.PI * 6371000), accuracy: 15, timestamp: now },
   };
   assert.equal(liveEligible(at65m, point, now), true);
+});
+
+test('expired demo vouchers cannot be unlocked or redeemed past Kyoto-time expiry', () => {
+  let game = start(emptyGame, 'exp-1');
+  for (const s of stops) game = stamp(game, 'exp-1', s);
+  const matcha = COUPONS.find(c => c.id === 'matcha');
+  assert.ok(matcha && walkById('shijo-yasaka'));
+  assert.equal(isCouponExpired(matcha, matcha.expiresAt - 1000), false);
+  assert.equal(isCouponExpired(matcha, matcha.expiresAt + 1000), true);
+
+  // Unlock fails after offer expiry
+  assert.equal(transition(game, { type: 'unlock', id: 'matcha' }, matcha.expiresAt + 1000), game);
+
+  // Unlock succeeds before expiry, then redeem fails once expired
+  const unlocked = transition(game, { type: 'unlock', id: 'matcha' }, matcha.expiresAt - 60_000);
+  assert.equal(unlocked.claims.length, 1);
+  assert.equal(transition(unlocked, { type: 'redeem', id: 'matcha' }, matcha.expiresAt + 1000), unlocked);
 });

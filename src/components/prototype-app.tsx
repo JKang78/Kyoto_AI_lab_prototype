@@ -2,21 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SetStateAction } from "react";
 import Image from "next/image";
-import { ArrowRight, FlaskConical, Globe2, LocateFixed, MapPin, Sparkles, UserRound, X } from "lucide-react";
+import { ArrowRight, ExternalLink, Flag, FlaskConical, Globe2, Heart, LocateFixed, MapPin, Shield, Sparkles, Trash2, UserRound, WifiOff, X } from "lucide-react";
 import { HomeScreen } from "@/components/home-screen";
 import { Missions } from "@/components/missions-screen";
 import { Rewards } from "@/components/rewards-screen";
 import { act, useGame } from "@/lib/game-store";
-import { activeRun, balance, type Game } from "@/lib/game";
+import { activeRun, balance, placeById, walkById, type Game } from "@/lib/game";
 import { COUPONS, type CampaignKind } from "@/config/game";
 import { PREVIEW_CONTROLS } from "@/config/environment";
 import { BottomNav, type Tab } from "@/components/bottom-nav";
 import { KyotoMap } from "@/components/map/kyoto-map";
 import { Button, ConfirmDialog, FoxAvatar, haptic, ICON_STROKE, Segmented } from "@/components/ui";
-import { translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { CURATED_WALKS } from "@/data/kyoto-walks";
+import { formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationState } from "@/lib/location";
-import { getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
+import { clearProfile, getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
+import { clearSaved, toggleSavedPlace, toggleSavedWalk, useSaved, type SavedItems } from "@/lib/saved";
 import type { RouteFilter } from "@/lib/route-discovery";
+
+const START_LANDMARK_IDS = ["shijo-kawaramachi", "shijo-ohashi", "yasaka-west-view", "sanjo-ohashi"] as const;
+const CACHE_TIME_KEY = "kyoto-ai-lab.cachedAt.v1";
+const ETIQUETTE_KEY = "kyoto-ai-lab.etiquette.v1";
 
 function LanguageChoice({ locale, onChange }: { locale: Locale; onChange: (locale: Locale) => void }) {
   return <div className="segmented" role="group" aria-label={translate(locale, "chooseLanguage")}>
@@ -31,13 +37,23 @@ function Switch({ checked, onChange, children }: { checked: boolean; onChange: (
   </button>;
 }
 
-function Welcome({ locale, onLocale, onStart }: { locale: Locale; onLocale: (locale: Locale) => void; onStart: (nickname: string) => void }) {
-  const [nickname, setNickname] = useState("");
+function Welcome({ locale, initialNickname = "", startPlaceId, onStartPlace, onLocale, onStart, onSkip }: {
+  locale: Locale; initialNickname?: string; startPlaceId: string | null;
+  onStartPlace: (id: string | null) => void; onLocale: (locale: Locale) => void;
+  onStart: (nickname: string) => void; onSkip: () => void;
+}) {
+  const [nickname, setNickname] = useState(initialNickname);
   const t = (key: MessageKey) => translate(locale, key);
   return <main className="welcome-screen">
-    <div className="welcome-top"><span className="brand-seal" aria-hidden="true">京</span><span>{t("appName")}</span></div>
+    <div className="welcome-top">
+      <span className="welcome-brand"><span className="brand-seal" aria-hidden="true">京</span><span>{t("appName")}</span></span>
+      <button type="button" className="welcome-skip" onClick={onSkip}>{t("welcomeSkip")}</button>
+    </div>
     <div className="walk-cover">
-      <h1>{t("welcomeTitle")}</h1>
+      <div className="welcome-fox-head">
+        <FoxAvatar state="idle" size={56} />
+        <h1>{t("welcomeTitle")}</h1>
+      </div>
       <Image src="/art/kamo-woodblock.webp" width={320} height={468} alt={t("printAlt")} priority />
     </div>
     <p className="welcome-instruction">{t("welcomeBody")}</p>
@@ -47,15 +63,34 @@ function Welcome({ locale, onLocale, onStart }: { locale: Locale; onLocale: (loc
       <label htmlFor="nickname" className="form-label">{t("nicknameLabel")}</label>
       <input id="nickname" className="text-input" value={nickname} maxLength={40} autoComplete="nickname" placeholder={t("nicknamePlaceholder")} onChange={(event) => setNickname(event.target.value)} />
       <p className="form-hint">{t("nicknameHint")}</p>
+      <p className="form-label">{t("startPointLabel")}</p>
+      <div className="start-point-chips" role="group" aria-label={t("startPointLabel")}>
+        <button type="button" aria-pressed={startPlaceId === null} onClick={() => onStartPlace(null)}>{t("startPointNone")}</button>
+        {START_LANDMARK_IDS.map(id => {
+          const place = placeById(id);
+          return place ? <button type="button" key={id} aria-pressed={startPlaceId === id} onClick={() => onStartPlace(id)}>{place.name[locale]}</button> : null;
+        })}
+      </div>
       <Button type="submit" className="full-width">{t("startExploring")}<ArrowRight size={19} strokeWidth={ICON_STROKE} /></Button>
     </form>
   </main>;
 }
 
-function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: { game: Game; onReset: () => void; locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void; onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void }) {
+function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenWalk, onOpenPlace, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: {
+  game: Game; saved: SavedItems; onReset: () => void; onDeleteAll: () => Promise<void>; onRevisitWelcome: () => void;
+  onOpenWalk: (id: string) => void; onOpenPlace: (id: string) => void;
+  locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void;
+  onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void;
+}) {
   const [nickname, setNickname] = useState(profile.nickname);
-  const [saved, setSaved] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportWalk, setReportWalk] = useState<string>(CURATED_WALKS[0].id);
+  const [reportKind, setReportKind] = useState<"blocked" | "access" | "signage">("blocked");
+  const [reportNotes, setReportNotes] = useState("");
+  const [reportPrepared, setReportPrepared] = useState(false);
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   return <div className="content-screen settings-screen">
     <h1>{t("navMe")}</h1>
@@ -72,17 +107,43 @@ function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, 
       </div>
     </section>
     <section className="settings-section">
+      <h2><Heart size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("savedHeading")}</h2>
+      {saved.walks.length || saved.places.length ? <ul className="saved-list">
+        {saved.walks.map(id => {
+          const walk = walkById(id);
+          return walk ? <li key={`walk-${id}`}>
+            <span>{walk.name[locale]}</span>
+            <div className="saved-list-actions">
+              <button type="button" onClick={() => onOpenWalk(id)}>{t("savedOpen")}</button>
+              <button type="button" onClick={() => toggleSavedWalk(id)}>{t("savedRemove")}</button>
+            </div>
+          </li> : null;
+        })}
+        {saved.places.map(id => {
+          const place = placeById(id);
+          return place ? <li key={`place-${id}`}>
+            <span>{place.name[locale]}</span>
+            <div className="saved-list-actions">
+              <button type="button" onClick={() => onOpenPlace(id)}>{t("savedOpen")}</button>
+              <button type="button" onClick={() => toggleSavedPlace(id)}>{t("savedRemove")}</button>
+            </div>
+          </li> : null;
+        })}
+      </ul> : <p className="settings-hint">{t("savedEmpty")}</p>}
+    </section>
+    <section className="settings-section">
       <h2><Globe2 size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("languageHeading")}</h2>
       <LanguageChoice locale={locale} onChange={onLocale} />
     </section>
     <section className="settings-section">
       <h2><UserRound size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("profileHeading")}</h2>
-      <form onSubmit={(event) => { event.preventDefault(); onSave(nickname.trim()); setSaved(true); }}>
+      <form onSubmit={(event) => { event.preventDefault(); onSave(nickname.trim()); setSavedMsg(true); }}>
         <label className="form-label" htmlFor="settings-nickname">{t("nicknameLabel")}</label>
-        <input className="text-input" id="settings-nickname" value={nickname} maxLength={40} onChange={(event) => { setNickname(event.target.value); setSaved(false); }} placeholder={t("nicknamePlaceholder")} />
+        <input className="text-input" id="settings-nickname" value={nickname} maxLength={40} onChange={(event) => { setNickname(event.target.value); setSavedMsg(false); }} placeholder={t("nicknamePlaceholder")} />
         <Button type="submit" variant="secondary" className="full-width">{t("nicknameSave")}</Button>
-        {saved && <p className="save-message" role="status">{t("nicknameSaved")}</p>}
+        {savedMsg && <p className="save-message" role="status">{t("nicknameSaved")}</p>}
       </form>
+      <Button type="button" variant="secondary" className="full-width" onClick={onRevisitWelcome}>{t("revisitWelcome")}</Button>
     </section>
     <section className="settings-section">
       <h2><MapPin size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationSettingsHeading")}</h2>
@@ -109,6 +170,22 @@ function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, 
       <h2><Sparkles size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gameProgress")}</h2>
       <Button variant="secondary" className="full-width" onClick={() => setResetOpen(true)}>{t("gameReset")}</Button>
     </section>
+    <section className="settings-section">
+      <h2><Shield size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("privacyHeading")}</h2>
+      <p className="settings-hint">{t("privacyBody")}</p>
+      <Button type="button" variant="secondary" className="full-width" onClick={() => setDeleteAllOpen(true)}>
+        <Trash2 size={17} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("deleteAllData")}
+      </Button>
+    </section>
+    <section className="settings-section">
+      <h2><Flag size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("safetyHeading")}</h2>
+      <p className="settings-hint">{t("safetyBody")}</p>
+      <div className="safety-links">
+        <a href="https://www.data.jma.go.jp/multi/index.html" target="_blank" rel="noreferrer">{t("safetyJma")}<ExternalLink size={14} aria-hidden="true" /></a>
+        <a href="https://www.bousai-kyoto-city.jp/" target="_blank" rel="noreferrer">{t("safetyKyoto")}<ExternalLink size={14} aria-hidden="true" /></a>
+      </div>
+      <Button type="button" variant="secondary" className="full-width" onClick={() => { setReportPrepared(false); setReportOpen(true); }}>{t("reportIssueButton")}</Button>
+    </section>
     <details className="settings-about">
       <summary>{t("aboutHeading")}</summary>
       <p>{t("aboutBody")}</p>
@@ -121,22 +198,81 @@ function MeScreen({ game, onReset, locale, profile, location, onLocale, onSave, 
         <Button onClick={async () => { await act({ type: "reset" }); onReset(); setResetOpen(false); }}>{t("gameConfirm")}</Button>
       </div>
     </ConfirmDialog>
+    <ConfirmDialog open={deleteAllOpen} onClose={() => setDeleteAllOpen(false)} title={t("deleteAllData")} closeLabel={t("close")}>
+      <p>{t("deleteAllDataBody")}</p>
+      <div className="dialog-actions">
+        <Button variant="secondary" onClick={() => setDeleteAllOpen(false)}>{t("gameCancel")}</Button>
+        <Button onClick={async () => { await onDeleteAll(); setDeleteAllOpen(false); }}>{t("deleteAllConfirm")}</Button>
+      </div>
+    </ConfirmDialog>
+    <ConfirmDialog open={reportOpen} onClose={() => setReportOpen(false)} title={t("reportIssueTitle")} closeLabel={t("close")}>
+      <p>{t("reportIssueBody")}</p>
+      <form className="report-form" onSubmit={(event) => { event.preventDefault(); setReportPrepared(true); }}>
+        <label className="form-label" htmlFor="report-walk">{t("reportIssueWalk")}</label>
+        <select id="report-walk" className="text-input" value={reportWalk} onChange={(e) => setReportWalk(e.target.value)}>
+          {CURATED_WALKS.map(walk => <option key={walk.id} value={walk.id}>{walk.name[locale]}</option>)}
+        </select>
+        <label className="form-label" htmlFor="report-kind">{t("reportIssueKind")}</label>
+        <select id="report-kind" className="text-input" value={reportKind} onChange={(e) => setReportKind(e.target.value as "blocked" | "access" | "signage")}>
+          <option value="blocked">{t("reportIssueBlocked")}</option>
+          <option value="access">{t("reportIssueAccess")}</option>
+          <option value="signage">{t("reportIssueSignage")}</option>
+        </select>
+        <label className="form-label" htmlFor="report-notes">{t("reportIssueNotes")}</label>
+        <textarea id="report-notes" className="text-input" rows={3} value={reportNotes} maxLength={300} placeholder={t("reportIssueNotesPlaceholder")} onChange={(e) => setReportNotes(e.target.value)} />
+        <Button type="submit" className="full-width">{t("reportIssueSubmit")}</Button>
+        {reportPrepared && <p className="save-message" role="status">{t("reportIssueSaved")}</p>}
+      </form>
+    </ConfirmDialog>
   </div>;
 }
 
 export function PrototypeApp() {
   const game = useGame();
+  const saved = useSaved();
   const snapshot = useSyncExternalStore(subscribeProfile, getProfileSnapshot, () => undefined);
   const ready = snapshot !== undefined;
   const storedProfile = ready ? readProfile() : null;
   const [welcomeLocale, setWelcomeLocale] = useState<Locale>(() => typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en");
+  const [revisitingWelcome, setRevisitingWelcome] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [browsedWalk, setSelectedWalkId] = useState<string | null | undefined>(undefined);
   const selectedWalkId = browsedWalk === undefined ? activeRun(game)?.walkId ?? null : browsedWalk;
-  // Search and filters survive tab switches for the session.
+  // Search, filters, style and starting landmark survive tab switches for the session.
   const [query, setQuery] = useState("");
   const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
+  const [mapStyle, setMapStyle] = useState<"illustrated" | "standard">("illustrated");
+  const [startPlaceId, setStartPlaceId] = useState<string | null>(null);
+  const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  useEffect(() => {
+    const syncNetwork = () => {
+      const isOnline = navigator.onLine;
+      setOffline(!isOnline);
+      if (isOnline) {
+        const now = Date.now();
+        setCachedAt(now);
+        try { window.localStorage.setItem(CACHE_TIME_KEY, String(now)); } catch { /* ignore */ }
+      } else {
+        try {
+          const savedAt = Number(window.localStorage.getItem(CACHE_TIME_KEY));
+          if (Number.isFinite(savedAt) && savedAt > 0) setCachedAt(savedAt);
+        } catch { /* ignore */ }
+      }
+    };
+    syncNetwork();
+    window.addEventListener("online", syncNetwork);
+    window.addEventListener("offline", syncNetwork);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => { /* Optional offline cache. */ });
+    }
+    return () => {
+      window.removeEventListener("online", syncNetwork);
+      window.removeEventListener("offline", syncNetwork);
+    };
+  }, []);
   const [deviceLocation, setDeviceLocation] = useState<LocationState>(INITIAL_LOCATION_STATE);
   const handleLocationChange = useCallback((next: SetStateAction<LocationState>) => {
     setDeviceLocation((current) => {
@@ -198,21 +334,64 @@ export function PrototypeApp() {
   }
 
   if (!ready) return <div className="loading-screen"><span className="brand-seal" aria-hidden="true">京</span><span>Kyoto AI Lab prototype</span></div>;
-  if (!profile) return <Welcome locale={welcomeLocale} onLocale={setWelcomeLocale} onStart={(nickname) => { saveProfile({ nickname, locale: welcomeLocale }); setActiveTab("home"); }} />;
+  if (!profile || revisitingWelcome) return <Welcome
+    locale={revisitingWelcome && profile ? profile.locale : welcomeLocale}
+    initialNickname={revisitingWelcome && profile ? profile.nickname : ""}
+    startPlaceId={startPlaceId}
+    onStartPlace={setStartPlaceId}
+    onLocale={(next) => { setWelcomeLocale(next); if (revisitingWelcome && profile) saveProfile({ ...profile, locale: next }); }}
+    onStart={(nickname) => {
+      saveProfile({ nickname, locale: revisitingWelcome && profile ? profile.locale : welcomeLocale });
+      setRevisitingWelcome(false);
+      setActiveTab("home");
+    }}
+    onSkip={() => {
+      if (!profile) saveProfile({ nickname: "", locale: welcomeLocale });
+      setRevisitingWelcome(false);
+      setActiveTab("home");
+    }}
+  />;
 
   function openWalk(id: string) {
     setSelectedWalkId(id);
     selectTab("explore");
   }
+  function openPlace(id: string) {
+    setInitialPlaceId(id);
+    selectTab("explore");
+  }
+  async function deleteAllLocalData() {
+    await act({ type: "reset" });
+    clearSaved();
+    clearProfile();
+    try {
+      window.localStorage.removeItem(ETIQUETTE_KEY);
+      window.localStorage.removeItem(CACHE_TIME_KEY);
+      if ("caches" in window) {
+        const keys = await window.caches.keys();
+        await Promise.all(keys.map((key) => window.caches.delete(key)));
+      }
+    } catch { /* Ignore blocked storage or cache errors. */ }
+    setSelectedWalkId(null);
+    setStartPlaceId(null);
+    setCachedAt(null);
+    handleLocationChange(INITIAL_LOCATION_STATE);
+    setRevisitingWelcome(false);
+    setActiveTab("home");
+  }
   const hasRewardsDot = Boolean(seen && affordable.some(id => !seen.rewards.includes(id)));
   const hasMissionsDot = Boolean(seen && sealCount > seen.seals);
   return <div className="app-shell" data-tab={activeTab}>
+    {offline && <div className="offline-banner" role="status">
+      <WifiOff size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />
+      <span>{translate(locale, "offlineBanner")}{cachedAt ? ` · ${translate(locale, "offlineCacheAge", { time: formatKyotoDateTime(locale, cachedAt) })}` : ""}</span>
+    </div>}
     <main key={activeTab} id="main-content" className="app-main">
       {activeTab === "home" && <HomeScreen game={game} locale={locale} name={profile.nickname || translate(locale, "guestName")} hasNotice={hasRewardsDot || hasMissionsDot} onExplore={() => selectTab("explore")} onRewards={() => selectTab("rewards")} onMissions={() => selectTab("missions")} onMe={() => selectTab("me")} />}
-      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} viewMode={viewMode} setViewMode={setViewMode} />}
+      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} viewMode={viewMode} setViewMode={setViewMode} mapStyle={mapStyle} setMapStyle={setMapStyle} startPlaceId={startPlaceId} setStartPlaceId={setStartPlaceId} saved={saved} initialPlaceId={initialPlaceId} onInitialPlaceHandled={() => setInitialPlaceId(null)} />}
       {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
-      {activeTab === "me" && <MeScreen game={game} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
+      {activeTab === "me" && <MeScreen game={game} saved={saved} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} onDeleteAll={deleteAllLocalData} onRevisitWelcome={() => setRevisitingWelcome(true)} onOpenWalk={openWalk} onOpenPlace={openPlace} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
     </main>
     {toastId && <div className="unlock-toast" role="status">
       <FoxAvatar state="reward" size={36} />

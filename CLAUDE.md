@@ -6,7 +6,7 @@ Kyoto AI Lab is a mobile-first English/Japanese walking prototype built with Nex
 
 Read the section of [the project spec](docs/PROJECT_SPEC.md) that covers the change. For UI work, use the [UI and interaction backlog](docs/visuals.md) and [design guidelines](docs/DESIGN_GUIDELINES.md). The [decision log](docs/DECISIONS.md) resolves discrepancies, including the older five-tab descriptions in the Cursor rules. The current dock is **Explore, Missions, Rewards, Me**. Explore opens on the map and Me contains settings.
 
-Use the [build plan](docs/BUILD_PLAN.md), [open tasks](docs/TODOS.md) and [known bugs](docs/BUGS.md) for milestone status. Keep changes within the requested milestone. Outline the affected files before a multi-file change and reuse the existing components and dependencies where they fit.
+Use the [build plan](docs/BUILD_PLAN.md), [open tasks](TODO.md) and [known bugs](docs/BUGS.md) for milestone status. Keep changes within the requested milestone. Outline the affected files before a multi-file change and reuse the existing components and dependencies where they fit.
 
 ## Run and verify
 

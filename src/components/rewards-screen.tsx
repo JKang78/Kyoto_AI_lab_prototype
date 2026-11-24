@@ -5,7 +5,7 @@ import { COUPONS, type CouponCategory, type CouponDefinition } from "@/config/ga
 
 // Line illustrations for each voucher category (visuals.md R2). Generic objects, never merchant logos.
 const categoryIcons: Record<CouponCategory, typeof Coffee> = { cafe: Coffee, experience: Bath, shop: Mail };
-import { balance, walkById, placeById, type Game } from "@/lib/game";
+import { balance, isCouponExpired, walkById, placeById, type Game } from "@/lib/game";
 import { act } from "@/lib/game-store";
 import { bonusNameKey, formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { RedeemSheet } from "./redeem-sheet";
@@ -35,27 +35,34 @@ function activity(game: Game, locale: Locale, t: (key: MessageKey, values?: Reco
   return entries.sort((a, b) => (b.at ?? -1) - (a.at ?? -1));
 }
 
-function TicketCard({ coupon, game, locale, points, onRedeem }: { coupon: CouponDefinition; game: Game; locale: Locale; points: number; onRedeem: () => void }) {
+function TicketCard({ coupon, game, locale, points, now, onRedeem }: { coupon: CouponDefinition; game: Game; locale: Locale; points: number; now: number; onRedeem: () => void }) {
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const claim = game.claims.find(c => c.id === coupon.id);
+  const expired = isCouponExpired(coupon, now);
   const other = locale === "en" ? "ja" : "en";
-  return <article className="ticket-card" data-state={claim ? claim.redeemedAt !== undefined ? "redeemed" : "unlocked" : "locked"}>
+  const state = claim ? claim.redeemedAt !== undefined ? "redeemed" : expired ? "expired" : "unlocked" : expired ? "expired" : "locked";
+  return <article className="ticket-card" data-state={state}>
     <div className="ticket-main">
       <p className="demo-badge">{t("demoNotRedeemable")}</p>
       <p className="ticket-merchant">{coupon.merchant[locale]}<small lang={other}>{coupon.merchant[other]}</small></p>
       <h3>{coupon.offer[locale]}</h3>
       <p className="ticket-offer-alt" lang={other}>{coupon.offer[other]}</p>
       <p className="ticket-terms">{coupon.terms[locale]} · {coupon.hours[locale]}</p>
+      <p className="ticket-expiry" data-expired={expired}>{expired ? t("voucherExpired") : t("voucherValidUntil", { date: formatKyotoDateTime(locale, coupon.expiresAt) })}</p>
     </div>
     <div className="ticket-stub">
       {(() => { const Icon = categoryIcons[coupon.category]; return <span className="ticket-art" aria-hidden="true"><Icon size={22} strokeWidth={ICON_STROKE} /></span>; })()}
       {!claim && <>
         <span className="ticket-cost">{t("pointsValue", { points: String(coupon.cost) })}</span>
-        {points >= coupon.cost
-          ? <Button onClick={() => { void act({ type: "unlock", id: coupon.id }); haptic(); }}>{t("rewardsUnlock")}</Button>
-          : <small className="ticket-shortfall" data-coupon-state="locked">{t("rewardsNeed", { points: String(coupon.cost - points) })}</small>}
+        {expired
+          ? <small className="ticket-shortfall" data-coupon-state="expired">{t("voucherExpired")}</small>
+          : points >= coupon.cost
+            ? <Button onClick={() => { void act({ type: "unlock", id: coupon.id }); haptic(); }}>{t("rewardsUnlock")}</Button>
+            : <small className="ticket-shortfall" data-coupon-state="locked">{t("rewardsNeed", { points: String(coupon.cost - points) })}</small>}
       </>}
-      {claim && claim.redeemedAt === undefined && <Button onClick={onRedeem}><Ticket size={17} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("rewardsRedeem")}</Button>}
+      {claim && claim.redeemedAt === undefined && (expired
+        ? <small className="ticket-shortfall" data-coupon-state="expired">{t("voucherExpired")}</small>
+        : <Button onClick={onRedeem}><Ticket size={17} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("rewardsRedeem")}</Button>)}
       {claim?.redeemedAt !== undefined && <span className="ticket-redeemed" data-coupon-state="redeemed"><Check size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("rewardsUsedOn", { date: formatKyotoDateTime(locale, claim.redeemedAt) })}</span>}
     </div>
   </article>;
@@ -92,6 +99,7 @@ export function Rewards({ game, locale }: { game: Game; locale: Locale }) {
   const used = COUPONS.filter(coupon => claimOf(coupon)?.redeemedAt !== undefined);
   const [filter, setFilter] = useState<Filter>("available");
   const [redeeming, setRedeeming] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
   const shown = filter === "available" ? COUPONS.filter(coupon => !claimOf(coupon)) : filter === "mine" ? mine : used;
   const log = activity(game, locale, t);
   const redeemCoupon = COUPONS.find(coupon => coupon.id === redeeming);
@@ -110,7 +118,7 @@ export function Rewards({ game, locale }: { game: Game; locale: Locale }) {
       { id: "used", label: t("rewardsUsed") },
     ]} />
     <div className="ticket-list">
-      {shown.length ? shown.map(coupon => <TicketCard key={coupon.id} coupon={coupon} game={game} locale={locale} points={points} onRedeem={() => setRedeeming(coupon.id)} />)
+      {shown.length ? shown.map(coupon => <TicketCard key={coupon.id} coupon={coupon} game={game} locale={locale} points={points} now={now} onRedeem={() => setRedeeming(coupon.id)} />)
         : <EmptyState>{t(filter === "mine" ? "rewardsEmptyMine" : filter === "used" ? "rewardsEmptyUsed" : "rewardsEmptyAvailable")}</EmptyState>}
     </div>
     <section className="activity-log" aria-labelledby="activity-title">

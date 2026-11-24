@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Navigation, X } from "lucide-react";
+import { ListTree, Navigation, Pause, X } from "lucide-react";
 import { GAME } from "@/config/game";
 import { distanceMeters, liveEligible, placeById, walkById, type Game, type Run } from "@/lib/game";
 import { act } from "@/lib/game-store";
@@ -16,9 +16,9 @@ import { ETIQUETTE_ZONES, etiquetteZoneAt, kyotoDay, markEtiquetteSeen, readEtiq
 
 // The caller keys this component by run, leg and mode. A remount resumes
 // from the last stamp with movement paused, including after leaving Explore.
-export function WalkControls({ game, run, location, locale, onPosition, onComplete, onExit, onResumeGps }: {
+export function WalkControls({ game, run, location, locale, onPosition, onComplete, onExit, onResumeGps, onPauseGps }: {
   game: Game; run: Run; location: LocationState; locale: Locale;
-  onPosition: (point: LngLat) => void; onComplete: () => void; onExit: () => void; onResumeGps: () => void;
+  onPosition: (point: LngLat) => void; onComplete: () => void; onExit: () => void; onResumeGps: () => void; onPauseGps: () => void;
 }) {
   const walk = walkById(run.walkId)!;
   const step = run.stamps.length;
@@ -79,6 +79,7 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
   const [season] = useState(() => kyotoSeason(Date.now()));
   const [storyPlace, setStoryPlace] = useState<string | null>(null);
   const [etiquette, setEtiquette] = useState<EtiquetteZone | null>(null);
+  const [showItinerary, setShowItinerary] = useState(false);
   useEffect(() => {
     if (!celebrating) return;
     const timer = window.setTimeout(() => setCelebrating(false), 900);
@@ -103,7 +104,8 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
     const timer = window.setTimeout(() => setEtiquette(null), 6000);
     return () => window.clearTimeout(timer);
   }, [etiquette]);
-  const gpsIdle = location.mode === "live" && !["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
+  const gpsActive = location.mode === "live" && ["requesting", "active", "lowAccuracy", "outsideKyoto"].includes(location.gpsStatus);
+  const gpsIdle = location.mode === "live" && !gpsActive;
   const other = locale === "en" ? "ja" : "en";
   return <div className="follow-card" data-demo={demo}>
     {etiquette && <div className="etiquette-toast" role="status" aria-label={t("etiquetteLabel")}>
@@ -145,7 +147,11 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
         else setMotion(moving ? "paused" : "moving");
       }}>{t(moving ? "gamePause" : motionState === "paused" ? "gameContinue" : "gameMove")}</button>}
       {demo && (motionState !== "idle" || elapsed > 0) && <button type="button" className="follow-secondary" onClick={() => { setMotion("idle"); setElapsed(0); }}>{t("gameResetLeg")}</button>}
-      {gpsIdle && <button type="button" className="follow-secondary" onClick={onResumeGps}><Navigation size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationUseMyLocation")}</button>}
+      {gpsActive && <button type="button" className="follow-secondary" onClick={onPauseGps}><Pause size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gpsPause")}</button>}
+      {gpsIdle && <button type="button" className="follow-secondary" onClick={onResumeGps}><Navigation size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("gpsResume")}</button>}
+      <button type="button" className="follow-secondary" aria-expanded={showItinerary} onClick={() => setShowItinerary(value => !value)}>
+        <ListTree size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("walkItineraryToggle")}
+      </button>
       <Button type="button" className="follow-check" data-ready={eligible} disabled={!eligible} onClick={async () => {
         const awarded = await act({ type: "collect", runId: run.id, placeId: target.id, location });
         if (!awarded) return;
@@ -153,6 +159,17 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
         if (step + 1 === walk.placeIds.length) onComplete();
       }}>{t(demo ? "gameSimulate" : "gameCheck")}</Button>
     </div>
+    {showItinerary && <div className="follow-itinerary" role="region" aria-label={t("walkItineraryTitle")}>
+      <ol>{walk.placeIds.map((id, index) => {
+        const place = placeById(id);
+        const state = index < step ? "done" : index === step ? "next" : "upcoming";
+        return place ? <li key={id} data-state={state}>
+          <span className="follow-itinerary-index">{index + 1}</span>
+          <span><strong>{place.name[locale]}</strong><small>{place.accessNotes[locale]}</small></span>
+          <span className="follow-itinerary-badge">{t(state === "done" ? "walkItineraryDone" : state === "next" ? "walkItineraryNext" : "walkItineraryUpcoming")}</span>
+        </li> : null;
+      })}</ol>
+    </div>}
     <CheckpointVoucherTrack game={game} locale={locale} compact />
     {!demo && !eligible && <small className="follow-hint">{t("gameGpsHint", { radius: String(GAME.radiusMeters), accuracy: String(GAME.maxAccuracyMeters) })}</small>}
   </div>;

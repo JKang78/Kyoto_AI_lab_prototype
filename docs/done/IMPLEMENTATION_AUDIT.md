@@ -1,7 +1,7 @@
 # Kyoto Flow: implementation audit
 
 **Audited commit:** `b0b322d` on `prototype-engineering` (2026-11-24). **Remediation:** Phase 1–2 applied on 2026-11-24 (uncommitted at time of writing); see §0. Sections 1–8 below are the original audit baseline, kept for traceability; where they conflict with §0, §0 is current.
-**Compared against:** [`docs/PRODUCT_REQUIREMENTS.md`](docs/PRODUCT_REQUIREMENTS.md) (PRD), [`docs/design_system.md`](docs/design_system.md) (DS), [`docs/ENGINEERING_SPEC.md`](docs/ENGINEERING_SPEC.md) (ENG).
+**Compared against:** [`docs/PRODUCT_REQUIREMENTS.md`](../PRODUCT_REQUIREMENTS.md) (PRD), [`docs/design_system.md`](../design_system.md) (DS), [`docs/ENGINEERING_SPEC.md`](../ENGINEERING_SPEC.md) (ENG).
 
 **Bottom line:** The prototype is a polished, fully client-side **R0 visual prototype**. Every check passes and the UI matches much of the design system. But it has **no backend**: points, check-ins, vouchers and redemption all live in browser `localStorage`, are decided by the browser, and can be edited by the user. That is acceptable for R0 only if every reward surface is unmistakably a demo. Several surfaces fall short of that today, and the "off-peak" bonus mixes up the two campaign types the PRD keeps separate. The P0 list below is small and keeps the existing visual design.
 

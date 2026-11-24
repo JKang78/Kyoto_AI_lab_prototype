@@ -700,7 +700,7 @@ test('place walking time uses a recent on-path fix and returns to the named rout
     await button(copy.navExplore).click();
     await button(copy.locationUseMyLocation).click();
     await button(copy.railList).click();
-    const stop = page.locator('#walk-list-kamo-riverside').locator('..').locator('details').last();
+    const stop = page.locator('article:has(#walk-list-kamo-riverside)').locator('details').last();
     await stop.locator('summary').click();
     const info = stop.locator('.place-walk-info');
     const fallback = info.getByText('About 9 min on foot from Shijō Bridge along this walk');
@@ -767,4 +767,82 @@ test('Next UI pass: tactile primary buttons, floating frosted bonus pill, halo h
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
+});
+
+test('Prototype batch: skippable welcome, map style toggle, save & return, GPS pause/itinerary, safety & delete local data', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  const copy = await copyFor('en');
+  const button = name => page.getByRole('button', { name, exact: true });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  try {
+    await page.addInitScript(() => {
+      window.__gpsClears = 0;
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: {
+          watchPosition(ok) {
+            window.__emitFix = ok;
+            return 99;
+          },
+          clearWatch() { window.__gpsClears += 1; },
+        },
+      });
+    });
+    await prepare(page);
+    // 1. Skip welcome -> lands on Home as guest
+    await button(copy.welcomeSkip).click();
+    await page.locator('.home-screen').waitFor();
+
+    // 2. Map style Illustrated <-> Standard toggle + Save a walk
+    await button(copy.navExplore).click();
+    await page.locator('.map-rail').waitFor();
+    const styleBtn = page.getByRole('button', { name: copy.railStyleAria.replace('{next}', copy.railStyleStandard), exact: true });
+    await styleBtn.click();
+    await page.getByRole('button', { name: copy.railStyleAria.replace('{next}', copy.railStyleIllustrated), exact: true }).waitFor();
+
+    await button(copy.sheetExpand).click();
+    await page.locator('.route-card .save-button').first().click();
+    await page.reload();
+    await button(copy.navMe).click();
+    await page.locator('.saved-list li').first().waitFor();
+    await page.locator('.saved-list').getByRole('button', { name: copy.savedOpen, exact: true }).first().click();
+    await page.locator('.snap-sheet[data-snap="full"]').waitFor();
+
+    // 3. Foreground GPS walk: explicit Pause GPS / Resume GPS + active Itinerary structured list
+    await button(copy.gameStartLive).click();
+    await button(copy.gpsPause).click();
+    assert.ok(await page.evaluate(() => window.__gpsClears > 0));
+    await button(copy.gpsResume).waitFor();
+    await button(copy.walkItineraryToggle).click();
+    assert.equal(await page.locator('.follow-itinerary li').count(), 3);
+
+    // 4. Missions eligibility & Rewards Kyoto-time validity
+    await button(copy.navMissions).click();
+    await page.locator('.quest-eligibility').first().waitFor();
+    await button(copy.navRewards).click();
+    await page.locator('.ticket-expiry').first().waitFor();
+
+    // 5. Me: safety links, path-issue report draft, revisit welcome, and Delete my local data
+    await button(copy.navMe).click();
+    await page.locator('.safety-links a').first().waitFor();
+    await button(copy.reportIssueButton).click();
+    await button(copy.reportIssueSubmit).click();
+    await page.getByText(copy.reportIssueSaved).waitFor();
+    await page.getByRole('dialog').getByRole('button', { name: copy.close }).first().click();
+
+    await button(copy.revisitWelcome).click();
+    await page.locator('#nickname').waitFor();
+    await button(copy.welcomeSkip).click();
+    await button(copy.navMe).click();
+
+    await button(copy.deleteAllData).click();
+    await button(copy.deleteAllConfirm).click();
+    await page.locator('#nickname').waitFor();
+    assert.equal(await page.evaluate(() => localStorage.getItem('kyoto-ai-lab.saved.v1')), null);
+    assert.equal(await page.evaluate(() => localStorage.getItem('kyoto-ai-lab.profile.v1')), null);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
 });

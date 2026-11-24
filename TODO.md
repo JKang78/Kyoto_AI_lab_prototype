@@ -4,13 +4,13 @@ Backlog carried over from [docs/visuals.md](docs/visuals.md) after completing th
 
 ## 1. Prototype Features
 
-- [ ] **Guest entry and manual start:** Add a skippable welcome with the fox, a way to revisit setup, and a Kyoto station or landmark picker offered at entry and after GPS denial. Decide later whether to re-enable `/?route=<walk-id>` QR deep links directly into Explore.
-- [ ] **Map styles:** Add a one-tap **Illustrated / Standard** map switch alongside the existing List control, preserving route, stop, and camera position while keeping crossings and attribution.
-- [ ] **Save and return:** Add a private Save action for walks and places and a saved list in **Me** (persisting across reload, with remove support).
-- [ ] **Foreground walking:** Add an explicit pause/resume action for GPS walks, a distinct low-accuracy marker treatment, structured itinerary/checkpoint actions usable from a list during a walk, and evaluate heading + display smoothing on physical phones.
-- [ ] **Missions and vouchers:** Show mission eligibility and any deadline; handle voucher validity, expiry in Kyoto time, and expired offers independently of the 5-minute redemption-preview timer.
-- [ ] **Offline reopening:** Cache the app shell, active route, ordered stops, and voucher terms; display offline status and cache age (keeping merchant redemption online-only).
-- [ ] **Privacy and safety in Me:** Explain foreground location use and retention; add **Delete my local data** (clearing profile, progress, preferences, saved items, and app caches after confirmation), bilingual official disaster-information links, and a path-issue reporting entry point.
+- [x] **Guest entry and manual start:** Add a skippable welcome with the fox, a way to revisit setup, and a Kyoto station or landmark picker offered at entry and after GPS denial. *(QR deep-link routing `/?route=<walk-id>` remains deferred.)*
+- [x] **Map styles:** Add a one-tap **Illustrated / Standard** map switch alongside the existing List control, preserving route, stop, and camera position while keeping crossings and attribution.
+- [x] **Save and return:** Add a private Save action for walks and places and a saved list in **Me** (persisting across reload, with remove support).
+- [x] **Foreground walking:** Add an explicit pause/resume action for GPS walks, a distinct low-accuracy marker treatment, structured itinerary/checkpoint actions usable from a list during a walk *(heading + display smoothing evaluation remains for physical phones in §2)*.
+- [x] **Missions and vouchers:** Show mission eligibility and any deadline; handle voucher validity, expiry in Kyoto time, and expired offers independently of the 5-minute redemption-preview timer.
+- [x] **Offline reopening:** Cache the app shell, active route, ordered stops, and voucher terms; display offline status and cache age (keeping merchant redemption online-only).
+- [x] **Privacy and safety in Me:** Explain foreground location use and retention; add **Delete my local data** (clearing profile, progress, preferences, saved items, and app caches after confirmation), bilingual official disaster-information links, and a path-issue reporting entry point.
 
 ## 2. Visual and Content Review (Human / Device QA)
 
