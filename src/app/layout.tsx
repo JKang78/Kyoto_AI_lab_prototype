@@ -4,6 +4,7 @@ import "@fontsource/zen-maru-gothic/400.css";
 import "@fontsource/zen-maru-gothic/500.css";
 import "@fontsource/zen-maru-gothic/700.css";
 import { APP_FONT_PRESET } from "@/lib/font-presets";
+import { BackgroundMusic } from "@/components/background-music";
 import { FontPreview } from "@/components/font-preview";
 // Self-hosted fonts (scripts/fetch_fonts.py): builds and offline use never depend on Google Fonts.
 import "./fonts.css";
@@ -25,5 +26,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" data-font-preview={APP_FONT_PRESET}><body><FontPreview />{children}</body></html>;
+  return <html lang="en" data-font-preview={APP_FONT_PRESET}><body><FontPreview /><BackgroundMusic />{children}</body></html>;
 }

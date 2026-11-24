@@ -362,5 +362,8 @@
   "reportIssueNotes": "Notes (optional)",
   "reportIssueNotesPlaceholder": "Describe the spot or sign you saw…",
   "reportIssueSubmit": "Prepare local report",
-  "reportIssueSaved": "Draft report prepared locally (not sent online in this prototype)."
+  "reportIssueSaved": "Draft report prepared locally (not sent online in this prototype).",
+  "musicHeading": "Sound",
+  "musicMuteSwitch": "Mute background music",
+  "musicHint": "Loops softly while you explore Kyoto. Pauses automatically when you leave the app."
 }

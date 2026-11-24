@@ -1,30 +1,18 @@
 # Kyoto Flow — Remaining TODOs
 
-Backlog carried over from [docs/visuals.md](docs/visuals.md) after completing the **Next UI pass** (Macadam-style Home screen, tactile primary buttons, floating map HUD, 60 m fox halo & next-pin motion, and shared checkpoint-to-voucher track).
+## 1. Next Up
 
-## 1. Prototype Features
+- [ ] **Implement [docs/fox_chatbot.md](docs/fox_chatbot.md):** Build the grounded "Ask the Fox" Guided Q&A feature on the Explore tab (tappable fox marker, Gemini API Route Handler + deterministic offline fallback, and 3 rough pop-up prototypes for `?foxUi=modal | rpg | bubble`).
+- [ ] **Pixelate characters from file GIFs (implement [docs/gif_ideas.md](docs/gif_ideas.md)):** Pixelate character sprites from the source GIF files (`public/assets/mascot/pixel/animated/`) to match the app's pixel-art mascot style.
+- [ ] **Implement [docs/refinement.md](docs/refinement.md)Get rid of "demo", "double check", etc. components:** Since this is a demo, we're just going to get rid of the components that take away from the experience. Get rid of japanese underneath rewards in "Available", ex: Hanami Tea Stand (はなみ茶房（架空）), get rid of the japanese, but keep it for the japanese language switch option. So for english language setting, only show english name of the stores & products, and on japanese language setting, show the japanese name
+- [ ] i think the previews for after tapping "redeem at store", "stamp book", "reset demo progress", "end this walk", "how this demo works", etc. has the pop up appear on the top left side of the screen. Make it centered. I'm sure there are multiple others that have the same problem as well, so conduct an audit to check if what i'm mentioning is real, and if there are other occurances.
+- [ ] in map, get rid of toggling standard/illustrated (keep at standard at all times), get rid of list, bike - pilot planned, luggage - not surveyed
+- [ ] **Implement [docs/music.md](docs/music.md):** Add looping background music across all tabs (`public/audio/kyoto-bgm.mp3`) with a persisted **Mute background music** switch under the **Me** tab.
+- [ ] **Finish [docs/routes.md](docs/routes.md):** The six new walks, their stops, stories and seals are already in. Still to do: rerun the photo download (Wikimedia rate-limited it), wire the new walks into `DEMO_SCENARIOS`, update the route-discovery tests for 9 walks, update `ROUTE_DATA.md` and `DECISIONS.md`, then run the checks and the browser review.
 
-- [x] **Guest entry and manual start:** Add a skippable welcome with the fox, a way to revisit setup, and a Kyoto station or landmark picker offered at entry and after GPS denial. *(QR deep-link routing `/?route=<walk-id>` remains deferred.)*
-- [x] **Map styles:** Add a one-tap **Illustrated / Standard** map switch alongside the existing List control, preserving route, stop, and camera position while keeping crossings and attribution.
-- [x] **Save and return:** Add a private Save action for walks and places and a saved list in **Me** (persisting across reload, with remove support).
-- [x] **Foreground walking:** Add an explicit pause/resume action for GPS walks, a distinct low-accuracy marker treatment, structured itinerary/checkpoint actions usable from a list during a walk *(heading + display smoothing evaluation remains for physical phones in §2)*.
-- [x] **Missions and vouchers:** Show mission eligibility and any deadline; handle voucher validity, expiry in Kyoto time, and expired offers independently of the 5-minute redemption-preview timer.
-- [x] **Offline reopening:** Cache the app shell, active route, ordered stops, and voucher terms; display offline status and cache age (keeping merchant redemption online-only).
-- [x] **Privacy and safety in Me:** Explain foreground location use and retention; add **Delete my local data** (clearing profile, progress, preferences, saved items, and app caches after confirmation), bilingual official disaster-information links, and a path-issue reporting entry point.
 
 ## 2. Visual and Content Review (Human / Device QA)
 
-- [ ] **Place stories review:** Review the seven draft place stories in [src/data/place-stories.ts](src/data/place-stories.ts) with a local reviewer and a native Japanese speaker; record approval per stop before removing draft labels.
-- [ ] **Mascot rights & artwork:** Confirm public-use rights/licence for the fox art ([docs/MASCOT_ASSETS.md](docs/MASCOT_ASSETS.md)); additional poses and designer replacement seals are optional pending approved designs.
 - [ ] **Map label & bubble collision QA:** Check route-label and fox-bubble collisions with stop pins while panning and zooming at phone widths in both English and Japanese (including long place names).
-- [ ] **Interaction polish decisions:** Decide whether to add swipe dismissal alongside buttons/Escape on Celebration ([src/components/celebration.tsx](src/components/celebration.tsx)), whether to show the completion bonus separately from the walk total, and resolve the duplicate active walk card in Missions ([src/components/missions-screen.tsx](src/components/missions-screen.tsx)).
-- [ ] **iOS & Android real-device accessibility QA:** Finish EN/JA coverage for loading and install metadata; test the full map/list and check-in journey on physical iPhones and Android phones with screen readers, reduced motion, weak GPS, weak connectivity, and check touch targets for route labels and the receipt's *Read story* button ([docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)).
-
-## 3. Features Requiring External Data, Approval, or Later Release
-
-- [ ] **Preferences and travel modes:** Add optional visitor/resident, interests, shade, mobility, and Rail + Walk preferences to onboarding and Me; Rail + Walk, shade, and step-free filters require surveyed/validated data; review "Hidden gems" wording with residents.
-- [ ] **Amenities and stop details:** Verify toilets, disposal points, lockers, baggage services, opening hours, and payment info before adding to map/list; extend landmark and shop pin categories when the catalog supports them.
-- [ ] **Itinerary editing and stamp-book organization:** Add stops to an itinerary, paste an address, or import KML/CSV after validation, deduplication, and local deletion are defined; ward/season grouping requires verified stop metadata ([docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md#7-functional-requirements-and-acceptance-criteria)).
-- [ ] **Field-reviewed corridors and missions:** Audit pedestrian access, crossings, steps, and resident sensitivities on site; validate GPS check-in thresholds at each intended stop ([docs/ROUTE_DATA.md](docs/ROUTE_DATA.md#field-review-handoff)).
-- [ ] **Crowd overlays and campaign timing:** Real road bands and route comparisons require an authorized source, provenance, update timestamp, and stale-data handling; show countdowns/end times only for real scheduled campaigns.
-- [ ] **Merchant and transport rewards:** Partner QR check-ins, quotas, real voucher issuance, staff-authenticated redemption, transit/luggage/bike perks, and path-issue moderation require verified venues/operators and an online backend ([docs/ENGINEERING_SPEC.md](docs/ENGINEERING_SPEC.md)).
+- [ ] **Interaction polish decisions:** add swipe dismissal alongside buttons/Escape on Celebration ([src/components/celebration.tsx](src/components/celebration.tsx)), show the completion bonus separately from the walk total, and resolve the duplicate active walk card in Missions ([src/components/missions-screen.tsx](src/components/missions-screen.tsx)).
+- [ ] **iOS & Android real-device accessibility QA:** Finish EN/JA coverage for loading and install metadata; test the full map/list and check-in journey on physical iPhones and Android phones with screen readers, reduced motion, weak GPS (including heading + display smoothing), weak connectivity, and check touch targets for route labels and the receipt's *Read story* button ([docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)).

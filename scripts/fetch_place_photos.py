@@ -6,7 +6,7 @@ Each photo was picked by hand to show its exact place (see docs/visuals.md, E9).
 re-checks the licence through the Commons API, keeps only CC BY, CC BY-SA, CC0 or public
 domain files, saves an 800 px copy to public/places/<place-id>.jpg, and writes
 src/data/place-photos.json with author, licence and source for on-screen credits.
-Places with no suitable photo (Chion-in's south gate) are left out and show a placeholder.
+Places with no suitable photo (Chion-in's south gate, the Hōnen-in stretch of the Philosopher's Path) are left out and show a placeholder.
 """
 import json
 import re
@@ -25,6 +25,31 @@ CHOSEN = {
     "kawabata-riverside": "File:Kamo River from Shijo Bridge.jpg",
     "sanjo-ohashi": "File:三条大橋 Sanjo Ohashi (22402221530).jpg",
     "maruyama-cherry-path": "File:Maruyama Park (3515270775).jpg",
+    "sosui-museum-basin": "File:Lake Biwa Canal (Kyoto) IMG 5588 a.JPG",
+    "okazaki-canal-promenade": "File:Okazaki canal (3477793760).jpg",
+    "heian-otorii": "File:Heian Shrine 20240309 01.jpg",
+    "heian-otenmon": "File:Heian Shrine @ Kyoto (13310814664).jpg",
+    "ginkakuji-bridge": "File:Ginkakujibashi Bridge from Philosopher’s Walk.JPG",
+    "wakaoji-bridge": "File:Kumano-nyakuoji-jinja.jpg",
+    "eikando-gate": "File:Kyoto Eikan-do Zenrin-ji Haupttor 1.jpg",
+    "nanzenji-sanmon-approach": "File:Kyoto Nanzenji01s5s4272.jpg",
+    "kawai-bridge": "File:Kawai bridge 20200505.jpg",
+    "kamogawa-delta": "File:Kamogawa Delta.jpg",
+    "tadasu-south-side": "File:Tadasu no mori 200906c.jpg",
+    "kawai-shrine-approach": "File:Kawai-jinja Kyoto HDSR IMG 6133.jpg",
+    "shimogamo-romon": "File:Kamomioya-jinja romon.jpg",
+    "nakanoshima-bridge": "File:Arashiyama, Nakanoshima-bashi Bridge -1 (April 2009) - panoramio.jpg",
+    "togetsukyo-bridge": "File:Arashiyama (8741759830).jpg",
+    "katsura-north-bank": "File:2014-11-19 Arashiyama (15876139908).jpg",
+    "kameyama-riverside": "File:Arashiyama Park (8278674903).jpg",
+    "sakaimachi-gomon": "File:Kyoto-gyoen Sakaimachi-gomon-2.JPG",
+    "kujo-pond": "File:Itsukushima jinja Kyoto Gyoen 004.jpg",
+    "kenreimon-avenue": "File:Kyoto Gyoen National Garden in Kyoto, Japan (2019) - 117.jpg",
+    "hamaguri-gomon": "File:Kyoto-gyoen Hamaguri-gomon.JPG",
+    "kyoto-station-plaza": "File:130609 Kyoto Station Kyoto Japan03s3.jpg",
+    "higashi-honganji-plaza": "File:Founder's Hall gate of Higashi-Honganji Temple, with water reflection, Kyoto, Japan.jpg",
+    "nishi-honganji-gate": "File:Goeidō-mon, Nishi Hongwanji.jpg",
+    "umekoji-park-east": "File:Umekoji park in 2013-5-2 No,1.JPG",
 }
 
 
@@ -33,10 +58,12 @@ def fetch(url: str) -> bytes:
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30) as response:
                 return response.read()
-        except Exception:
+        except Exception as error:
             if attempt == 7:
                 raise
-            time.sleep(2 * (attempt + 1))
+            # Wikimedia rate-limits large batches with HTTP 429; honour Retry-After when it is given.
+            retry_after = getattr(error, "headers", None) and error.headers.get("Retry-After")
+            time.sleep(int(retry_after) if retry_after and retry_after.isdigit() else 5 * (attempt + 1))
     raise RuntimeError(url)
 
 
@@ -65,7 +92,7 @@ def main() -> None:
             "sourceUrl": info["descriptionurl"],
         }
         print(place_id, licence, author)
-        time.sleep(0.5)
+        time.sleep(1.5)
     (ROOT / "src/data/place-photos.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
 
 

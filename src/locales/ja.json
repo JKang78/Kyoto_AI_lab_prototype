@@ -362,5 +362,8 @@
   "reportIssueNotes": "メモ（任意）",
   "reportIssueNotesPlaceholder": "見かけた場所や標識の状況など…",
   "reportIssueSubmit": "下書きを作成",
-  "reportIssueSaved": "端末内に下書きを作成しました（このプロトタイプでは外部送信されません）。"
+  "reportIssueSaved": "端末内に下書きを作成しました（このプロトタイプでは外部送信されません）。",
+  "musicHeading": "サウンド",
+  "musicMuteSwitch": "BGMをミュート",
+  "musicHint": "散策中にBGMがやさしくループ再生されます。アプリを離れると自動で一時停止します。"
 }

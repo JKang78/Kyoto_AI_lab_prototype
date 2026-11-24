@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SetStateAction } from "react";
 import Image from "next/image";
-import { ArrowRight, ExternalLink, Flag, FlaskConical, Globe2, Heart, LocateFixed, MapPin, Shield, Sparkles, Trash2, UserRound, WifiOff, X } from "lucide-react";
+import { ArrowRight, ExternalLink, Flag, FlaskConical, Globe2, Heart, LocateFixed, MapPin, Shield, Sparkles, Trash2, UserRound, Volume2, VolumeX, WifiOff, X } from "lucide-react";
 import { HomeScreen } from "@/components/home-screen";
 import { Missions } from "@/components/missions-screen";
 import { Rewards } from "@/components/rewards-screen";
@@ -18,6 +18,7 @@ import { formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/
 import { INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationState } from "@/lib/location";
 import { clearProfile, getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
 import { getMapPrefsSnapshot, parseMapPrefs, saveMapPrefs, subscribeMapPrefs, type MapPrefs } from "@/lib/map-prefs";
+import { clearMusicPrefs, getMusicPrefsSnapshot, parseMusicPrefs, saveMusicPrefs, subscribeMusicPrefs } from "@/lib/music-prefs";
 import { clearSaved, toggleSavedPlace, toggleSavedWalk, useSaved, type SavedItems } from "@/lib/saved";
 import type { RouteFilter } from "@/lib/route-discovery";
 
@@ -36,6 +37,18 @@ function Switch({ checked, onChange, children }: { checked: boolean; onChange: (
   return <button type="button" className="switch-row" role="switch" aria-checked={checked} onClick={() => { haptic(); onChange(!checked); }}>
     <span>{children}</span><span className="switch-track" aria-hidden="true"><span /></span>
   </button>;
+}
+
+/** Background music mute toggle (src/lib/music-prefs.ts). */
+function MusicSettings({ locale }: { locale: Locale }) {
+  const t = (key: MessageKey) => translate(locale, key);
+  const snapshot = useSyncExternalStore(subscribeMusicPrefs, getMusicPrefsSnapshot, () => null);
+  const { muted } = parseMusicPrefs(snapshot);
+  return <section className="settings-section">
+    <h2>{muted ? <VolumeX size={18} strokeWidth={ICON_STROKE} aria-hidden="true" /> : <Volume2 size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />}{t("musicHeading")}</h2>
+    <Switch checked={muted} onChange={(next) => saveMusicPrefs({ muted: next })}>{t("musicMuteSwitch")}</Switch>
+    <p className="settings-hint">{t("musicHint")}</p>
+  </section>;
 }
 
 /** Personal map look (src/lib/map-prefs.ts). Each switch is local to this browser and applies on the Explore map. */
@@ -152,6 +165,7 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenW
       <h2><Globe2 size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("languageHeading")}</h2>
       <LanguageChoice locale={locale} onChange={onLocale} />
     </section>
+    <MusicSettings locale={locale} />
     <section className="settings-section">
       <h2><UserRound size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("profileHeading")}</h2>
       <form onSubmit={(event) => { event.preventDefault(); onSave(nickname.trim()); setSavedMsg(true); }}>
@@ -381,6 +395,7 @@ export function PrototypeApp() {
   async function deleteAllLocalData() {
     await act({ type: "reset" });
     clearSaved();
+    clearMusicPrefs();
     clearProfile();
     try {
       window.localStorage.removeItem(ETIQUETTE_KEY);
