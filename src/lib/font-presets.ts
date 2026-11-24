@@ -1,5 +1,7 @@
 export type FontPresetId = "default" | "rpg-pixel" | "pixel-numbers";
 
+export const APP_FONT_PRESET = "rpg-pixel";
+
 export interface FontPreset {
   id: FontPresetId;
   shortLabel: string;
@@ -17,11 +19,9 @@ export interface FontPreset {
 export const GOOGLE_PREVIEW_FONTS_URL =
   "https://fonts.googleapis.com/css2?" +
   [
-    "family=DotGothic16",
     "family=Jersey+15",
     "family=Kaisei+Decol:wght@500;700",
     "family=Zen+Kaku+Gothic+New:wght@400;500;700",
-    "family=Zen+Maru+Gothic:wght@400;500;700",
   ].join("&") +
   "&display=swap";
 
@@ -36,7 +36,6 @@ export const FONT_PRESETS: readonly FontPreset[] = [
     bodyFont: '"Zen Maru Gothic", "Noto Sans JP", sans-serif',
     jaTitleFont: '"DotGothic16", "Noto Sans JP", monospace',
     jaBodyFont: '"Zen Maru Gothic", "Noto Sans JP", sans-serif',
-    usesGooglePreview: true,
   },
   {
     id: "pixel-numbers",
@@ -53,8 +52,8 @@ export const FONT_PRESETS: readonly FontPreset[] = [
   },
   {
     id: "default",
-    shortLabel: "Current",
-    label: "Current — Shippori Mincho + Plus Jakarta Sans",
+    shortLabel: "Original",
+    label: "Original — Shippori Mincho + Plus Jakarta Sans",
     category: "Baseline",
     summary: "Original Kyoto Ink & Washi editorial serif + geometric UI sans.",
     titleFont: '"Shippori Mincho", "Hiragino Mincho ProN", serif',

@@ -23,7 +23,7 @@ const TAB_INDEX: Record<CompareTab, number> = {
 
 function frameUrl(presetId: FontPresetId, pixelMap: boolean): string {
   const params = new URLSearchParams({ route: "kamo-riverside" });
-  if (presetId !== "default") params.set("font", presetId);
+  params.set("font", presetId);
   if (pixelMap) params.set("look", "pixel");
   return `/?${params.toString()}`;
 }

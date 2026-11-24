@@ -977,6 +977,9 @@ html[data-font-preview="rpg-pixel"] :lang(ja) {
   --font-body: var(--font-ui), var(--font-ui-ja), sans-serif;
   --font-title: var(--font-display), var(--font-ui-ja), monospace;
 }
+html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button, .demo-badge, .reward-pill) {
+  font-family: var(--font-title);
+}
 html[data-font-preview="rpg-pixel"] .home-hero-number strong,
 html[data-font-preview="rpg-pixel"] .home-status-copy {
   font-weight: 400;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect } from "react";
-import { GOOGLE_PREVIEW_FONTS_URL, presetById, VALID_PREVIEW_IDS } from "@/lib/font-presets";
+import { APP_FONT_PRESET, GOOGLE_PREVIEW_FONTS_URL, presetById, VALID_PREVIEW_IDS } from "@/lib/font-presets";
 
 const LINK_ID = "kyoto-font-preview-google-css";
 
@@ -24,15 +24,17 @@ export function FontPreview() {
         if (presetById(param).usesGooglePreview) {
           ensureGooglePreviewFonts();
         }
-      } else {
+      } else if (param === "default") {
         delete document.documentElement.dataset.fontPreview;
+      } else {
+        document.documentElement.dataset.fontPreview = APP_FONT_PRESET;
       }
     };
     sync();
     window.addEventListener("popstate", sync);
     return () => {
       window.removeEventListener("popstate", sync);
-      delete document.documentElement.dataset.fontPreview;
+      document.documentElement.dataset.fontPreview = APP_FONT_PRESET;
     };
   }, []);
   return null;
