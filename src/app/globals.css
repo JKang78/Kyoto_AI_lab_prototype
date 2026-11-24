@@ -940,3 +940,24 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .safety-links { display: grid; gap: 8px; }
 .safety-links a { min-height: 44px; display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid var(--border-hairline); border-radius: 12px; background: var(--bg-ivory); font-size: 13px; font-weight: 700; }
 .report-form { display: grid; gap: 8px; }
+
+/* Temporary local comparison using the fonts served by macadam.app/en. */
+@font-face {
+  font-family: "Macadam Satoshi";
+  src: url("/fonts/macadam-preview/satoshi.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Macadam Yalla";
+  src: url("/fonts/macadam-preview/yalla.woff2") format("woff2");
+  font-weight: 900;
+  font-display: swap;
+}
+html[data-font-preview="macadam"] {
+  --font-ui: "Macadam Satoshi";
+  --font-display: "Macadam Yalla";
+  --font-title: var(--font-display), var(--font-ui-ja), sans-serif;
+}
+html[data-font-preview="macadam"] :lang(ja) {
+  --font-title: var(--font-ui-ja), sans-serif;
+}

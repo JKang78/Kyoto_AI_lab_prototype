@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { FontPreview } from "@/components/font-preview";
 // Self-hosted fonts (scripts/fetch_fonts.py): builds and offline use never depend on Google Fonts.
 import "./fonts.css";
 import "./globals.css";
@@ -19,5 +20,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body><FontPreview />{children}</body></html>;
 }
