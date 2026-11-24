@@ -365,5 +365,18 @@
   "reportIssueSaved": "報告をこの端末に保存しました。",
   "musicHeading": "サウンド",
   "musicMuteSwitch": "BGMをミュート",
-  "musicHint": "散策中にBGMがやさしくループ再生されます。アプリを離れると自動で一時停止します。"
+  "musicHint": "散策中にBGMがやさしくループ再生されます。アプリを離れると自動で一時停止します。",
+  "foxGuideTitle": "きつねに聞く",
+  "foxGuideSubtitle": "近くのスポットやマナー、散歩ルートについて聞いてみよう。",
+  "foxGuideOpenAria": "きつねに聞く（{location}）",
+  "foxGuideSuggestedLabel": "おすすめの質問",
+  "foxGuideThinking": "京都ガイドを確認しています…",
+  "foxGuideBadgeVerified": "確認済み京都ガイド",
+  "foxGuideBadgeGeneralAi": "AIの一般知識・未確認",
+  "foxGuideBadgeOffline": "オフラインガイド",
+  "foxGuideSourcesLabel": "出典",
+  "foxGuideAskAnother": "ほかの質問をする",
+  "foxGuideInputLabel": "きつねに質問を入力",
+  "foxGuidePlaceholder": "この場所や京都について聞く…",
+  "foxGuideAsk": "聞く"
 }
