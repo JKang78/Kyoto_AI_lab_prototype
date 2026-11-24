@@ -110,13 +110,12 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
   return <div className="follow-card" data-demo={demo}>
     {etiquette && <div className="etiquette-toast" role="status" aria-label={t("etiquetteLabel")}>
       <FoxAvatar state="warning" size={40} />
-      <p><span>{etiquette.message[locale]}</span><small>{t("etiquetteDemo")}</small></p>
+      <p><span>{etiquette.message[locale]}</span></p>
       <button type="button" className="icon-button" aria-label={t("close")} onClick={() => setEtiquette(null)}><X size={18} strokeWidth={ICON_STROKE} /></button>
     </div>}
     {celebrating && !reduced && <span className="season-burst" data-season={season} aria-hidden="true">
       {Array.from({ length: 7 }, (_, index) => <span key={index} style={{ "--i": index } as CSSProperties}><SeasonSprite season={season} /></span>)}
     </span>}
-    {demo && <p className="demo-badge follow-demo-badge">{t("followDemoBadge")}</p>}
     {last && <motion.p role="status" className="stamp-receipt" initial={reduced ? false : { scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
       <span className="stamp-slam" data-fresh={celebrating}>
         <motion.span className="stamp-seal" aria-hidden="true" initial={reduced || !celebrating ? false : { y: -28, scale: 1.7, rotate: -22, opacity: 0 }}
@@ -124,8 +123,7 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
         {celebrating && !reduced && <span className="ink-ring" aria-hidden="true" />}
       </span>
       <span className="receipt-text"><strong>{t("receiptEarned", { points: String(last.points) })}</strong>
-        <small>{last.campaign ? t("receiptBonus", { base: String(GAME.checkpointPoints), multiplier: last.multiplier.toFixed(1), name: t(bonusNameKey[last.campaign]) }) : t("receiptStandard", { base: String(GAME.checkpointPoints) })}</small>
-        <small className="receipt-verification">{t(last.mode === "demo" ? "receiptSimulated" : "receiptGps")}</small></span>
+        <small>{last.campaign ? t("receiptBonus", { base: String(GAME.checkpointPoints), multiplier: last.multiplier.toFixed(1), name: t(bonusNameKey[last.campaign]) }) : t("receiptStandard", { base: String(GAME.checkpointPoints) })}</small></span>
       <button type="button" className="receipt-story" onClick={() => setStoryPlace(last.placeId)}>{t("storyRead")}</button>
     </motion.p>}
     {storyPlace && <StoryDialog placeId={storyPlace} locale={locale} onClose={() => setStoryPlace(null)} />}

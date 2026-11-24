@@ -27,7 +27,7 @@ function activity(game: Game, locale: Locale, t: (key: MessageKey, values?: Reco
     run.stamps.forEach((stamp, index) => entries.push({
       key: `${run.id}-${index}`, at: stamp.at, points: stamp.points,
       title: placeById(stamp.placeId)?.name[locale] ?? "",
-      detail: `${stamp.campaign ? t("logBonus", { name: t(bonusNameKey[stamp.campaign]), multiplier: stamp.multiplier.toFixed(1) }) : stamp.multiplier > 1 ? `×${stamp.multiplier.toFixed(1)}` : t("logStandard")} · ${walk?.name[locale] ?? ""}${stamp.mode === "demo" ? ` · ${t("logDemo")}` : ""}`,
+      detail: `${stamp.campaign ? t("logBonus", { name: t(bonusNameKey[stamp.campaign]), multiplier: stamp.multiplier.toFixed(1) }) : stamp.multiplier > 1 ? `×${stamp.multiplier.toFixed(1)}` : t("logStandard")} · ${walk?.name[locale] ?? ""}`,
     }));
     if (run.bonus) entries.push({ key: `${run.id}-bonus`, at: run.stamps.at(-1)?.at, points: run.bonus, title: t("logCompletion"), detail: walk?.name[locale] ?? "" });
   }
@@ -45,9 +45,8 @@ function TicketCard({ coupon, game, locale, points, now, onRedeem }: { coupon: C
   const [expanded, setExpanded] = useState(false);
   const claim = game.claims.find(c => c.id === coupon.id);
   const expired = isCouponExpired(coupon, now);
-  const other = locale === "en" ? "ja" : "en";
   const state = claim ? claim.redeemedAt !== undefined ? "redeemed" : expired ? "expired" : "unlocked" : expired ? "expired" : "locked";
-  const merchant = coupon.merchant[locale].replace(/\s*\(fictional\)|（架空）/g, "");
+  const merchant = coupon.merchant[locale];
   return <article className="ticket-card coupon-ticket" data-state={state} data-expanded={expanded}>
     <button type="button" className="coupon-summary" aria-expanded={expanded} aria-controls={`coupon-details-${coupon.id}`} onClick={() => setExpanded(value => !value)}>
       <span className="coupon-summary-main"><span className="coupon-merchant">{merchant}</span><span className="coupon-offer">{coupon.offer[locale]}</span></span>
@@ -59,8 +58,6 @@ function TicketCard({ coupon, game, locale, points, now, onRedeem }: { coupon: C
       </span>
     </button>
     {expanded && <div className="coupon-details" id={`coupon-details-${coupon.id}`}>
-      <p className="demo-badge">{t("demoNotRedeemable")}</p>
-      <p className="ticket-offer-alt" lang={other}>{coupon.offer[other]}</p>
       <p className="ticket-terms">{coupon.terms[locale]} · {coupon.hours[locale]}</p>
       <p className="ticket-expiry" data-expired={expired}>{expired ? t("voucherExpired") : t("voucherValidUntil", { date: formatKyotoDateTime(locale, coupon.expiresAt) })}</p>
       {!claim && (expired

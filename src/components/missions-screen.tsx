@@ -93,7 +93,6 @@ function TrailCard({ game, locale }: { game: Game; locale: Locale }) {
       <StopBeads total={DEMO_TRAIL.goal} done={done} label={t("trailProgress", { count: String(done), goal: String(DEMO_TRAIL.goal) })} />
       <span>{t("trailProgress", { count: String(done), goal: String(DEMO_TRAIL.goal) })}</span>
     </div>
-    <small className="demo-badge">{t("trailNote")}</small>
   </section>;
 }
 
@@ -115,6 +114,7 @@ export function Missions({ game, locale, onWalk, focusStampBook = false }: { gam
       { id: "active", label: t("missionsActive", { count: String(count("active")) }) },
       { id: "completed", label: t("missionsCompleted", { count: String(count("completed")) }) },
     ]} />
+    {segment !== "active" && <ActiveHero game={game} locale={locale} onWalk={onWalk} />}
     <div className="quest-list">
       {shown.length ? shown.map(({ walk, status }) => {
         const Icon = themeIcons[walk.theme];
@@ -135,7 +135,6 @@ export function Missions({ game, locale, onWalk, focusStampBook = false }: { gam
       }) : <EmptyState>{t(segment === "active" ? "missionsEmptyActive" : segment === "completed" ? "missionsEmptyCompleted" : "missionsEmptyAvailable")}</EmptyState>}
     </div>
     <details className="figma-mission-more" open={focusStampBook}><summary>{locale === "ja" ? "スタンプ帳とミッション詳細" : "Stamp book & mission details"}</summary>
-      <ActiveHero game={game} locale={locale} onWalk={onWalk} />
       <TrailCard game={game} locale={locale} />
       <BonusCard game={game} locale={locale} />
       <GoshuinBook game={game} locale={locale} onStory={setStoryPlace} />

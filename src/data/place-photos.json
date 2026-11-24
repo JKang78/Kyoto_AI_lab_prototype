@@ -58,5 +58,255 @@
     "license": "CC BY-SA 2.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Maruyama_Park_(3515270775).jpg"
+  },
+  "sosui-museum-basin": {
+    "src": "/places/sosui-museum-basin.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Lake Biwa Canal (Kyoto) IMG 5588 a.JPG",
+    "author": "Daderot",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lake_Biwa_Canal_(Kyoto)_IMG_5588_a.JPG"
+  },
+  "okazaki-canal-promenade": {
+    "src": "/places/okazaki-canal-promenade.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Okazaki canal (3477793760).jpg",
+    "author": "KimonBerlin",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Okazaki_canal_(3477793760).jpg"
+  },
+  "heian-otorii": {
+    "src": "/places/heian-otorii.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Heian Shrine 20240309 01.jpg",
+    "author": "先従隗始",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Heian_Shrine_20240309_01.jpg"
+  },
+  "heian-otenmon": {
+    "src": "/places/heian-otenmon.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Heian Shrine @ Kyoto (13310814664).jpg",
+    "author": "Guilhem Vellut from Annecy, France",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Heian_Shrine_@_Kyoto_(13310814664).jpg"
+  },
+  "ginkakuji-bridge": {
+    "src": "/places/ginkakuji-bridge.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Ginkakujibashi Bridge from Philosopher’s Walk.JPG",
+    "author": "そらみみ",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ginkakujibashi_Bridge_from_Philosopher%E2%80%99s_Walk.JPG"
+  },
+  "wakaoji-bridge": {
+    "src": "/places/wakaoji-bridge.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Kumano-nyakuoji-jinja.jpg",
+    "author": "KENPEI",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kumano-nyakuoji-jinja.jpg"
+  },
+  "eikando-gate": {
+    "src": "/places/eikando-gate.jpg",
+    "width": 800,
+    "height": 563,
+    "title": "Kyoto Eikan-do Zenrin-ji Haupttor 1.jpg",
+    "author": "Zairon",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kyoto_Eikan-do_Zenrin-ji_Haupttor_1.jpg"
+  },
+  "nanzenji-sanmon-approach": {
+    "src": "/places/nanzenji-sanmon-approach.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Kyoto Nanzenji01s5s4272.jpg",
+    "author": "663highland",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kyoto_Nanzenji01s5s4272.jpg"
+  },
+  "kawai-bridge": {
+    "src": "/places/kawai-bridge.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Kawai bridge 20200505.jpg",
+    "author": "Hahifuheho",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kawai_bridge_20200505.jpg"
+  },
+  "kamogawa-delta": {
+    "src": "/places/kamogawa-delta.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Kamogawa Delta.jpg",
+    "author": "Christophe95",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kamogawa_Delta.jpg"
+  },
+  "tadasu-south-side": {
+    "src": "/places/tadasu-south-side.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Tadasu no mori 200906c.jpg",
+    "author": "ja:User:NEON / User:NEON_ja",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tadasu_no_mori_200906c.jpg"
+  },
+  "kawai-shrine-approach": {
+    "src": "/places/kawai-shrine-approach.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Kawai-jinja Kyoto HDSR IMG 6133.jpg",
+    "author": "Hyppolyte de Saint-Rambert",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kawai-jinja_Kyoto_HDSR_IMG_6133.jpg"
+  },
+  "shimogamo-romon": {
+    "src": "/places/shimogamo-romon.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Kamomioya-jinja romon.jpg",
+    "author": "KENPEI",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kamomioya-jinja_romon.jpg"
+  },
+  "nakanoshima-bridge": {
+    "src": "/places/nakanoshima-bridge.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Arashiyama, Nakanoshima-bashi Bridge -1 (April 2009) - panoramio.jpg",
+    "author": "ttshr1970",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Arashiyama,_Nakanoshima-bashi_Bridge_-1_(April_2009)_-_panoramio.jpg"
+  },
+  "togetsukyo-bridge": {
+    "src": "/places/togetsukyo-bridge.jpg",
+    "width": 800,
+    "height": 530,
+    "title": "Arashiyama (8741759830).jpg",
+    "author": "Takeshi Kuboki from Amagasaki, Japan",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Arashiyama_(8741759830).jpg"
+  },
+  "katsura-north-bank": {
+    "src": "/places/katsura-north-bank.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "2014-11-19 Arashiyama (15876139908).jpg",
+    "author": "nobu3withfoxy from Iga,Mie, Japan",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2014-11-19_Arashiyama_(15876139908).jpg"
+  },
+  "kameyama-riverside": {
+    "src": "/places/kameyama-riverside.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Arashiyama Park (8278674903).jpg",
+    "author": "KimonBerlin",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Arashiyama_Park_(8278674903).jpg"
+  },
+  "sakaimachi-gomon": {
+    "src": "/places/sakaimachi-gomon.jpg",
+    "width": 800,
+    "height": 528,
+    "title": "Kyoto-gyoen Sakaimachi-gomon-2.JPG",
+    "author": "Saigen Jiro",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kyoto-gyoen_Sakaimachi-gomon-2.JPG"
+  },
+  "kujo-pond": {
+    "src": "/places/kujo-pond.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Itsukushima jinja Kyoto Gyoen 004.jpg",
+    "author": "Brakeet",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Itsukushima_jinja_Kyoto_Gyoen_004.jpg"
+  },
+  "kenreimon-avenue": {
+    "src": "/places/kenreimon-avenue.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Kyoto Gyoen National Garden in Kyoto, Japan (2019) - 117.jpg",
+    "author": "Another Believer",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kyoto_Gyoen_National_Garden_in_Kyoto,_Japan_(2019)_-_117.jpg"
+  },
+  "hamaguri-gomon": {
+    "src": "/places/hamaguri-gomon.jpg",
+    "width": 800,
+    "height": 518,
+    "title": "Kyoto-gyoen Hamaguri-gomon.JPG",
+    "author": "Saigen Jiro",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kyoto-gyoen_Hamaguri-gomon.JPG"
+  },
+  "kyoto-station-plaza": {
+    "src": "/places/kyoto-station-plaza.jpg",
+    "width": 800,
+    "height": 532,
+    "title": "130609 Kyoto Station Kyoto Japan03s3.jpg",
+    "author": "663highland",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:130609_Kyoto_Station_Kyoto_Japan03s3.jpg"
+  },
+  "higashi-honganji-plaza": {
+    "src": "/places/higashi-honganji-plaza.jpg",
+    "width": 800,
+    "height": 533,
+    "title": "Founder's Hall gate of Higashi-Honganji Temple, with water reflection, Kyoto, Japan.jpg",
+    "author": "Basile Morin",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Founder%27s_Hall_gate_of_Higashi-Honganji_Temple,_with_water_reflection,_Kyoto,_Japan.jpg"
+  },
+  "nishi-honganji-gate": {
+    "src": "/places/nishi-honganji-gate.jpg",
+    "width": 800,
+    "height": 499,
+    "title": "Goeidō-mon, Nishi Hongwanji.jpg",
+    "author": "Kakidai",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Goeid%C5%8D-mon,_Nishi_Hongwanji.jpg"
+  },
+  "umekoji-park-east": {
+    "src": "/places/umekoji-park-east.jpg",
+    "width": 800,
+    "height": 600,
+    "title": "Umekoji park in 2013-5-2 No,1.JPG",
+    "author": "Mti",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Umekoji_park_in_2013-5-2_No,1.JPG"
   }
 }

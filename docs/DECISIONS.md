@@ -99,3 +99,8 @@ The fonts are now self-hosted: `scripts/fetch_fonts.py` downloads Google's woff2
 ## 2026-11-25 Direct guest entry
 
 - The welcome and loading screens no longer gate app entry. A new visitor opens Home as a guest; a returning visitor opens Home with the saved nickname and language. The browser language supplies the initial guest language, and Account keeps nickname and language editing. Logging out or deleting local data returns directly to Home. This supersedes the earlier nickname welcome flow for the current prototype.
+
+## 2026-11-25 Curated walks expansion (3 → 9 routes)
+
+- Expanded `CURATED_WALKS` from 3 to 9 OSM `routed-foot` walks (`okazaki-heian`, `philosophers-path`, `kamogawa-tadasu`, `arashiyama-riverside`, `kyoto-gyoen`, `station-umekoji`) with 33 curated places, bilingual sourced draft stories, unique SVG seals, and Wikimedia Commons photos (see `docs/routes.md` and `docs/ROUTE_DATA.md`).
+- Updated `DEMO_SCENARIOS` in `src/config/game.ts`: `bus_relief` (`shijo-yasaka`, `station-umekoji`) and `quiet_hour` (`yasaka-maruyama`, `philosophers-path`, `arashiyama-riverside`), keeping `DEMO_TRAIL.goal = 5`.

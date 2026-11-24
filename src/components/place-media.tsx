@@ -40,7 +40,7 @@ export function PlaceStory({ placeId, locale, unlocked }: { placeId: string; loc
     return <p className="place-story place-story--locked"><Lock size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("storyLocked")}</p>;
   }
   return <section className="place-story" aria-label={t("storyTitle")}>
-    <div className="place-story-head"><FoxAvatar state="arrived" size={40} /><p className="demo-badge">{t("storyDraft")}</p></div>
+    <div className="place-story-head"><FoxAvatar state="arrived" size={40} /></div>
     <p className="place-story-text">{story.text[locale]}</p>
     <p className="place-story-sources">{t("storySources")}: {story.sources.map((source, index) => <span key={source.url}>
       {index > 0 && " · "}<a href={source.url} target="_blank" rel="noreferrer">{source.title}</a></span>)}</p>

@@ -231,11 +231,9 @@ export function PrototypeApp() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [browsedWalk, setSelectedWalkId] = useState<string | null | undefined>(undefined);
   const selectedWalkId = browsedWalk === undefined ? activeRun(game)?.walkId ?? null : browsedWalk;
-  // Search, filters, style and starting landmark survive tab switches for the session.
+  // Search, filters and starting landmark survive tab switches for the session.
   const [query, setQuery] = useState("");
   const [routeFilter, setRouteFilter] = useState<RouteFilter>(null);
-  const [viewMode, setViewMode] = useState<"map" | "list">("map");
-  const [mapStyle, setMapStyle] = useState<"illustrated" | "standard">("illustrated");
   const [startPlaceId, setStartPlaceId] = useState<string | null>(null);
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
@@ -362,7 +360,7 @@ export function PrototypeApp() {
     </div>}
     <main key={activeTab} id="main-content" className="app-main">
       {activeTab === "home" && <HomeScreen game={game} locale={locale} name={profile.nickname || translate(locale, "guestName")} hasNotice={hasRewardsDot || hasMissionsDot} onExplore={() => selectTab("explore")} onRewards={() => selectTab("rewards")} onMissions={() => selectTab("missions")} onMe={() => selectTab("me")} />}
-      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} viewMode={viewMode} setViewMode={setViewMode} mapStyle={mapStyle} setMapStyle={setMapStyle} startPlaceId={startPlaceId} setStartPlaceId={setStartPlaceId} saved={saved} initialPlaceId={initialPlaceId} onInitialPlaceHandled={() => setInitialPlaceId(null)} />}
+      {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} startPlaceId={startPlaceId} setStartPlaceId={setStartPlaceId} saved={saved} initialPlaceId={initialPlaceId} onInitialPlaceHandled={() => setInitialPlaceId(null)} />}
       {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
       {activeTab === "me" && <MeScreen game={game} saved={saved} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} onDeleteAll={deleteAllLocalData} onLogout={() => { setGuestLocaleOverride(profile.locale); clearProfile(); selectTab("home"); }} onOpenWalk={openWalk} onOpenPlace={openPlace} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
@@ -370,7 +368,7 @@ export function PrototypeApp() {
     {toastId && <div className="unlock-toast" role="status">
       <FoxAvatar state="reward" size={36} />
       <p><strong>{translate(locale, "unlockToast")}</strong>
-        <small>{COUPONS.find(coupon => coupon.id === toastId)?.offer[locale]} · {translate(locale, "demoNotRedeemable")}</small></p>
+        <small>{COUPONS.find(coupon => coupon.id === toastId)?.offer[locale]}</small></p>
       <Button onClick={() => selectTab("rewards")}>{translate(locale, "unlockToastView")}</Button>
       <button type="button" className="icon-button" aria-label={translate(locale, "close")} onClick={() => dismissToast(toastId)}><X size={18} strokeWidth={ICON_STROKE} /></button>
     </div>}

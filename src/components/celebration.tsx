@@ -19,7 +19,8 @@ export function Celebration({ game, run, locale, onClose, onStampBook, onRewards
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const reduced = useReducedMotion();
   const walk = walkById(run.walkId)!;
-  const total = run.bonus + run.stamps.reduce((sum, stamp) => sum + stamp.points, 0);
+  const checkInPoints = run.stamps.reduce((sum, stamp) => sum + stamp.points, 0);
+  const total = run.bonus + checkInPoints;
   const [shown, setShown] = useState(reduced ? total : 0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const points = balance(game);
@@ -36,7 +37,10 @@ export function Celebration({ game, run, locale, onClose, onStampBook, onRewards
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   const other: Locale = locale === "en" ? "ja" : "en";
-  return <section className="celebration" role="dialog" aria-modal="false" aria-labelledby="celebration-title">
+  return <motion.section className="celebration" role="dialog" aria-modal="false" aria-labelledby="celebration-title"
+    drag={reduced ? false : "y"} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0.05, bottom: 0.35 }}
+    onDragEnd={(_, info) => { if (info.offset.y > 90 || info.velocity.y > 500) onClose(); }}>
+    <span className="celebration-handle" aria-hidden="true" />
     <button type="button" className="icon-button celebration-close" aria-label={t("close")} onClick={onClose}><X size={20} strokeWidth={ICON_STROKE} /></button>
     <motion.div className="celebration-fox" initial={reduced ? false : { y: 24, scale: 0.8, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} transition={SPRING}>
       <FoxAvatar state="reward" size={132} />
@@ -53,7 +57,7 @@ export function Celebration({ game, run, locale, onClose, onStampBook, onRewards
     </ol>
     <p className="celebration-points" aria-label={t("celebratePoints", { points: String(total) })}>
       <strong>{t("celebratePoints", { points: String(shown) })}</strong>
-      <small>{t("celebrateDemo")}</small>
+      {run.bonus > 0 && <small>{locale === "ja" ? `チェックイン ${checkInPoints} pt + 完走ボーナス ${run.bonus} pt` : `${checkInPoints} pts check-ins + ${run.bonus} pts completion bonus`}</small>}
     </p>
     <div className="celebration-tip">
       <FoxAvatar state="idle" size={40} />
@@ -64,5 +68,5 @@ export function Celebration({ game, run, locale, onClose, onStampBook, onRewards
       <Button variant="secondary" onClick={onStampBook}>{t("celebrateStampBook")}</Button>
       <Button onClick={onRewards}>{t("navRewards")}</Button>
     </div>
-  </section>;
+  </motion.section>;
 }

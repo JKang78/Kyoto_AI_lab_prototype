@@ -14,7 +14,6 @@ import { Button, ConfirmDialog, haptic, ICON_STROKE, SlideToConfirm, SPRING } fr
  */
 export function RedeemSheet({ coupon, claim, locale, onClose }: { coupon: CouponDefinition; claim: Claim; locale: Locale; onClose: () => void }) {
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
-  const other: Locale = locale === "en" ? "ja" : "en";
   const reduced = useReducedMotion();
   const [openedAt, setOpenedAt] = useState(() => Date.now());
   const [now, setNow] = useState(openedAt);
@@ -32,20 +31,17 @@ export function RedeemSheet({ coupon, claim, locale, onClose }: { coupon: Coupon
 
   return <ConfirmDialog open onClose={onClose} title={t("redeemTitle")} closeLabel={t("close")} className="redeem-dialog">
     <div className="redeem-live" data-motion={!reduced && !redeemed}>
-      <p className="demo-strip redeem-demo"><strong>{t("demoNotRedeemable")}</strong><span lang={other}>{translate(other, "demoNotRedeemable")}</span><small>{t("redeemDemoBody")}</small></p>
       {offline && <p className="demo-strip" role="status">{t("redeemOfflineNote")}</p>}
-      <p className="redeem-merchant">{coupon.merchant.ja}<small>{coupon.merchant.en}</small></p>
-      <p className="redeem-offer" lang="ja">{coupon.offer.ja}</p>
-      <p className="redeem-offer-en" lang="en">{coupon.offer.en}</p>
+      <p className="redeem-merchant">{coupon.merchant[locale]}</p>
+      <p className="redeem-offer">{coupon.offer[locale]}</p>
       <p className="redeem-code" aria-label={t("redeemCodeLabel", { code: code.split("").join(" ") })}>{code.slice(0, 3)}<span aria-hidden="true"> </span>{code.slice(3)}</p>
-      <p className="redeem-terms">{coupon.terms.ja}<br />{coupon.terms.en}<br />{t("voucherValidUntil", { date: formatKyotoDateTime(locale, coupon.expiresAt) })}</p>
+      <p className="redeem-terms">{coupon.terms[locale]}<br />{t("voucherValidUntil", { date: formatKyotoDateTime(locale, coupon.expiresAt) })}</p>
       {redeemed ? <motion.p className="redeem-verified" role="status" initial={reduced ? false : { scale: 0.6, rotate: -8, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={SPRING}>
-        <BadgeCheck size={28} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("redeemVerified")}<small lang={other}>{translate(other, "redeemVerified")}</small></span>
+        <BadgeCheck size={28} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t("redeemVerified")}</span>
       </motion.p> : offerExpired ? <p className="redeem-clock" data-expired="true" role="status">{t("voucherExpiredNote")}</p> : <>
         <p className="redeem-clock" aria-live="off" data-expired={codeExpired}>{codeExpired ? t("redeemExpired") : t("redeemExpires", { time: clock })}</p>
         {codeExpired ? <Button className="full-width" onClick={() => { const fresh = Date.now(); setOpenedAt(fresh); setNow(fresh); }}>{t("redeemRefresh")}</Button> :
           <SlideToConfirm label={t("redeemStaffHold")} hint={t("slideHint")} disabled={offline}
-            sublabel={<small lang={other}>{translate(other, "redeemStaffHold")}</small>}
             onConfirm={() => { haptic(); void act({ type: "redeem", id: claim.id }); }} />}
       </>}
     </div>
