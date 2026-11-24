@@ -8,7 +8,9 @@ import { COUPONS, GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
 import { activeBonus, activeRun, balance, circlePolygon, liveEligible, placeById, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
 import { Celebration } from "@/components/celebration";
+import { FoxGuideDialog, readFoxUiVariant } from "@/components/fox-guide-dialog";
 import { HelpSheet } from "@/components/help-sheet";
+import { resolveFoxContext } from "@/lib/fox-context";
 import { PREVIEW_CONTROLS } from "@/config/environment";
 import { applyPixelLook, pixelLookRequested } from "@/components/map/pixel-look";
 import { PlacePhoto, PlaceStory } from "@/components/place-media";
@@ -263,6 +265,9 @@ export function KyotoMap({
   const mapStyle: "illustrated" | "standard" = "standard";
   const [showCrowd, setShowCrowd] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [foxGuideOpen, setFoxGuideOpen] = useState(false);
+  const [foxScreenPoint, setFoxScreenPoint] = useState<{ x: number; y: number } | null>(null);
+  const [foxContainerSize, setFoxContainerSize] = useState<{ width: number; height: number } | null>(null);
   const [snap, setSnap] = useState<Snap>(initialPlaceId ? "half" : selectedWalkId ? "full" : "peek");
   const [view, setView] = useState<"routes" | "walk" | "place">(initialPlaceId ? "place" : selectedWalkId ? "walk" : "routes");
   const [mapAttempt, setMapAttempt] = useState(0);
@@ -296,6 +301,7 @@ export function KyotoMap({
         : t("foxBubblePick");
   const bubbleVisible = bubbleText !== null && bubbleText !== dismissedBubble;
   const bubbleActionRef = useRef<() => void>(() => {});
+  const foxActionRef = useRef<() => void>(() => {});
   useEffect(() => {
     bubbleActionRef.current = () => {
       setDismissedBubble(bubbleText);
@@ -313,6 +319,47 @@ export function KyotoMap({
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const demoPoint = useRef<readonly [number, number]>(DEMO_POSITION);
+  const getFoxCoordinates = useCallback((): [number, number] => (
+    location.mode === "live" && location.fix
+      ? [location.fix.longitude, location.fix.latitude]
+      : location.mode === "demo" && playing
+        ? [...demoPoint.current]
+        : DEMO_POSITION
+  ), [location, playing]);
+  const syncFoxAnchor = useCallback(() => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (container) setFoxContainerSize({ width: container.clientWidth, height: container.clientHeight });
+    if (map) {
+      const pt = map.project(getFoxCoordinates());
+      setFoxScreenPoint({ x: pt.x, y: pt.y });
+    }
+  }, [getFoxCoordinates]);
+  useEffect(() => {
+    foxActionRef.current = () => {
+      haptic();
+      syncFoxAnchor();
+      if (readFoxUiVariant() === "bubble" && mapRef.current) {
+        mapRef.current.easeTo({
+          center: getFoxCoordinates(),
+          offset: [0, 80],
+          duration: motionDuration(350),
+        });
+      }
+      setFoxGuideOpen(true);
+    };
+  }, [getFoxCoordinates, syncFoxAnchor]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!foxGuideOpen || !map) return;
+    syncFoxAnchor();
+    map.on("move", syncFoxAnchor);
+    map.on("resize", syncFoxAnchor);
+    return () => {
+      map.off("move", syncFoxAnchor);
+      map.off("resize", syncFoxAnchor);
+    };
+  }, [foxGuideOpen, syncFoxAnchor]);
   const updateDemoMarker = useCallback((point: readonly [number, number]) => {
     demoPoint.current = point;
     markerRef.current?.setLngLat([...point]);
@@ -538,8 +585,8 @@ export function KyotoMap({
       : translate(locale, location.mode === "demo" ? "mapDemoMarker" : "mapSampleLocation");
     const ariaLabel = location.mode === "live" ? label : translate(locale, location.mode === "demo" ? "mapDemoMarkerLabel" : "mapSampleLocationLabel");
     root.render(<div className="map-fox-marker" data-live={location.mode === "live"} data-low-accuracy={lowAccuracy}>
-      {bubbleVisible && <button type="button" className="fox-bubble" onClick={() => bubbleActionRef.current()}>{bubbleText}</button>}
-      <span role="img" aria-label={ariaLabel} className="map-fox-figure"><FoxAvatar state={playing ? "walking" : "idle"} /></span>
+      {bubbleVisible && <button type="button" className="fox-bubble" onClick={(event) => { event.stopPropagation(); bubbleActionRef.current(); }}>{bubbleText}</button>}
+      <button type="button" className="map-fox-figure" aria-label={translate(locale, "foxGuideOpenAria", { location: ariaLabel })} onClick={(event) => { event.stopPropagation(); foxActionRef.current(); }}><FoxAvatar state={playing ? "walking" : "idle"} /></button>
       {!playing && <span className="map-fox-label">{label}</span>}
     </div>);
   }, [locale, location, state, playing, bubbleText, bubbleVisible]);
@@ -884,6 +931,21 @@ export function KyotoMap({
       onRewards={() => { setCelebrationRunId(null); onRewards(); }} />}
 
     <HelpSheet open={helpOpen} locale={locale} onClose={() => setHelpOpen(false)} />
+
+    <FoxGuideDialog
+      open={foxGuideOpen}
+      onClose={() => setFoxGuideOpen(false)}
+      context={resolveFoxContext({
+        position: getFoxCoordinates(),
+        mode: location.mode,
+        selectedWalkId,
+        activeRun: run ?? null,
+        locale,
+      })}
+      locale={locale}
+      foxScreenPoint={foxScreenPoint}
+      containerSize={foxContainerSize}
+    />
 
     <ConfirmDialog open={confirmStop !== null} title={t("gameStopWalk")} closeLabel={t("close")} onClose={() => setConfirmStop(null)}>
       <p>{t("gameStopHint")}</p>

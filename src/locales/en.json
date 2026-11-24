@@ -366,5 +366,18 @@
   "reportIssueSaved": "Report saved on this device.",
   "musicHeading": "Sound",
   "musicMuteSwitch": "Mute background music",
-  "musicHint": "Loops softly while you explore Kyoto. Pauses automatically when you leave the app."
+  "musicHint": "Loops softly while you explore Kyoto. Pauses automatically when you leave the app.",
+  "foxGuideTitle": "Ask the Fox",
+  "foxGuideSubtitle": "Ask about nearby stops, local etiquette, or walks.",
+  "foxGuideOpenAria": "Ask the Fox ({location})",
+  "foxGuideSuggestedLabel": "Suggested questions",
+  "foxGuideThinking": "Checking the Kyoto guide…",
+  "foxGuideBadgeVerified": "Verified Kyoto guide",
+  "foxGuideBadgeGeneralAi": "AI general knowledge · unverified",
+  "foxGuideBadgeOffline": "Offline guide",
+  "foxGuideSourcesLabel": "Sources",
+  "foxGuideAskAnother": "Ask another question",
+  "foxGuideInputLabel": "Ask the fox a question",
+  "foxGuidePlaceholder": "Ask about this spot or Kyoto…",
+  "foxGuideAsk": "Ask"
 }

@@ -1183,3 +1183,404 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 .figma-rewards-catalog .figma-reward-categories button:nth-child(2) { width: 109px; }
 .figma-rewards-catalog .figma-reward-categories button:nth-child(3) { width: 83px; }
 .figma-rewards-catalog .figma-reward-categories button:nth-child(4) { width: 102px; }
+
+/* ---- Ask the Fox guided Q&A (docs/fox_chatbot.md) ---- */
+.map-fox-figure {
+  pointer-events: auto;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.fox-guide-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fox-guide-context-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.fox-guide-context-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid rgb(120 36 89 / 22%);
+  border-radius: 99px;
+  background: var(--kyoto-purple-soft);
+  color: var(--kyoto-purple);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.fox-guide-chips {
+  display: grid;
+  gap: 7px;
+}
+
+.fox-guide-chip {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 12px;
+  background: var(--bg-ivory);
+  color: var(--ink-sumi);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  box-shadow: 0 1px 3px rgb(28 25 23 / 6%);
+}
+
+.fox-guide-chip:hover {
+  border-color: rgb(120 36 89 / 40%);
+  background: var(--kyoto-purple-soft);
+}
+
+.fox-guide-answer-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 14px;
+  background: var(--bg-ivory);
+}
+
+.fox-guide-asked {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.fox-guide-thinking {
+  margin: 0;
+  color: var(--ink-slate);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fox-guide-badge {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.fox-guide-badge--verified {
+  background: rgb(47 125 87 / 12%);
+  color: var(--crowd-calm);
+  border: 1px solid rgb(47 125 87 / 32%);
+}
+
+.fox-guide-badge--general {
+  background: rgb(217 130 43 / 14%);
+  color: #8a4f11;
+  border: 1px solid rgb(217 130 43 / 42%);
+}
+
+.fox-guide-badge--offline {
+  background: var(--bg-stone);
+  color: var(--ink-slate);
+  border: 1px solid var(--border-hairline);
+}
+
+.fox-guide-answer-text {
+  margin: 0;
+  color: var(--ink-sumi);
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.fox-guide-safety-note {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: rgb(198 156 77 / 14%);
+  color: var(--ink-sumi);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.fox-guide-safety-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: #8a4f11;
+}
+
+.fox-guide-citations {
+  display: grid;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.fox-guide-citations-label {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fox-guide-citations ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fox-guide-citations a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.fox-guide-another {
+  justify-self: start;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 99px;
+  background: var(--bg-washi);
+  color: var(--kyoto-purple);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fox-guide-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.fox-guide-input {
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  background: var(--bg-ivory);
+  color: var(--ink-sumi);
+  font-size: 14px;
+}
+
+.fox-guide-input::placeholder {
+  color: var(--ink-muted);
+}
+
+.fox-guide-submit {
+  min-height: 44px;
+}
+
+.fox-guide-submit .ui-button-face {
+  min-height: 41px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* Variant A (?foxUi=modal) */
+.fox-guide-modal-lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+
+.fox-guide-modal-lead p {
+  margin: 0;
+  color: var(--ink-slate);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Variant B (?foxUi=rpg, default): bottom-anchored cozy RPG dialogue box */
+.fox-guide-rpg {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(calc(100% - 24px), 460px);
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 48px);
+  overflow: visible;
+}
+
+.fox-guide-rpg::backdrop {
+  background: rgb(28 25 23 / 22%);
+}
+
+.fox-guide-rpg-shell {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  max-height: calc(100dvh - 72px);
+  overflow-y: auto;
+  border: 2px solid var(--kyoto-purple);
+  border-radius: 18px;
+  background: var(--bg-washi) var(--grain);
+  box-shadow: 0 14px 36px rgb(28 25 23 / 24%);
+}
+
+.fox-guide-rpg-portrait {
+  position: absolute;
+  top: -30px;
+  left: 14px;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg-washi);
+  border: 2px solid var(--kyoto-purple);
+  box-shadow: 0 4px 14px rgb(28 25 23 / 18%);
+}
+
+.fox-guide-rpg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 74px;
+  min-height: 40px;
+}
+
+.fox-guide-rpg-header h2 {
+  margin: 0;
+  font-family: "DotGothic16", var(--font-title);
+  font-size: 20px;
+  line-height: 1.25;
+  color: var(--kyoto-purple);
+}
+
+/* Variant C (?foxUi=bubble): floating speech bubble anchored near fox */
+.fox-guide-bubble-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.fox-guide-bubble-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(28 25 23 / 14%);
+  pointer-events: auto;
+}
+
+.fox-guide-bubble {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  border: 1.5px solid var(--kyoto-purple);
+  border-radius: 16px;
+  background: var(--bg-washi);
+  box-shadow: 0 12px 32px rgb(28 25 23 / 22%);
+  pointer-events: auto;
+}
+
+.fox-guide-bubble::after {
+  content: "";
+  position: absolute;
+  left: var(--fox-tail-x, 50%);
+  width: 12px;
+  height: 12px;
+  background: var(--bg-washi);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.fox-guide-bubble[data-placement="above"]::after {
+  bottom: -7px;
+  border-right: 1.5px solid var(--kyoto-purple);
+  border-bottom: 1.5px solid var(--kyoto-purple);
+}
+
+.fox-guide-bubble[data-placement="below"]::after {
+  top: -7px;
+  border-left: 1.5px solid var(--kyoto-purple);
+  border-top: 1.5px solid var(--kyoto-purple);
+}
+
+.fox-guide-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.fox-guide-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.fox-guide-header h2 {
+  margin: 0;
+  font: 700 17px/1.25 var(--font-title);
+  color: var(--ink-sumi);
+}
+
+.fox-guide-bubble-scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fox-guide-rpg[open] .fox-guide-rpg-shell {
+    animation: fox-guide-rise 180ms ease-out;
+  }
+  .fox-guide-bubble {
+    animation: fox-guide-pop 160ms ease-out;
+  }
+}
+
+@keyframes fox-guide-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fox-guide-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+/* ---- End Ask the Fox guided Q&A ---- */
