@@ -52,11 +52,9 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 /* Numbers never jitter. */
 .walk-meta, .reward-line, .follow-progress, .surge-card, .quest-meta, .rewards-points, .ticket-cost, .log-points, .redeem-code, .redeem-clock, .goshuin-page small, .activity-log small, .map-place-pin-number { font-variant-numeric: tabular-nums; }
 
-.app-shell, .welcome-screen, .loading-screen { width: 100%; max-width: 520px; min-height: 100dvh; margin: 0 auto; position: relative; background: var(--bg-washi) var(--grain); }
-.loading-screen { display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--kyoto-purple); font-weight: 700; }
+.app-shell { width: 100%; max-width: 520px; min-height: 100dvh; margin: 0 auto; position: relative; background: var(--bg-washi) var(--grain); }
 .app-main { min-height: 100dvh; padding-bottom: calc(var(--dock-h) + 16px); }
 .app-shell[data-tab="explore"] .app-main { padding-bottom: 0; }
-.brand-seal { width: 32px; height: 32px; flex: none; display: inline-grid; place-items: center; border-radius: 4px; background: var(--kyoto-purple); color: var(--bg-washi); font: 700 20px var(--font-title); }
 
 /* Shared controls */
 .ui-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: 10px; border: 1px solid transparent; font-size: 14px; font-weight: 700; }
@@ -366,16 +364,7 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .settings-about summary { min-height: 44px; display: flex; align-items: center; color: var(--kyoto-purple); font-weight: 700; cursor: pointer; }
 .settings-about p { margin: 0 0 10px; color: var(--ink-slate); font-size: 13px; line-height: 1.6; }
 
-/* Welcome */
-.welcome-screen { display: flex; flex-direction: column; padding: max(24px, env(safe-area-inset-top)) 24px calc(28px + env(safe-area-inset-bottom)); }
-.welcome-top { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; }
-.walk-cover { display: grid; grid-template-columns: 1fr 43%; align-items: end; margin: 18px -24px 14px; background: var(--kyoto-purple); color: var(--bg-washi); }
-.walk-cover h1 { margin: 0; padding: 24px 8px 26px 24px; font: 700 clamp(40px, 12vw, 60px)/1 var(--font-title); }
-.walk-cover img { width: 100%; height: clamp(190px, 30dvh, 280px); object-fit: cover; object-position: center 72%; }
-.welcome-instruction { margin: 0; color: var(--ink-slate); font-size: 15px; line-height: 1.5; }
-.welcome-form .form-label:first-child { margin-top: 12px; }
-
-@media (min-width: 700px) { .app-shell, .welcome-screen, .loading-screen { border-inline: 1px solid var(--border-hairline); } }
+@media (min-width: 700px) { .app-shell { border-inline: 1px solid var(--border-hairline); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 
 /* ---- Interaction layer: docs/visuals.md P0 ---- */
@@ -910,11 +899,6 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .checkpoint-track-goal { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink-sumi); transform: translateX(-1px); }
 
 /* Prototype batch: guest entry, save & return, low-accuracy marker, itinerary list, offline & privacy/safety */
-.welcome-top { justify-content: space-between; }
-.welcome-brand { display: inline-flex; align-items: center; gap: 10px; }
-.welcome-skip { min-height: 44px; padding: 6px 12px; border-radius: 99px; color: var(--kyoto-purple); font-size: 13px; font-weight: 700; }
-.welcome-fox-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.welcome-fox-head h1 { margin: 0; }
 .start-point-picker { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border-hairline); }
 .start-point-picker p { margin: 0; display: grid; gap: 2px; font-size: 13px; }
 .start-point-picker small { color: var(--ink-slate); font-size: 12px; }
@@ -1026,3 +1010,158 @@ html[data-font-preview="pixel-numbers"] .home-hero-number strong {
 html[data-font-preview="pixel-numbers"] .rewards-points {
   font-size: 34px !important;
 }
+
+/* Figma UI refresh · App screens / navigation map */
+html[data-font-preview="rpg-pixel"],
+html[data-font-preview="rpg-pixel"]:lang(ja),
+html[data-font-preview="rpg-pixel"] :lang(ja) {
+  --font-body: "DotGothic16", "Noto Sans JP", monospace;
+  --font-title: "DotGothic16", "Noto Sans JP", monospace;
+}
+html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-weight: 400; letter-spacing: 0; }
+.app-shell { background: #faf8f4; }
+.content-screen h1 { font: 400 31px/1.35 var(--font-title); letter-spacing: 0; }
+.dock { max-width: 370px; border-color: #e8e5e2; background: #faf8f4; }
+.dock-item { font-weight: 400; }
+.dock-item .fox-avatar { background: transparent; border: 0; }
+
+.figma-home { display: grid; align-content: start; gap: 0; padding: calc(24px + env(safe-area-inset-top)) 18px 26px; }
+.figma-home p, .figma-home h1, .figma-home h2 { margin: 0; }
+.figma-home-heading { position: relative; display: flex; justify-content: space-between; align-items: start; min-height: 57px; }
+.figma-home-heading h1 { font: 400 31px/1.35 var(--font-title); }
+.figma-home-heading img { position: absolute; right: 2px; top: 49px; width: 73px; height: 73px; object-fit: contain; image-rendering: pixelated; }
+.figma-home-hello { font-size: 21px; line-height: 30px; }
+.figma-home-subtitle { max-width: 260px; min-height: 66px; color: #57534e; font-size: 17px; line-height: 23px; }
+.figma-home-points { display: grid; align-content: start; min-height: 190px; padding: 12px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-points > p { font-size: 16px; line-height: 23px; }
+.figma-home-points > strong { font-size: 30px; line-height: 42px; font-weight: 400; }
+.figma-home-points > strong span { font-size: inherit; }
+.figma-home-points > small { color: #57534e; font-size: 13px; line-height: 19px; }
+.figma-home-points-footer { display: grid; gap: 0; margin-top: 8px; padding-top: 7px; border-top: 1px solid #e8e5e2; }
+.figma-home-points-footer span { font-size: 16px; }
+.figma-home-points-footer small { color: #57534e; font-size: 13px; }
+.figma-home-points-footer button { justify-self: start; padding: 0; color: #782459; font-size: 13px; line-height: 21px; }
+.figma-home-section { margin-top: 16px; }
+.figma-home-section h2 { margin-bottom: 9px; font-size: 19px; line-height: 27px; }
+.figma-home-walk-card { display: grid; gap: 2px; padding: 12px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-walk-card strong { font-size: 17px; font-weight: 400; }
+.figma-home-walk-card p { color: #57534e; font-size: 13px; }
+.figma-home-walk-card button { width: 100%; min-height: 35px; margin-top: 7px; border-radius: 9px; background: #782459; color: #fff; font-size: 15px; }
+.figma-home-activity { border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-activity > div { display: flex; justify-content: space-between; gap: 8px; min-height: 55px; align-items: center; padding: 10px 15px; font-size: 15px; }
+.figma-home-activity > div + div { border-top: 1px solid #e8e5e2; }
+.figma-home-activity strong { flex: none; color: #782459; font-size: 14px; font-weight: 400; }
+.figma-home-activity > p { padding: 15px; color: #57534e; font-size: 13px; }
+.figma-home-activity-link { margin-top: 7px; padding: 0; color: #782459; font-size: 13px; }
+
+.figma-page-intro { margin: -4px 0 0; color: #57534e; font-size: 14px; line-height: 1.55; }
+.figma-missions { gap: 17px; }
+.figma-missions .segmented, .figma-rewards .segmented { padding: 3px; border-radius: 12px; }
+.figma-missions .segmented button, .figma-rewards .segmented button { font-size: 13px; font-weight: 400; }
+.figma-missions .quest-list { gap: 12px; }
+.figma-missions .quest-card { gap: 10px; padding: 16px; border-color: #e8e5e2; border-radius: 14px; }
+.figma-missions .quest-card h2 { font-size: 17px; font-weight: 400; }
+.figma-missions .quest-card > p { font-size: 12px; }
+.figma-missions .quest-progress { height: 5px; }
+.figma-missions .quest-card .ui-button { justify-self: start; min-width: 115px; font-weight: 400; }
+.figma-mission-more { display: grid; gap: 12px; color: #57534e; font-size: 13px; }
+.figma-mission-more > summary { cursor: pointer; color: #782459; }
+.figma-mission-more[open] > :not(summary) { margin-top: 12px; }
+
+.figma-rewards { gap: 19px; }
+.figma-rewards-balance { display: grid; gap: 5px; padding: 18px 16px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-rewards-balance > span { font-size: 16px; }
+.figma-rewards-balance strong { font-size: 30px; font-weight: 400; }
+.figma-rewards-balance small { font-size: 23px; }
+.figma-rewards-balance p { margin: 0; color: #57534e; font-size: 13px; }
+.figma-rewards-preview h2, .figma-rewards .activity-log h2 { margin: 0 0 10px; font-size: 19px; font-weight: 400; }
+.figma-rewards-preview > div { padding: 10px 14px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-rewards-preview > div p { display: flex; justify-content: space-between; gap: 8px; margin: 0; padding: 9px 0; font-size: 13px; }
+.figma-rewards-preview > div p + p { border-top: 1px solid #e8e5e2; }
+.figma-rewards-preview > div p span:last-child { flex: none; color: #706a62; }
+.figma-rewards-preview > button { width: 100%; min-height: 36px; margin-top: 10px; border-radius: 9px; background: #782459; color: #fff; font-size: 14px; }
+.figma-rewards .activity-log ol { display: grid; gap: 8px; }
+.figma-rewards .activity-log li { align-items: center; padding: 12px; border: 0; border-radius: 14px; background: #f2efe9; }
+.figma-rewards .activity-log li > span:nth-child(2) { flex: 1; min-width: 0; display: grid; gap: 1px; overflow: hidden; }
+.figma-rewards .activity-log li strong, .figma-rewards .log-points { font-size: 13px; font-weight: 400; }
+.figma-rewards .activity-log li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.figma-rewards .log-points[data-sign="plus"] { color: #1c1917; }
+.figma-back { justify-self: start; padding: 0; color: #782459; font-size: 13px; }
+.figma-title-fox { display: flex; align-items: center; justify-content: space-between; }
+.figma-title-fox img { image-rendering: pixelated; }
+.figma-reward-categories { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.figma-reward-categories button { flex: none; min-height: 36px; padding: 7px 12px; border: 1px solid #e8e5e2; border-radius: 99px; background: #fff; color: #57534e; font-size: 12px; }
+.figma-reward-categories button[aria-pressed="true"] { border-color: #782459; background: #f6ecf2; color: #782459; }
+.figma-rewards .ticket-list { gap: 12px; }
+.figma-rewards .ticket-card { min-height: 174px; border: 1px solid #e8e5e2; border-radius: 12px; -webkit-mask: none; mask: none; filter: none; }
+.figma-rewards .ticket-main { min-width: 0; gap: 3px; padding: 14px 12px 14px 20px; }
+.figma-rewards .ticket-merchant { font-weight: 400; }
+.figma-rewards .ticket-main h3 { font-size: 17px; font-weight: 400; }
+.figma-rewards .ticket-stub { min-width: 110px; padding: 12px; }
+.figma-rewards .ticket-cost { font-size: 12px; font-weight: 400; }
+
+.figma-account { gap: 16px; }
+.figma-account-header { display: flex; align-items: center; justify-content: space-between; }
+.figma-account-header > div { display: flex; gap: 8px; }
+.figma-account-header button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; background: #fff; border: 1px solid #e8e5e2; }
+.figma-account .passport { padding: 15px; border-color: #e8e5e2; }
+.figma-account .passport-name { font-size: 19px; font-weight: 400; }
+.figma-account .passport-line { font-size: 12px; }
+.figma-account .settings-section { gap: 11px; padding: 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-account .settings-section h2 { font-size: 17px; font-weight: 400; }
+.figma-account .settings-hint { font-size: 12px; }
+.figma-account .segmented button { font-weight: 400; }
+.figma-account .settings-status { display: none; }
+.figma-account .settings-section:has(.settings-status) .settings-hint { display: none; }
+.figma-account-actions { display: grid; gap: 0; padding: 14px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-account-actions h2 { margin: 0 0 5px; font-size: 17px; font-weight: 400; }
+.figma-account-actions button { min-height: 42px; padding: 8px 0; text-align: left; font-size: 14px; }
+.figma-account-actions button + button { border-top: 1px solid #e8e5e2; color: #c83e37; }
+.figma-advanced-settings { display: grid; gap: 16px; }
+
+/* Account section spacing from the refreshed Figma frame. */
+.figma-account .settings-section:not(.figma-profile-editor) { padding: 0; border: 0; background: transparent; }
+.figma-account .settings-section > .settings-hint { padding: 14px 15px; border: 1px solid #e8e5e2; border-radius: 10px; background: #fff; }
+.figma-account .settings-section .segmented { border: 1px solid #e8e5e2; background: #f2efe9; }
+.figma-account .settings-section .ui-button--secondary { min-height: 46px; font-weight: 400; }
+.figma-account-actions { padding: 0; border: 0; background: transparent; gap: 10px; }
+.figma-account-actions h2 { margin: 0; font-size: 16px; }
+.figma-account-actions button { min-height: 46px; padding: 8px 18px; border: 1px solid #e8e5e2; border-radius: 10px; background: #fff; text-align: center; }
+.figma-account-actions button + button { border: 1px solid #efc9c4; color: #c83e37; }
+
+/* Compact reward coupon tickets from the updated Figma catalog. */
+.figma-rewards-catalog { gap: 16px; }
+.figma-rewards-catalog .figma-back { width: 154px; height: 46px; border: 1px solid #e8e5e2; border-radius: 10px; background: #fff; color: #1c1917; font-size: 14px; text-align: center; }
+.figma-rewards-catalog .figma-title-fox { position: relative; height: 35px; justify-content: start; }
+.figma-rewards-catalog .figma-title-fox img { position: absolute; left: 183px; top: -9px; width: 52px; height: 52px; object-fit: contain; }
+.figma-catalog-intro { margin: 0; color: #57534e; font-size: 13px; line-height: 20px; }
+.figma-rewards-catalog .figma-reward-categories { gap: 6px; overflow-x: auto; }
+.figma-rewards-catalog .figma-reward-categories button { min-height: 42px; padding: 9px 10px; border-radius: 10px; color: #1c1917; }
+.figma-rewards-catalog .figma-reward-categories button[aria-pressed="true"] { border-color: #782459; background: #782459; color: #fff; }
+.figma-rewards-catalog .ticket-list { gap: 10px; }
+.figma-rewards-catalog .coupon-ticket { display: block; min-height: 112px; overflow: visible; border: 0; border-radius: 12px; background: #fff; opacity: 1; }
+.figma-rewards-catalog .coupon-summary { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 116px; width: 100%; height: 112px; padding: 0; overflow: hidden; border-radius: 12px; background: #fff; color: #1c1917; text-align: left; }
+.figma-rewards-catalog .coupon-summary::before, .figma-rewards-catalog .coupon-summary::after { content: ""; position: absolute; z-index: 2; top: 47px; width: 18px; height: 18px; border-radius: 50%; background: #faf8f4; }
+.figma-rewards-catalog .coupon-summary::before { left: -9px; }
+.figma-rewards-catalog .coupon-summary::after { right: -9px; }
+.figma-rewards-catalog .coupon-summary-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 18px 12px 14px 20px; }
+.figma-rewards-catalog .coupon-merchant { overflow: hidden; color: #57534e; font-size: 12px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.figma-rewards-catalog .coupon-offer { color: #1c1917; font-size: 17px; line-height: 21.25px; overflow-wrap: anywhere; }
+.figma-rewards-catalog .coupon-summary-stub { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 12px 18px 12px 12px; text-align: center; }
+.figma-rewards-catalog .coupon-perforation { position: absolute; left: 0; top: 0; width: 2px; height: 112px; }
+.figma-rewards-catalog .ticket-art { width: 40px; height: 40px; border-radius: 50%; background: #f2efe9; }
+.figma-rewards-catalog .ticket-cost { color: #1c1917; font-size: 14px; line-height: 21px; white-space: nowrap; }
+.figma-rewards-catalog .coupon-spent { margin-top: -6px; color: #706a62; font-size: 12px; line-height: 18px; }
+.figma-rewards-catalog .coupon-details { display: grid; justify-items: start; gap: 7px; padding: 13px 20px 17px; border-top: 1px solid #e8e5e2; }
+.figma-rewards-catalog .coupon-details > p { margin: 0; }
+.figma-rewards-catalog .coupon-details .ui-button { margin-top: 4px; }
+.figma-rewards-catalog .figma-empty-vouchers { display: grid; gap: 16px; }
+.figma-empty-vouchers section { padding: 16px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-empty-vouchers section + section { border: 0; background: #f2efe9; }
+.figma-empty-vouchers h2 { margin: 0 0 7px; font-size: 17px; font-weight: 400; }
+.figma-empty-vouchers p { margin: 0; color: #57534e; font-size: 13px; line-height: 20px; }
+.figma-empty-vouchers > button { min-height: 46px; border: 1px solid #e8e5e2; border-radius: 10px; background: #fff; font-size: 14px; }
+.figma-rewards-catalog .figma-reward-categories button:nth-child(1) { width: 42px; }
+.figma-rewards-catalog .figma-reward-categories button:nth-child(2) { width: 109px; }
+.figma-rewards-catalog .figma-reward-categories button:nth-child(3) { width: 83px; }
+.figma-rewards-catalog .figma-reward-categories button:nth-child(4) { width: 102px; }

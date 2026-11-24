@@ -6,9 +6,9 @@ export type RouteSuggestion = Readonly<{ walk: CuratedWalk; reason: MatchReason 
 export type RouteDiscovery = Readonly<{ suggestions: readonly RouteSuggestion[]; fallback: boolean }>;
 
 const themeTerms: Record<CuratedWalk["theme"], RegExp> = {
-  culture: /\b(?:culture|cultural|history|historic|heritage|shrine|temple)\b|文化|歴史|神社|寺院|八坂|知恩院/iu,
+  culture: /\b(?:culture|cultural|history|historic|heritage|shrine|temple)\b|文化|歴史|神社|寺院/iu,
   riverside: /\b(?:river|riverside|kamo|bridge|waterfront)\b|川沿い|鴨川|川端|大橋|橋/iu,
-  park: /\b(?:park|garden|cherry|blossom|nature|green|maruyama)\b|公園|円山|桜|自然/iu,
+  park: /\b(?:park|garden|cherry|blossom|nature|green)\b|公園|桜|自然/iu,
 };
 
 // These interests have no verified fixture metadata. Never turn sample congestion into a "quiet" claim.
@@ -62,7 +62,9 @@ export function discoverRoutes(query: string, filter: RouteFilter, walks: readon
   const term = normalize(query);
   if (!term) return { suggestions: eligible.map((walk) => ({ walk, reason: filter ? "theme" : null })), fallback: false };
 
-  const themes = (Object.keys(themeTerms) as CuratedWalk["theme"][]).filter((theme) => themeTerms[theme].test(term));
+  const allNames = [...walks.flatMap((walk) => [walk.name.en, walk.name.ja]), ...places.flatMap((place) => [place.name.en, place.name.ja])].map(normalize).sort((a, b) => b.length - a.length);
+  const themeInput = allNames.reduce((rest, name) => (name.length >= 3 && rest.includes(name) ? rest.replaceAll(name, " ") : rest), term);
+  const themes = (Object.keys(themeTerms) as CuratedWalk["theme"][]).filter((theme) => themeTerms[theme].test(themeInput));
   const minuteConstraint = parseMinutesConstraint(term);
   const minutes = requestedMinutes(term);
   const impossibleMinutes = minuteConstraint !== null && minutes === null;
@@ -70,6 +72,7 @@ export function discoverRoutes(query: string, filter: RouteFilter, walks: readon
   const fixtureText = normalize([...walks.flatMap((walk) => [walk.name.en, walk.name.ja, walk.description.en, walk.description.ja]), ...places.flatMap((place) => [place.name.en, place.name.ja, place.description.en, place.description.ja])].join(" "));
   const japaneseNames = [...walks, ...places].map((item) => item.name.ja).sort((a, b) => b.length - a.length);
   const unknownWords = words.some((word) => !Object.values(themeTerms).some((pattern) => pattern.test(word)) && !fixtureText.includes(word));
+  const hasPlaceIntent = allNames.some((name) => name.includes(term) || (term.length >= 3 && term.includes(name)));
   const scored = eligible.map((walk, index) => {
     const namedPlaces = walk.placeIds.flatMap((id) => places.filter((place) => place.id === id));
     const names = [walk.name.en, walk.name.ja, ...namedPlaces.flatMap((place) => [place.name.en, place.name.ja])].map(normalize);
@@ -78,7 +81,7 @@ export function discoverRoutes(query: string, filter: RouteFilter, walks: readon
     const wordMatches = words.filter((word) => text.includes(word)).length;
     const themeMatch = themes.includes(walk.theme);
     const timeMatch = minutes !== null && (minutes.strict ? walk.estimatedMinutes < minutes.value : walk.estimatedMinutes <= minutes.value);
-    const relevant = (themes.length ? themeMatch || placeMatch : placeMatch || wordMatches > 0 || timeMatch)
+    const relevant = (themes.length ? themeMatch || placeMatch : hasPlaceIntent ? placeMatch : wordMatches > 0 || timeMatch)
       && (minutes === null || timeMatch);
     const score = (placeMatch ? 8 : 0) + (themeMatch ? 5 : 0) + wordMatches * 2 + (timeMatch ? 1 : 0);
     const reason: MatchReason = placeMatch ? "place" : themeMatch ? "theme" : timeMatch ? "time" : null;

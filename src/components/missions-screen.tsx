@@ -101,17 +101,15 @@ export function Missions({ game, locale, onWalk, focusStampBook = false }: { gam
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   const walks = CURATED_WALKS.map(walk => ({ walk, status: walkStatus(game, walk.id) }));
   const [storyPlace, setStoryPlace] = useState<string | null>(null);
-  const [segment, setSegment] = useState<Segment>(() => walks.some(item => item.status.status === "active") ? "active" : "available");
+  const [segment, setSegment] = useState<Segment>("available");
   const shown = walks.filter(item => segmentOf(item.status.status) === segment);
+  const count = (id: Segment) => walks.filter(item => segmentOf(item.status.status) === id).length;
   useEffect(() => {
     if (focusStampBook) document.getElementById("goshuin-title")?.scrollIntoView({ block: "start" });
   }, [focusStampBook]);
-  const count = (id: Segment) => walks.filter(item => segmentOf(item.status.status) === id).length;
-  return <div className="content-screen">
+  return <div className="content-screen figma-missions">
     <h1>{t("navMissions")}</h1>
-    <ActiveHero game={game} locale={locale} onWalk={onWalk} />
-    <TrailCard game={game} locale={locale} />
-    <BonusCard game={game} locale={locale} />
+    <p className="figma-page-intro">{locale === "ja" ? "散歩を選び、3つのスポットでチェックイン。最大60 ptsを獲得できます。" : "Choose a walk, check in at its 3 stops, and earn up to 60 pts."}</p>
     <Segmented label={t("missionsFilterLabel")} value={segment} onChange={setSegment} options={[
       { id: "available", label: t("missionsAvailable", { count: String(count("available")) }) },
       { id: "active", label: t("missionsActive", { count: String(count("active")) }) },
@@ -129,15 +127,19 @@ export function Missions({ game, locale, onWalk, focusStampBook = false }: { gam
           <div className="quest-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={status.stamps} aria-label={t("missionProgress", { stamps: String(status.stamps), total: String(total) })}>
             <span style={{ transform: `scaleX(${status.stamps / total})` }} />
           </div>
-          <p className="quest-meta"><span>{t("missionProgress", { stamps: String(status.stamps), total: String(total) })}</span><span>{t("routeRewardNow", { points: String(reward.now) })}{bonus && ` · ${t("bonusShort", { name: t(bonusNameKey[bonus.kind]), multiplier: bonus.multiplier.toFixed(1) })}`}</span></p>
-          <p className="quest-eligibility">{t("missionEligibility", { total: String(total) })} · {t("missionNoDeadline")}</p>
+          <p className="quest-meta"><span>{status.stamps}/{total} {locale === "ja" ? "スタンプ" : "stamps"}</span><span>{locale === "ja" ? `最大 ${reward.now} pts` : `Earn up to ${reward.now} pts`}{bonus && ` · ${t("bonusShort", { name: t(bonusNameKey[bonus.kind]), multiplier: bonus.multiplier.toFixed(1) })}`}</span></p>
           {status.status === "stopped" && <small className="quest-note">{t("gameStopped")}</small>}
           {status.completedCount > 0 && <small className="quest-note">{t("missionCompletedCount", { count: String(status.completedCount) })}</small>}
           <Button variant={status.status === "active" ? "primary" : "secondary"} onClick={() => onWalk(walk.id)}>{t("gameViewMap")}</Button>
         </article>;
       }) : <EmptyState>{t(segment === "active" ? "missionsEmptyActive" : segment === "completed" ? "missionsEmptyCompleted" : "missionsEmptyAvailable")}</EmptyState>}
     </div>
-    <GoshuinBook game={game} locale={locale} onStory={setStoryPlace} />
+    <details className="figma-mission-more" open={focusStampBook}><summary>{locale === "ja" ? "スタンプ帳とミッション詳細" : "Stamp book & mission details"}</summary>
+      <ActiveHero game={game} locale={locale} onWalk={onWalk} />
+      <TrailCard game={game} locale={locale} />
+      <BonusCard game={game} locale={locale} />
+      <GoshuinBook game={game} locale={locale} onStory={setStoryPlace} />
+    </details>
     {storyPlace && <StoryDialog placeId={storyPlace} locale={locale} onClose={() => setStoryPlace(null)} />}
   </div>;
 }

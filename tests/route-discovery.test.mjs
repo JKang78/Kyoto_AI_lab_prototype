@@ -22,7 +22,7 @@ test('unsupported or impossible requests are labeled as alternatives', () => {
   for (const query of ['quiet culture walk', 'cafés and local shops', 'wheelchair river walk', 'dog-friendly river walk', 'ベビーカーで川沿い', 'under 5 minutes', 'unknown place']) {
     const result = find(query);
     assert.equal(result.fallback, true, query);
-    assert.equal(result.suggestions.length, 3, query);
+    assert.equal(result.suggestions.length, CURATED_WALKS.length, query);
     assert.ok(result.suggestions.every(({ reason }) => reason === 'available'), query);
   }
 });
@@ -30,7 +30,7 @@ test('unsupported or impossible requests are labeled as alternatives', () => {
 test('unsupported category chips stay empty instead of claiming a match', () => {
   assert.deepEqual(ids(find('', 'cafes')), []);
   assert.deepEqual(ids(find('', 'bike')), []);
-  assert.deepEqual(ids(find('', 'park')), ['yasaka-maruyama']);
+  assert.deepEqual(ids(find('', 'park')), ['yasaka-maruyama', 'kamogawa-tadasu', 'kyoto-gyoen']);
 });
 
 test('strict and inclusive budgets differ at the fixture estimate in both languages', () => {
@@ -55,7 +55,7 @@ test('zero and negative minute budgets fall back instead of matching', () => {
   for (const query of ['0 minutes', 'under 0 minutes', '0分以内', '-10 minutes', '-10分の川沿い', 'river 0 minutes', '川沿い 0分以内', 'river -10 minutes']) {
     const result = find(query);
     assert.equal(result.fallback, true, query);
-    assert.equal(result.suggestions.length, 3, query);
+    assert.equal(result.suggestions.length, CURATED_WALKS.length, query);
     assert.ok(result.suggestions.every(({ reason }) => reason === 'available'), query);
   }
 });
@@ -63,11 +63,11 @@ test('zero and negative minute budgets fall back instead of matching', () => {
 test('multi-digit Japanese minute budgets parse full digit runs instead of trailing digits', () => {
   const riverside = find('1005分の川沿い');
   assert.equal(riverside.fallback, false);
-  assert.deepEqual(ids(riverside), ['kamo-riverside']);
+  assert.deepEqual(ids(riverside), ['kamo-riverside', 'philosophers-path', 'arashiyama-riverside']);
   assert.equal(riverside.suggestions[0].reason, 'theme');
 
   const all = find('1010分');
   assert.equal(all.fallback, false);
-  assert.deepEqual(ids(all), ['shijo-yasaka', 'kamo-riverside', 'yasaka-maruyama']);
+  assert.deepEqual(ids(all), CURATED_WALKS.map(w => w.id));
   assert.ok(all.suggestions.every(({ reason }) => reason === 'time'));
 });

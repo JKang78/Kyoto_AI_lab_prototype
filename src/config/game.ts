@@ -83,4 +83,32 @@ export const COUPONS: readonly CouponDefinition[] = [
     terms: { en: "Example terms · 1 set per person", ja: "条件の例 · お一人様1セット" },
     hours: { en: "Example hours 11:00–18:00", ja: "時間の例 11:00〜18:00" },
   },
+  {
+    id: "tea-latte", isDemo: true, category: "cafe", cost: 75, expiresAt: DEMO_OFFER_EXPIRES_AT,
+    merchant: { en: "Komorebi Café (fictional)", ja: "こもれびカフェ（架空）" },
+    offer: { en: "¥200 off a tea latte", ja: "ティーラテ 200円引き" },
+    terms: { en: "Example terms · min. spend ¥500 · 1 per visit", ja: "条件の例 · 500円以上のご利用で · 1回につき1枚" },
+    hours: { en: "Example hours 10:00–17:00", ja: "時間の例 10:00〜17:00" },
+  },
+  {
+    id: "mochi", isDemo: true, category: "cafe", cost: 80, expiresAt: DEMO_OFFER_EXPIRES_AT,
+    merchant: { en: "Nishiki Snack Shop (fictional)", ja: "錦のおやつ屋（架空）" },
+    offer: { en: "Free mochi with a drink", ja: "ドリンクと一緒におもちをプレゼント" },
+    terms: { en: "Example terms · with any drink · 1 per visit", ja: "条件の例 · ドリンクのご注文で · 1回につき1個" },
+    hours: { en: "Example hours 11:00–18:00", ja: "時間の例 11:00〜18:00" },
+  },
+  {
+    id: "stationery", isDemo: true, category: "shop", cost: 100, expiresAt: DEMO_OFFER_EXPIRES_AT,
+    merchant: { en: "Sora Stationery (fictional)", ja: "そら文具（架空）" },
+    offer: { en: "¥300 off handmade stationery", ja: "手作り文具 300円引き" },
+    terms: { en: "Example terms · min. spend ¥1,000 · 1 per visit", ja: "条件の例 · 1,000円以上のご利用で · 1回につき1枚" },
+    hours: { en: "Example hours 11:00–18:00", ja: "時間の例 11:00〜18:00" },
+  },
+  {
+    id: "craft", isDemo: true, category: "experience", cost: 110, expiresAt: DEMO_OFFER_EXPIRES_AT,
+    merchant: { en: "Kyoto Craft Studio (fictional)", ja: "京都クラフト工房（架空）" },
+    offer: { en: "Free mini print with workshop", ja: "ワークショップでミニ版画をプレゼント" },
+    terms: { en: "Example terms · with paid workshop · 1 per person", ja: "条件の例 · 有料ワークショップ参加時 · お一人様1枚" },
+    hours: { en: "Example hours 10:00–17:00", ja: "時間の例 10:00〜17:00" },
+  },
 ];

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SetStateAction } from "react";
 import Image from "next/image";
-import { ArrowRight, ExternalLink, Flag, FlaskConical, Globe2, Heart, LocateFixed, MapPin, Shield, Sparkles, Trash2, UserRound, Volume2, VolumeX, WifiOff, X } from "lucide-react";
+import { ExternalLink, Flag, FlaskConical, Shield, Sparkles, Trash2, UserRound, Volume2, VolumeX, WifiOff, X } from "lucide-react";
 import { HomeScreen } from "@/components/home-screen";
 import { Missions } from "@/components/missions-screen";
 import { Rewards } from "@/components/rewards-screen";
@@ -22,9 +22,10 @@ import { clearMusicPrefs, getMusicPrefsSnapshot, parseMusicPrefs, saveMusicPrefs
 import { clearSaved, toggleSavedPlace, toggleSavedWalk, useSaved, type SavedItems } from "@/lib/saved";
 import type { RouteFilter } from "@/lib/route-discovery";
 
-const START_LANDMARK_IDS = ["shijo-kawaramachi", "shijo-ohashi", "yasaka-west-view", "sanjo-ohashi"] as const;
 const CACHE_TIME_KEY = "kyoto-ai-lab.cachedAt.v1";
 const ETIQUETTE_KEY = "kyoto-ai-lab.etiquette.v1";
+const subscribeBrowserLocale = () => () => {};
+const browserLocale = (): Locale => navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
 
 function LanguageChoice({ locale, onChange }: { locale: Locale; onChange: (locale: Locale) => void }) {
   return <div className="segmented" role="group" aria-label={translate(locale, "chooseLanguage")}>
@@ -67,53 +68,16 @@ function MapLookSettings({ locale }: { locale: Locale }) {
   </section>;
 }
 
-function Welcome({ locale, initialNickname = "", startPlaceId, onStartPlace, onLocale, onStart, onSkip }: {
-  locale: Locale; initialNickname?: string; startPlaceId: string | null;
-  onStartPlace: (id: string | null) => void; onLocale: (locale: Locale) => void;
-  onStart: (nickname: string) => void; onSkip: () => void;
-}) {
-  const [nickname, setNickname] = useState(initialNickname);
-  const t = (key: MessageKey) => translate(locale, key);
-  return <main className="welcome-screen">
-    <div className="welcome-top">
-      <span className="welcome-brand"><span className="brand-seal" aria-hidden="true">京</span><span>{t("appName")}</span></span>
-      <button type="button" className="welcome-skip" onClick={onSkip}>{t("welcomeSkip")}</button>
-    </div>
-    <div className="walk-cover">
-      <div className="welcome-fox-head">
-        <FoxAvatar state="idle" size={56} />
-        <h1>{t("welcomeTitle")}</h1>
-      </div>
-      <Image src="/art/kamo-woodblock.webp" width={320} height={468} alt={t("printAlt")} priority />
-    </div>
-    <p className="welcome-instruction">{t("welcomeBody")}</p>
-    <form className="welcome-form" onSubmit={(event) => { event.preventDefault(); onStart(nickname.trim()); }}>
-      <p className="form-label">{t("chooseLanguage")}</p>
-      <LanguageChoice locale={locale} onChange={onLocale} />
-      <label htmlFor="nickname" className="form-label">{t("nicknameLabel")}</label>
-      <input id="nickname" className="text-input" value={nickname} maxLength={40} autoComplete="nickname" placeholder={t("nicknamePlaceholder")} onChange={(event) => setNickname(event.target.value)} />
-      <p className="form-hint">{t("nicknameHint")}</p>
-      <p className="form-label">{t("startPointLabel")}</p>
-      <div className="start-point-chips" role="group" aria-label={t("startPointLabel")}>
-        <button type="button" aria-pressed={startPlaceId === null} onClick={() => onStartPlace(null)}>{t("startPointNone")}</button>
-        {START_LANDMARK_IDS.map(id => {
-          const place = placeById(id);
-          return place ? <button type="button" key={id} aria-pressed={startPlaceId === id} onClick={() => onStartPlace(id)}>{place.name[locale]}</button> : null;
-        })}
-      </div>
-      <Button type="submit" className="full-width">{t("startExploring")}<ArrowRight size={19} strokeWidth={ICON_STROKE} /></Button>
-    </form>
-  </main>;
-}
-
-function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenWalk, onOpenPlace, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: {
-  game: Game; saved: SavedItems; onReset: () => void; onDeleteAll: () => Promise<void>; onRevisitWelcome: () => void;
+function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onOpenPlace, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: {
+  game: Game; saved: SavedItems; onReset: () => void; onDeleteAll: () => Promise<void>; onLogout: () => void;
   onOpenWalk: (id: string) => void; onOpenPlace: (id: string) => void;
   locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void;
   onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void;
 }) {
   const [nickname, setNickname] = useState(profile.nickname);
   const [savedMsg, setSavedMsg] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -122,22 +86,18 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenW
   const [reportNotes, setReportNotes] = useState("");
   const [reportPrepared, setReportPrepared] = useState(false);
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
-  return <div className="content-screen settings-screen">
-    <h1>{t("navMe")}</h1>
+  return <div className="content-screen settings-screen figma-account">
+    <div className="figma-account-header"><h1>{t("navMe")}</h1><div><button type="button" aria-label={t("profileHeading")} onClick={() => setEditOpen(value => !value)}><Image src="/assets/figma/pencil-icon.svg" width={22} height={22} alt="" /></button><button type="button" aria-label={t("mapLookHeading")} onClick={() => setAdvancedOpen(value => !value)}><Image src="/assets/figma/settings-icon.svg" width={22} height={22} alt="" /></button></div></div>
     {/* Passport header (visuals.md Me2): one sentence of progress, not a KPI grid. */}
     <section className="passport" aria-label={t("passportLabel")}>
       <FoxAvatar state="idle" size={88} />
       <div>
         <p className="passport-name">{profile.nickname || t("guestName")}</p>
-        <p className="passport-line">{t("passportLine", {
-          seals: String(new Set(game.runs.flatMap(run => run.stamps.map(stamp => stamp.placeId))).size),
-          walks: String(game.runs.filter(run => run.complete).length),
-          used: String(game.claims.filter(claim => claim.redeemedAt !== undefined).length),
-        })}</p>
+        <p className="passport-line">{new Set(game.runs.flatMap(run => run.stamps.map(stamp => stamp.placeId))).size} {locale === "ja" ? "スタンプ" : "seals"} · {game.runs.filter(run => run.complete).length} {locale === "ja" ? "散歩" : "walks"} · {game.claims.filter(claim => claim.redeemedAt !== undefined).length} {locale === "ja" ? "利用済み" : "vouchers used"}</p>
       </div>
     </section>
     <section className="settings-section">
-      <h2><Heart size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("savedHeading")}</h2>
+      <h2><Image src="/assets/figma/heart-icon.svg" width={20} height={20} alt="" />{t("savedHeading")}</h2>
       {saved.walks.length || saved.places.length ? <ul className="saved-list">
         {saved.walks.map(id => {
           const walk = walkById(id);
@@ -162,11 +122,11 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenW
       </ul> : <p className="settings-hint">{t("savedEmpty")}</p>}
     </section>
     <section className="settings-section">
-      <h2><Globe2 size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("languageHeading")}</h2>
+      <h2><Image src="/assets/figma/earth-icon.svg" width={20} height={20} alt="" />{t("languageHeading")}</h2>
       <LanguageChoice locale={locale} onChange={onLocale} />
     </section>
     <MusicSettings locale={locale} />
-    <section className="settings-section">
+    {editOpen && <section className="settings-section figma-profile-editor">
       <h2><UserRound size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("profileHeading")}</h2>
       <form onSubmit={(event) => { event.preventDefault(); onSave(nickname.trim()); setSavedMsg(true); }}>
         <label className="form-label" htmlFor="settings-nickname">{t("nicknameLabel")}</label>
@@ -174,19 +134,19 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenW
         <Button type="submit" variant="secondary" className="full-width">{t("nicknameSave")}</Button>
         {savedMsg && <p className="save-message" role="status">{t("nicknameSaved")}</p>}
       </form>
-      <Button type="button" variant="secondary" className="full-width" onClick={onRevisitWelcome}>{t("revisitWelcome")}</Button>
-    </section>
+    </section>}
     <section className="settings-section">
-      <h2><MapPin size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationSettingsHeading")}</h2>
+      <h2><Image src="/assets/figma/pin-icon.svg" width={20} height={20} alt="" />{t("locationSettingsHeading")}</h2>
       <dl className="settings-status">
         <div><dt>{t("locationSettingsMode")}</dt><dd>{locationModeText(locale, location.mode)}</dd></div>
         <div><dt>{t("locationSettingsGps")}</dt><dd>{locationStatusText(locale, location)}</dd></div>
       </dl>
-      {PREVIEW_CONTROLS && <Switch checked={location.mode === "demo"} onChange={onDemoChange}>{t("locationSettingsDemoSwitch")}</Switch>}
-      <Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><LocateFixed size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationSettingsRecenter")}</Button>
+      {PREVIEW_CONTROLS && advancedOpen && <Switch checked={location.mode === "demo"} onChange={onDemoChange}>{t("locationSettingsDemoSwitch")}</Switch>}
+      <Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><Image src="/assets/figma/locate-icon.svg" width={17} height={17} alt="" />{t("locationSettingsRecenter")}</Button>
       <p className="settings-hint">{t("locationSettingsHint")}</p>
     </section>
-    <MapLookSettings locale={locale} />
+    <section className="figma-account-actions"><h2>{locale === "ja" ? "アカウント操作" : "Account actions"}</h2><button type="button" onClick={onLogout}>{locale === "ja" ? "ログアウト" : "Log out"}</button><button type="button" onClick={() => setDeleteAllOpen(true)}>{locale === "ja" ? "アカウントを削除" : "Delete account"}</button></section>
+    {advancedOpen && <div className="figma-advanced-settings"><MapLookSettings locale={locale} />
     {PREVIEW_CONTROLS && <section className="settings-section demo-controls">
       <h2><FlaskConical size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("demoControlsHeading")}</h2>
       <p className="form-label">{t("scenarioLabel")}</p>
@@ -223,6 +183,7 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenW
       <p>{t("aboutBody")}</p>
       <p><a href="https://commons.wikimedia.org/wiki/File:Kyoto_Shijo_yu-suzumi-Cooling_Off_at_the_Kamo_River_near_Shijo_in_Kyoto_MET_DP123612.jpg">{t("printCredit")}</a></p>
     </details>
+    </div>}
     <ConfirmDialog open={resetOpen} onClose={() => setResetOpen(false)} title={t("gameReset")} closeLabel={t("close")}>
       <p>{t("gameResetBody")}</p>
       <div className="dialog-actions">
@@ -265,8 +226,8 @@ export function PrototypeApp() {
   const snapshot = useSyncExternalStore(subscribeProfile, getProfileSnapshot, () => undefined);
   const ready = snapshot !== undefined;
   const storedProfile = ready ? readProfile() : null;
-  const [welcomeLocale, setWelcomeLocale] = useState<Locale>(() => typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en");
-  const [revisitingWelcome, setRevisitingWelcome] = useState(false);
+  const detectedLocale = useSyncExternalStore(subscribeBrowserLocale, browserLocale, () => "en" as Locale);
+  const [guestLocaleOverride, setGuestLocaleOverride] = useState<Locale | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [browsedWalk, setSelectedWalkId] = useState<string | null | undefined>(undefined);
   const selectedWalkId = browsedWalk === undefined ? activeRun(game)?.walkId ?? null : browsedWalk;
@@ -349,8 +310,8 @@ export function PrototypeApp() {
     return () => window.clearTimeout(timer);
   }, [toastId, dismissToast]);
 
-  const profile: Profile | null = storedProfile;
-  const locale = profile?.locale ?? welcomeLocale;
+  const profile: Profile = storedProfile ?? { nickname: "", locale: guestLocaleOverride ?? detectedLocale };
+  const locale = profile.locale;
   useEffect(() => { document.documentElement.lang = locale; }, [locale]);
 
   function selectTab(tab: Tab) {
@@ -364,25 +325,6 @@ export function PrototypeApp() {
     if (tab === "missions") setSeen(current => current && { ...current, seals: sealCount });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
-
-  if (!ready) return <div className="loading-screen"><span className="brand-seal" aria-hidden="true">京</span><span>Kyoto AI Lab prototype</span></div>;
-  if (!profile || revisitingWelcome) return <Welcome
-    locale={revisitingWelcome && profile ? profile.locale : welcomeLocale}
-    initialNickname={revisitingWelcome && profile ? profile.nickname : ""}
-    startPlaceId={startPlaceId}
-    onStartPlace={setStartPlaceId}
-    onLocale={(next) => { setWelcomeLocale(next); if (revisitingWelcome && profile) saveProfile({ ...profile, locale: next }); }}
-    onStart={(nickname) => {
-      saveProfile({ nickname, locale: revisitingWelcome && profile ? profile.locale : welcomeLocale });
-      setRevisitingWelcome(false);
-      setActiveTab("home");
-    }}
-    onSkip={() => {
-      if (!profile) saveProfile({ nickname: "", locale: welcomeLocale });
-      setRevisitingWelcome(false);
-      setActiveTab("home");
-    }}
-  />;
 
   function openWalk(id: string) {
     setSelectedWalkId(id);
@@ -409,7 +351,6 @@ export function PrototypeApp() {
     setStartPlaceId(null);
     setCachedAt(null);
     handleLocationChange(INITIAL_LOCATION_STATE);
-    setRevisitingWelcome(false);
     setActiveTab("home");
   }
   const hasRewardsDot = Boolean(seen && affordable.some(id => !seen.rewards.includes(id)));
@@ -424,7 +365,7 @@ export function PrototypeApp() {
       {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} viewMode={viewMode} setViewMode={setViewMode} mapStyle={mapStyle} setMapStyle={setMapStyle} startPlaceId={startPlaceId} setStartPlaceId={setStartPlaceId} saved={saved} initialPlaceId={initialPlaceId} onInitialPlaceHandled={() => setInitialPlaceId(null)} />}
       {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
-      {activeTab === "me" && <MeScreen game={game} saved={saved} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} onDeleteAll={deleteAllLocalData} onRevisitWelcome={() => setRevisitingWelcome(true)} onOpenWalk={openWalk} onOpenPlace={openPlace} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
+      {activeTab === "me" && <MeScreen game={game} saved={saved} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} onDeleteAll={deleteAllLocalData} onLogout={() => { setGuestLocaleOverride(profile.locale); clearProfile(); selectTab("home"); }} onOpenWalk={openWalk} onOpenPlace={openPlace} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
     </main>
     {toastId && <div className="unlock-toast" role="status">
       <FoxAvatar state="reward" size={36} />
