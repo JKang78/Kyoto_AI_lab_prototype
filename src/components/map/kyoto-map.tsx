@@ -17,7 +17,7 @@ import { applyMapPrefs, captureSymbolOriginals, type SymbolOriginal } from "@/li
 import { getMapPrefsSnapshot, parseMapPrefs, subscribeMapPrefs } from "@/lib/map-prefs";
 import { act } from "@/lib/game-store";
 import { toggleSavedPlace, toggleSavedWalk, type SavedItems } from "@/lib/saved";
-import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, StopBeads, type Snap } from "@/components/ui";
+import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, StopBeads, useInView, type Snap } from "@/components/ui";
 import { CURATED_PLACES, CURATED_WALKS } from "@/data/kyoto-walks";
 import { SAMPLE_CONGESTION_CUES, sampleWalkCrowd, type CrowdLevel } from "@/data/sample-congestion";
 import { bonusNameKey, translate, type Locale, type MessageKey } from "@/lib/i18n";
@@ -279,6 +279,11 @@ export function KyotoMap({
   const results = discoverRoutes(query, routeFilter, CURATED_WALKS, CURATED_PLACES);
   const run = activeRun(game);
   const playing = run && selectedWalkId === run.walkId;
+  // Before departure the walking fox marks the first stop. The resident-note fox sways only once that row is
+  // off screen, so the sheet never shows two moving foxes (docs/gif_ideas.md).
+  const beforeDeparture = !run && view === "walk" && Boolean(selectedWalk);
+  const firstStopFoxRef = useRef<HTMLSpanElement>(null);
+  const firstStopFoxInView = useInView(firstStopFoxRef, beforeDeparture, selectedWalkId ?? "");
   const celebrationRun = game.runs.find(item => item.id === celebrationRunId);
   const collectedPlaces = new Set(game.runs.flatMap(item => item.stamps.map(stamp => stamp.placeId)));
   const collectedKey = [...collectedPlaces].sort().join(",");
@@ -831,16 +836,21 @@ export function KyotoMap({
             <h3 className="sheet-subtitle">{t("routesStops")}</h3>
             <ol className="stop-timeline">{selectedWalk.placeIds.map((id, index) => {
               const place = CURATED_PLACES.find((item) => item.id === id);
-              return place ? <li key={id}>
+              const firstStopFox = beforeDeparture && index === 0;
+              return place ? <li key={id} data-fox={firstStopFox || undefined}>
                 <span className="stop-number" aria-hidden="true">{index + 1}</span>
                 <button type="button" onClick={() => openPlace(place)} aria-label={t("mapOpenPlace", { name: place.name[locale] })}>
                   <strong>{place.name[locale]}</strong><small lang={other}>{place.name[other]}</small>
                   <span>{place.description[locale]}</span>
                 </button>
+                {firstStopFox && <span ref={firstStopFoxRef} className="stop-timeline-fox"><FoxAvatar state="walking" size={48} animated framed={false} /></span>}
               </li> : null;
             })}</ol>
             <div className="route-note"><strong>{t("routesAccessibility")}</strong><p>{selectedWalk.accessibilityNotes[locale]}</p></div>
-            <div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div>
+            <div className="route-note route-note--fox">
+              <FoxAvatar state="warning" size={40} animated={beforeDeparture && !firstStopFoxInView} framed={false} />
+              <div><strong>{t("routesResidentNote")}</strong><p>{selectedWalk.residentNotes[locale]}</p></div>
+            </div>
             <RouteDataCredit locale={locale} />
             <div className="sheet-sticky-actions">
               {run ? <Button onClick={() => { setSelectedWalkId(run.walkId); setSnap("peek"); }}>{t("gameResume")}</Button> : <>

@@ -24,6 +24,21 @@ import type { RouteFilter } from "@/lib/route-discovery";
 
 const CACHE_TIME_KEY = "kyoto-ai-lab.cachedAt.v1";
 const ETIQUETTE_KEY = "kyoto-ai-lab.etiquette.v1";
+// The newest seal the passport has already celebrated, so the reward fox hops once per new seal.
+const PASSPORT_SEAL_KEY = "kyoto-ai-lab.passportSeal.v1";
+
+/** The most recently stamped seal; stamps from older saves without a time count in run order. */
+function newestSeal(game: Game): { key: string; placeId: string } | null {
+  let newest: { key: string; placeId: string; at: number } | null = null;
+  for (const run of game.runs) for (const stamp of run.stamps) {
+    const at = stamp.at ?? 0;
+    if (!newest || at >= newest.at) newest = { key: `${run.id}:${stamp.placeId}`, placeId: stamp.placeId, at };
+  }
+  return newest && { key: newest.key, placeId: newest.placeId };
+}
+function readPassportSeal() {
+  try { return typeof window === "undefined" ? null : window.localStorage.getItem(PASSPORT_SEAL_KEY); } catch { return null; }
+}
 const subscribeBrowserLocale = () => () => {};
 const browserLocale = (): Locale => navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
 
@@ -75,6 +90,14 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onO
   onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void;
 }) {
   const [nickname, setNickname] = useState(profile.nickname);
+  const newest = newestSeal(game);
+  // Hop on the first passport visit after earning a new seal; later visits show the still sprite.
+  const [hop] = useState(() => newest !== null && readPassportSeal() !== newest.key);
+  const newestKey = newest?.key;
+  useEffect(() => {
+    if (!newestKey) return;
+    try { window.localStorage.setItem(PASSPORT_SEAL_KEY, newestKey); } catch { /* Storage blocked: the hop simply repeats. */ }
+  }, [newestKey]);
   const [savedMsg, setSavedMsg] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -90,11 +113,15 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onO
     <div className="figma-account-header"><h1>{t("navMe")}</h1><div><button type="button" aria-label={t("profileHeading")} onClick={() => setEditOpen(value => !value)}><Image src="/assets/figma/pencil-icon.svg" width={22} height={22} alt="" /></button><button type="button" aria-label={t("mapLookHeading")} onClick={() => setAdvancedOpen(value => !value)}><Image src="/assets/figma/settings-icon.svg" width={22} height={22} alt="" /></button></div></div>
     {/* Passport header (visuals.md Me2): one sentence of progress, not a KPI grid. */}
     <section className="passport" aria-label={t("passportLabel")}>
-      <FoxAvatar state="idle" size={88} />
+      <FoxAvatar state="idle" size={88} still={hop} />
       <div>
         <p className="passport-name">{profile.nickname || t("guestName")}</p>
         <p className="passport-line">{new Set(game.runs.flatMap(run => run.stamps.map(stamp => stamp.placeId))).size} {locale === "ja" ? "スタンプ" : "seals"} · {game.runs.filter(run => run.complete).length} {locale === "ja" ? "散歩" : "walks"} · {game.claims.filter(claim => claim.redeemedAt !== undefined).length} {locale === "ja" ? "利用済み" : "vouchers used"}</p>
       </div>
+      {newest && <div className="passport-newest">
+        <FoxAvatar state="reward" size={48} animated={hop} framed={false} />
+        <p><small>{t("passportNewestSeal")}</small><strong>{placeById(newest.placeId)?.name[locale] ?? newest.placeId}</strong></p>
+      </div>}
     </section>
     <section className="settings-section">
       <h2><Image src="/assets/figma/heart-icon.svg" width={20} height={20} alt="" />{t("savedHeading")}</h2>
@@ -339,6 +366,7 @@ export function PrototypeApp() {
     clearProfile();
     try {
       window.localStorage.removeItem(ETIQUETTE_KEY);
+      window.localStorage.removeItem(PASSPORT_SEAL_KEY);
       window.localStorage.removeItem(CACHE_TIME_KEY);
       if ("caches" in window) {
         const keys = await window.caches.keys();

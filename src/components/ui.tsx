@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
 import { animate, motion, useDragControls, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import Image from "next/image";
 import { ChevronRight, ChevronUp, X } from "lucide-react";
 import { assetPaths } from "@/config/assets";
 import type { CrowdLevel } from "@/data/sample-congestion";
@@ -136,10 +137,34 @@ export function SnapSheet({ snap, onSnap, header, children, labels }: {
 }
 
 export type FoxState = "idle" | "walking" | "arrived" | "reward" | "warning";
-/** Pixel sprites share a 64 px frame. The idle sheet holds three breathing frames. */
-export function FoxAvatar({ state = "idle", size = 44 }: { state?: FoxState; size?: number }) {
-  return <span className={`fox-avatar fox-avatar--${state}`} data-art={Boolean(assetPaths.mascot)} style={{ width: size, height: size }} aria-hidden="true">
-    {assetPaths.mascot ? <span className="fox-sprite" style={{ backgroundImage: `url(${assetPaths.mascot[state]})` }} /> :
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+/** True only on the client once the viewer is known not to prefer reduced motion; the server render stays still. */
+function useMotionAllowed() {
+  const reduced = useReducedMotion();
+  const allowed = useSyncExternalStore(subscribeReducedMotion, () => !window.matchMedia(REDUCED_MOTION_QUERY).matches, () => false);
+  return allowed && reduced !== true;
+}
+
+/**
+ * Pixel sprites share a 64 px frame. The idle sheet holds three breathing frames.
+ * `animated` swaps in the looping GIF (one moving fox per visible section); under reduced motion it stays the static PNG.
+ * `still` stops the CSS breathing, bob and pulse so a nearby animated fox is the only one moving.
+ * `framed={false}` drops the gold ring for inline placements in rows, notes and buttons.
+ */
+export function FoxAvatar({ state = "idle", size = 44, animated = false, still = false, framed = true }: {
+  state?: FoxState; size?: number; animated?: boolean; still?: boolean; framed?: boolean;
+}) {
+  const motionAllowed = useMotionAllowed();
+  const gif = animated && motionAllowed ? assetPaths.mascotAnimated?.[state] : undefined;
+  return <span className={`fox-avatar fox-avatar--${state}`} data-art={Boolean(assetPaths.mascot)} data-animated={Boolean(gif)}
+    data-still={still || (animated && !gif)} data-framed={framed} style={{ width: size, height: size }} aria-hidden="true">
+    {gif ? <Image className="fox-gif" src={gif} alt="" width={size} height={size} unoptimized draggable={false} /> :
+    assetPaths.mascot ? <span className="fox-sprite" style={{ backgroundImage: `url(${assetPaths.mascot[state]})` }} /> :
       <svg viewBox="0 0 44 44" fill="none" strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="22" cy="22" r="20" className="fox-ring" />
         <circle cx="22" cy="22" r="14.5" className="fox-face" />
@@ -148,6 +173,23 @@ export function FoxAvatar({ state = "idle", size = 44 }: { state?: FoxState; siz
             <circle cx="22" cy="22" r="5" className="fox-dot" />}
       </svg>}
   </span>;
+}
+
+/**
+ * Whether an element is on screen, for keeping one moving fox per visible section.
+ * Starts as in view so a lower-priority fox stays still until the observer reports. Change `watchKey`
+ * when the observed element is replaced (for example, a different walk) to re-attach the observer.
+ */
+export function useInView(ref: RefObject<Element | null>, active = true, watchKey = "") {
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    const element = ref.current;
+    if (!active || !element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref, active, watchKey]);
+  return active && inView;
 }
 
 /** One bead per stop: gold when stamped, ringed for the next stop. Shared by the walk HUD and the Missions hero. */

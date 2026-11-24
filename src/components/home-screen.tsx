@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { FoxAvatar } from "@/components/ui";
 import { balance, placeById, type Game } from "@/lib/game";
 import { translate, type Locale } from "@/lib/i18n";
 
@@ -14,7 +14,8 @@ export function HomeScreen({ game, locale, name, onExplore, onRewards }: {
   return <div className="figma-home">
     <header className="figma-home-heading">
       <h1>{translate(locale, "navHome")}</h1>
-      <Image src="/assets/figma/fox-waving.png" width={92} height={92} alt="" priority />
+      {/* The only moving fox on Home: the dock fox stays still. Reduced motion shows the static sprite. */}
+      <FoxAvatar state="idle" size={64} animated framed={false} />
     </header>
     <p className="figma-home-hello">{locale === "ja" ? `こんにちは、${name || "ゲスト"}` : `Hi, ${name || "Guest"}`}</p>
     <p className="figma-home-subtitle">{locale === "ja" ? "また京都を歩く準備はできましたか？" : "Ready for another Kyoto walk?"}</p>

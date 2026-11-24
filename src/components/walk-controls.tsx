@@ -128,7 +128,8 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
     </motion.p>}
     {storyPlace && <StoryDialog placeId={storyPlace} locale={locale} onClose={() => setStoryPlace(null)} />}
     <div className="follow-head">
-      <FoxAvatar state={celebrating ? "reward" : eligible ? "arrived" : moving ? "walking" : "idle"} size={40} />
+      {/* While the check-in button's fox bows, the header fox holds still: one moving fox per section. */}
+      <FoxAvatar state={celebrating ? "reward" : eligible ? "arrived" : moving ? "walking" : "idle"} size={40} still={eligible && !celebrating} />
       <div>
         <div className="follow-step">
           <small className="follow-progress">{t("followStop", { current: String(step + 1), total: String(walk.placeIds.length) })}{remaining !== null && ` · ${t("followRemaining", { meters: String(remaining) })}`}</small>
@@ -155,7 +156,7 @@ export function WalkControls({ game, run, location, locale, onPosition, onComple
         if (!awarded) return;
         haptic();
         if (step + 1 === walk.placeIds.length) onComplete();
-      }}>{t(demo ? "gameSimulate" : "gameCheck")}</Button>
+      }}>{eligible && <FoxAvatar state="arrived" size={32} animated framed={false} />}{t(demo ? "gameSimulate" : "gameCheck")}</Button>
     </div>
     {showItinerary && <div className="follow-itinerary" role="region" aria-label={t("walkItineraryTitle")}>
       <ol>{walk.placeIds.map((id, index) => {

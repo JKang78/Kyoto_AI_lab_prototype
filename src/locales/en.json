@@ -257,6 +257,7 @@
   "guestName": "Guest",
   "passportLabel": "Your stamp passport",
   "passportLine": "Seals {seals} · Walks {walks} · Vouchers used {used}",
+  "passportNewestSeal": "Newest seal",
   "photoAlt": "Photo of {place}",
   "photoCredit": "Photo: {author}",
   "photoSource": "Wikimedia Commons",

@@ -163,6 +163,10 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
   .fox-avatar--walking { animation: fox-bob .9s cubic-bezier(.3, 1.4, .5, 1) infinite alternate; }
   .fox-avatar--arrived { animation: fox-pulse 1.4s ease-out infinite; }
 }
+/* Animated GIFs replace the sprite sheet: show the whole 64 px frame and stop the CSS motion so it doesn't crop or double-bounce. */
+.fox-gif { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; pointer-events: none; user-select: none; }
+.fox-avatar[data-animated="true"], .fox-avatar[data-still="true"], .fox-avatar[data-still="true"] .fox-sprite { animation: none; }
+.fox-avatar[data-framed="false"] { overflow: visible; border: 0; border-radius: 0; background: none; box-shadow: none; }
 @keyframes fox-breathe {
   0%, 90%, 100% { background-position-x: 0%; }
   25%, 70% { background-position-x: 50%; }
@@ -232,7 +236,11 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .stop-timeline strong { font-size: 14px; }
 .stop-timeline small { color: var(--ink-muted); font-size: 12px; }
 .stop-timeline span:not(.stop-number) { color: var(--ink-slate); font-size: 12px; line-height: 1.45; }
+.stop-timeline li[data-fox] { grid-template-columns: 30px 1fr auto; }
+.stop-timeline-fox { align-self: start; display: grid; }
 .route-note { padding: 10px 12px; border-radius: 12px; background: var(--bg-stone); }
+.route-note--fox { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; }
+.route-note--fox p { margin-top: 4px; }
 .route-note strong { font-size: 12px; }
 .route-note p { margin: 4px 0 0; color: var(--ink-slate); font-size: 12px; line-height: 1.5; }
 .route-empty { display: grid; gap: 10px; padding: 14px; border-radius: var(--radius); background: var(--bg-stone); }
@@ -254,6 +262,9 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .follow-check { flex: 1; min-width: 140px; }
 .follow-check:disabled .ui-button-face { background: var(--bg-stone); color: var(--ink-muted); box-shadow: 0 3px 0 rgb(28 25 23 / 12%); }
 .follow-check[data-ready="true"] .ui-button-face { border: 2px solid var(--antique-gold); }
+/* The bowing fox sits beside the label without adding height or an extra line at 360 px. */
+.follow-check[data-ready="true"] .ui-button-face { padding-inline: 8px; gap: 4px; }
+.follow-check .fox-avatar { margin: -6px 0 -6px -6px; }
 @media (prefers-reduced-motion: no-preference) { .follow-check[data-ready="true"] .ui-button-face { animation: fox-pulse 1.4s ease-out infinite; } }
 .follow-hint { color: var(--ink-muted); font-size: 12px; line-height: 1.4; }
 .stamp-receipt { margin: 0; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--bg-ivory); border: 1px solid var(--border-hairline); }
@@ -530,6 +541,11 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .passport > div { display: grid; gap: 4px; min-width: 0; }
 .passport-name { margin: 0; font: 700 22px/1.2 var(--font-title); overflow-wrap: anywhere; }
 .passport-line { margin: 0; color: var(--ink-slate); font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.passport:has(.passport-newest) { display: grid; grid-template-columns: auto 1fr; }
+.passport > .passport-newest { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-hairline); }
+.passport-newest p { margin: 0; display: grid; gap: 2px; min-width: 0; }
+.passport-newest small { color: var(--ink-muted); font-size: 12px; }
+.passport-newest strong { font-size: 15px; overflow-wrap: anywhere; }
 
 /* ---- docs/visuals.md P2 ---- */
 /* E9 place photos with credits */
@@ -1030,7 +1046,8 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 .figma-home p, .figma-home h1, .figma-home h2 { margin: 0; }
 .figma-home-heading { position: relative; display: flex; justify-content: space-between; align-items: start; min-height: 57px; }
 .figma-home-heading h1 { font: 400 31px/1.35 var(--font-title); }
-.figma-home-heading img { position: absolute; right: 2px; top: 49px; width: 73px; height: 73px; object-fit: contain; image-rendering: pixelated; }
+/* 64 px is the sprite's native size, so the pixels stay crisp; offsets keep the old 73 px box's centre. */
+.figma-home-heading .fox-avatar { position: absolute; right: 6px; top: 53px; }
 .figma-home-hello { font-size: 21px; line-height: 30px; }
 .figma-home-subtitle { max-width: 260px; min-height: 66px; color: #57534e; font-size: 17px; line-height: 23px; }
 .figma-home-points { display: grid; align-content: start; min-height: 190px; padding: 12px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }

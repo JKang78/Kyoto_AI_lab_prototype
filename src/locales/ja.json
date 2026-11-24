@@ -257,6 +257,7 @@
   "guestName": "ゲスト",
   "passportLabel": "スタンプパスポート",
   "passportLine": "印 {seals} · 散歩 {walks} · 使用済み {used}",
+  "passportNewestSeal": "最新のスタンプ",
   "photoAlt": "{place}の写真",
   "photoCredit": "写真：{author}",
   "photoSource": "ウィキメディア・コモンズ",
