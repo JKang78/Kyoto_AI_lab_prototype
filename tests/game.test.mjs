@@ -295,7 +295,7 @@ test('voucherProjection tracks remaining check-ins, bonus scenarios, shortfalls,
   assert.equal(pb.stopsNeeded, 2);
   assert.deepEqual(pb.segments.map(s => s.points), [20, 50]);
 
-  // Unlock matcha (60), then at 0 pts start a walk -> max 60 pts falls 30 pts short of 90-pt sento
+  // Unlock matcha (60), then at 0 pts start a walk -> max 60 pts falls 15 pts short of 75-pt tea latte
   let completed = afterOne;
   completed = stamp(completed, 'proj-1', stops[1]);
   completed = stamp(completed, 'proj-1', stops[2]);
@@ -304,17 +304,18 @@ test('voucherProjection tracks remaining check-ins, bonus scenarios, shortfalls,
   const secondWalk = start(unlockedMatcha, 'proj-2');
   const shortProj = voucherProjection(secondWalk);
   assert.equal(shortProj.status, 'short_after_walk');
-  assert.equal(shortProj.target?.id, 'sento');
-  assert.equal(shortProj.shortfall, 30);
+  assert.equal(shortProj.target?.id, 'tea-latte');
+  assert.equal(shortProj.shortfall, 15);
 
-  // Claim all 3 vouchers -> all_claimed
+  // Claim every demo voucher -> all_claimed
   let rich = unlockedMatcha;
-  for (let n = 3; n <= 6; n++) {
+  for (let n = 3; n <= 13; n++) {
     rich = start(rich, `proj-${n}`);
     for (const s of stops) rich = stamp(rich, `proj-${n}`, s);
   }
-  rich = transition(rich, { type: 'unlock', id: 'sento' });
-  rich = transition(rich, { type: 'unlock', id: 'postcards' });
+  for (const id of ['tea-latte', 'mochi', 'sento', 'stationery', 'craft', 'postcards']) {
+    rich = transition(rich, { type: 'unlock', id });
+  }
   assert.equal(voucherProjection(rich).status, 'all_claimed');
 });
 

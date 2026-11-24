@@ -1,18 +1,23 @@
 "use client";
 import { useState } from "react";
-import { Bath, Check, Coffee, Lock, Mail, Ticket } from "lucide-react";
+import Image from "next/image";
+import { Check, Ticket } from "lucide-react";
 import { COUPONS, type CouponCategory, type CouponDefinition } from "@/config/game";
 
-// Line illustrations for each voucher category (visuals.md R2). Generic objects, never merchant logos.
-const categoryIcons: Record<CouponCategory, typeof Coffee> = { cafe: Coffee, experience: Bath, shop: Mail };
+const categoryArtwork: Record<CouponCategory, string> = { cafe: "/assets/figma/coupon-coffee.svg", experience: "/assets/figma/coupon-bath.svg", shop: "/assets/figma/coupon-mail.svg" };
 import { balance, isCouponExpired, walkById, placeById, type Game } from "@/lib/game";
 import { act } from "@/lib/game-store";
 import { bonusNameKey, formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { RedeemSheet } from "./redeem-sheet";
 import { Button, EmptyState, FoxAvatar, haptic, ICON_STROKE, Segmented } from "./ui";
-import { CheckpointVoucherTrack } from "./voucher-progress";
 
 type Filter = "available" | "mine" | "used";
+type CategoryFilter = "all" | CouponCategory;
+const catalogOrder = ["matcha", "sento", "postcards", "tea-latte", "mochi", "craft", "stationery"];
+const catalogPosition = (id: string) => {
+  const index = catalogOrder.indexOf(id);
+  return index < 0 ? catalogOrder.length : index;
+};
 type LogEntry = { key: string; at?: number; points: number; title: string; detail: string };
 
 function activity(game: Game, locale: Locale, t: (key: MessageKey, values?: Record<string, string>) => string): LogEntry[] {
@@ -37,58 +42,38 @@ function activity(game: Game, locale: Locale, t: (key: MessageKey, values?: Reco
 
 function TicketCard({ coupon, game, locale, points, now, onRedeem }: { coupon: CouponDefinition; game: Game; locale: Locale; points: number; now: number; onRedeem: () => void }) {
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
+  const [expanded, setExpanded] = useState(false);
   const claim = game.claims.find(c => c.id === coupon.id);
   const expired = isCouponExpired(coupon, now);
   const other = locale === "en" ? "ja" : "en";
   const state = claim ? claim.redeemedAt !== undefined ? "redeemed" : expired ? "expired" : "unlocked" : expired ? "expired" : "locked";
-  return <article className="ticket-card" data-state={state}>
-    <div className="ticket-main">
+  const merchant = coupon.merchant[locale].replace(/\s*\(fictional\)|（架空）/g, "");
+  return <article className="ticket-card coupon-ticket" data-state={state} data-expanded={expanded}>
+    <button type="button" className="coupon-summary" aria-expanded={expanded} aria-controls={`coupon-details-${coupon.id}`} onClick={() => setExpanded(value => !value)}>
+      <span className="coupon-summary-main"><span className="coupon-merchant">{merchant}</span><span className="coupon-offer">{coupon.offer[locale]}</span></span>
+      <span className="coupon-summary-stub">
+        <Image className="coupon-perforation" src="/assets/figma/coupon-perforation.svg" width={2} height={112} alt="" />
+        <span className="ticket-art" aria-hidden="true"><Image src={coupon.id === "craft" ? "/assets/figma/coupon-craft-brush.svg" : coupon.id === "mochi" ? "/assets/figma/coupon-mail.svg" : categoryArtwork[coupon.category]} width={22} height={22} alt="" /></span>
+        <span className="ticket-cost">{claim ? "" : locale === "ja" ? "必要 " : "Cost "}{coupon.cost} pts</span>
+        {claim?.redeemedAt !== undefined && <span className="coupon-spent">{locale === "ja" ? "使用済み" : "Spent"}</span>}
+      </span>
+    </button>
+    {expanded && <div className="coupon-details" id={`coupon-details-${coupon.id}`}>
       <p className="demo-badge">{t("demoNotRedeemable")}</p>
-      <p className="ticket-merchant">{coupon.merchant[locale]}<small lang={other}>{coupon.merchant[other]}</small></p>
-      <h3>{coupon.offer[locale]}</h3>
       <p className="ticket-offer-alt" lang={other}>{coupon.offer[other]}</p>
       <p className="ticket-terms">{coupon.terms[locale]} · {coupon.hours[locale]}</p>
       <p className="ticket-expiry" data-expired={expired}>{expired ? t("voucherExpired") : t("voucherValidUntil", { date: formatKyotoDateTime(locale, coupon.expiresAt) })}</p>
-    </div>
-    <div className="ticket-stub">
-      {(() => { const Icon = categoryIcons[coupon.category]; return <span className="ticket-art" aria-hidden="true"><Icon size={22} strokeWidth={ICON_STROKE} /></span>; })()}
-      {!claim && <>
-        <span className="ticket-cost">{t("pointsValue", { points: String(coupon.cost) })}</span>
-        {expired
-          ? <small className="ticket-shortfall" data-coupon-state="expired">{t("voucherExpired")}</small>
-          : points >= coupon.cost
-            ? <Button onClick={() => { void act({ type: "unlock", id: coupon.id }); haptic(); }}>{t("rewardsUnlock")}</Button>
-            : <small className="ticket-shortfall" data-coupon-state="locked">{t("rewardsNeed", { points: String(coupon.cost - points) })}</small>}
-      </>}
+      {!claim && (expired
+        ? <small className="ticket-shortfall" data-coupon-state="expired">{t("voucherExpired")}</small>
+        : points >= coupon.cost
+          ? <Button onClick={() => { void act({ type: "unlock", id: coupon.id }); haptic(); }}>{t("rewardsUnlock")}</Button>
+          : <small className="ticket-shortfall" data-coupon-state="locked">{t("rewardsNeed", { points: String(coupon.cost - points) })}</small>)}
       {claim && claim.redeemedAt === undefined && (expired
         ? <small className="ticket-shortfall" data-coupon-state="expired">{t("voucherExpired")}</small>
         : <Button onClick={onRedeem}><Ticket size={17} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("rewardsRedeem")}</Button>)}
       {claim?.redeemedAt !== undefined && <span className="ticket-redeemed" data-coupon-state="redeemed"><Check size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("rewardsUsedOn", { date: formatKyotoDateTime(locale, claim.redeemedAt) })}</span>}
-    </div>
+    </div>}
   </article>;
-}
-
-/** Points along a track with a ticket at each voucher price and the fox at the current total (visuals.md R1). */
-function VoucherTrack({ game, points, locale }: { game: Game; points: number; locale: Locale }) {
-  const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
-  const sorted = [...COUPONS].sort((a, b) => a.cost - b.cost);
-  const max = sorted.at(-1)?.cost ?? 1;
-  const at = (value: number) => `${Math.min(1, Math.max(0, value / max)) * 100}%`;
-  return <div className="voucher-track" role="group" aria-label={t("rewardsTrackLabel")}>
-    <div className="voucher-track-line" aria-hidden="true"><span style={{ width: at(points) }} /></div>
-    <span className="voucher-track-fox" style={{ left: at(points) }} aria-label={t("rewardsTrackYou", { points: String(points) })} role="img">
-      <FoxAvatar state="idle" size={30} />
-    </span>
-    {sorted.map(coupon => {
-      const state = game.claims.some(claim => claim.id === coupon.id) ? "done" : points >= coupon.cost ? "ready" : "locked";
-      const Icon = state === "done" ? Check : state === "ready" ? Ticket : Lock;
-      return <span key={coupon.id} className="voucher-track-stop" data-state={state} style={{ left: at(coupon.cost) }}
-        role="img" aria-label={`${coupon.offer[locale]} · ${t("pointsValue", { points: String(coupon.cost) })}`}>
-        <span className="voucher-track-marker"><Icon size={14} strokeWidth={ICON_STROKE + 0.5} aria-hidden="true" /></span>
-        <small>{coupon.cost}</small>
-      </span>;
-    })}
-  </div>;
 }
 
 export function Rewards({ game, locale }: { game: Game; locale: Locale }) {
@@ -98,36 +83,51 @@ export function Rewards({ game, locale }: { game: Game; locale: Locale }) {
   const mine = COUPONS.filter(coupon => { const claim = claimOf(coupon); return claim && claim.redeemedAt === undefined; });
   const used = COUPONS.filter(coupon => claimOf(coupon)?.redeemedAt !== undefined);
   const [filter, setFilter] = useState<Filter>("available");
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [category, setCategory] = useState<CategoryFilter>("all");
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
-  const shown = filter === "available" ? COUPONS.filter(coupon => !claimOf(coupon)) : filter === "mine" ? mine : used;
+  const shown = (filter === "available" ? COUPONS.filter(coupon => !claimOf(coupon)) : filter === "mine" ? mine : used)
+    .filter(coupon => category === "all" || filter !== "available" || coupon.category === category)
+    .sort((a, b) => catalogPosition(a.id) - catalogPosition(b.id));
   const log = activity(game, locale, t);
+  const nextCost = COUPONS.filter(coupon => !claimOf(coupon)).reduce((cost, coupon) => Math.min(cost, coupon.cost), Infinity);
+  const pointsNeeded = Number.isFinite(nextCost) ? Math.max(0, nextCost - points) : 0;
   const redeemCoupon = COUPONS.find(coupon => coupon.id === redeeming);
   const redeemClaim = game.claims.find(claim => claim.id === redeeming);
-  return <div className="content-screen">
-    <h1>{t("navRewards")}</h1>
-    <section className="rewards-summary">
-      <p className="rewards-points">{t("pointsValue", { points: String(points) })}</p>
-      <CheckpointVoucherTrack game={game} locale={locale} />
-      <VoucherTrack game={game} points={points} locale={locale} />
-    </section>
-    <p className="demo-strip"><strong>{t("demoNotRedeemable")}</strong> · {t("rewardsDisclosure")}</p>
+  return <div className={`content-screen figma-rewards${catalogOpen ? " figma-rewards-catalog" : ""}`}>
+    {catalogOpen ? <>
+    <button className="figma-back" type="button" onClick={() => setCatalogOpen(false)}>{locale === "ja" ? "特典に戻る" : "Back to Rewards"}</button>
+    <div className="figma-title-fox"><h1>{locale === "ja" ? "すべての特典" : "All rewards"}</h1><Image src="/assets/figma/fox-waving.png" width={52} height={52} alt="" /></div>
+    <p className="figma-catalog-intro">{locale === "ja" ? "ポイントを使って特典を受け取れます。" : "Spend points to redeem a voucher."}</p>
     <Segmented label={t("rewardsFilterLabel")} value={filter} onChange={setFilter} options={[
       { id: "available", label: t("rewardsAvailable") },
       { id: "mine", label: t("rewardsMine", { count: String(mine.length) }) },
       { id: "used", label: t("rewardsUsed") },
     ]} />
-    <div className="ticket-list">
+    {filter === "available" && <div className="figma-reward-categories" role="group" aria-label={locale === "ja" ? "カテゴリー" : "Categories"}>
+      {(["all", "cafe", "shop", "experience"] as const).map(id => <button key={id} type="button" aria-pressed={category === id} onClick={() => setCategory(id)}>{locale === "ja" ? ({ all: "すべて", cafe: "飲食", shop: "買い物", experience: "体験" } as const)[id] : ({ all: "All", cafe: "Food & drink", shop: "Shopping", experience: "Experiences" } as const)[id]}</button>)}
+    </div>}
+    {filter === "mine" && !shown.length ? <div className="figma-empty-vouchers">
+      <section><h2>{locale === "ja" ? "クーポンとは？" : "What is a voucher?"}</h2><p>{locale === "ja" ? "散歩でポイントを貯め、特典と交換しましょう。使うまでここに表示されます。" : "Earn points on walks, then spend them to redeem a reward. Your voucher appears here until you use it."}</p></section>
+      <section><h2>{locale === "ja" ? "クーポンはまだありません" : "No vouchers yet"}</h2><p>{pointsNeeded > 0 ? locale === "ja" ? `${points} ptsあります。次のクーポンまであと${pointsNeeded} pts。` : `You have ${points} pts. Earn ${pointsNeeded} more to redeem your first voucher.` : locale === "ja" ? `${points} ptsあります。好きな特典を選びましょう。` : `You have ${points} pts. Choose a reward to redeem.`}</p></section>
+      <button type="button" onClick={() => setFilter("available")}>{locale === "ja" ? "特典を見る" : "Browse rewards"}</button>
+    </div> : <div className="ticket-list">
       {shown.length ? shown.map(coupon => <TicketCard key={coupon.id} coupon={coupon} game={game} locale={locale} points={points} now={now} onRedeem={() => setRedeeming(coupon.id)} />)
-        : <EmptyState>{t(filter === "mine" ? "rewardsEmptyMine" : filter === "used" ? "rewardsEmptyUsed" : "rewardsEmptyAvailable")}</EmptyState>}
-    </div>
+        : <EmptyState>{t(filter === "used" ? "rewardsEmptyUsed" : "rewardsEmptyAvailable")}</EmptyState>}
+    </div>}
+    </> : <>
+    <h1>{t("navRewards")}</h1>
+    <section className="figma-rewards-balance"><span>{locale === "ja" ? "あなたのポイント" : "Your points"}</span><strong>{points} <small>pts</small></strong><p>{locale === "ja" ? "散歩してポイントを貯めましょう" : "Earn points on walks, then spend them on rewards."}</p></section>
+    <section className="figma-rewards-preview"><h2>{locale === "ja" ? "利用できる特典" : "Available rewards"}</h2><div>{COUPONS.slice(0, 3).map(coupon => <p key={coupon.id}><span>{coupon.offer[locale]}</span><span>{coupon.cost} pts</span></p>)}</div><button type="button" onClick={() => { setFilter("available"); setCatalogOpen(true); }}>{locale === "ja" ? "すべての特典を見る  ›" : "Browse all rewards  ›"}</button></section>
     <section className="activity-log" aria-labelledby="activity-title">
       <h2 id="activity-title">{t("rewardsActivity")}</h2>
       {log.length ? <ol>{log.map(entry => <li key={entry.key}>
-        <span><strong>{entry.title}</strong><small>{entry.detail}{entry.at !== undefined && ` · ${formatKyotoDateTime(locale, entry.at)}`}</small></span>
+        <FoxAvatar state="idle" size={40} /><span><strong>{entry.title}</strong><small>{entry.detail}{entry.at !== undefined && ` · ${formatKyotoDateTime(locale, entry.at)}`}</small></span>
         {entry.points !== 0 && <span className="log-points" data-sign={entry.points > 0 ? "plus" : "minus"}>{entry.points > 0 ? "+" : "−"}{Math.abs(entry.points)}</span>}
       </li>)}</ol> : <EmptyState>{t("rewardsNoActivity")}</EmptyState>}
     </section>
+    </>}
     {redeemCoupon && redeemClaim && <RedeemSheet coupon={redeemCoupon} claim={redeemClaim} locale={locale} onClose={() => setRedeeming(null)} />}
   </div>;
 }
