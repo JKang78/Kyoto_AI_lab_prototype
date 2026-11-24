@@ -1410,88 +1410,7 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
   font-size: 13px;
 }
 
-/* Variant A (?foxUi=modal) */
-.fox-guide-modal-lead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 10px 0 12px;
-}
-
-.fox-guide-modal-lead p {
-  margin: 0;
-  color: var(--ink-slate);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-/* Variant B (?foxUi=rpg, default): bottom-anchored cozy RPG dialogue box */
-.fox-guide-rpg {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  position: fixed;
-  left: 50%;
-  top: auto;
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: min(calc(100% - 24px), 460px);
-  max-width: calc(100vw - 24px);
-  max-height: calc(100dvh - 48px);
-  overflow: visible;
-}
-
-.fox-guide-rpg::backdrop {
-  background: rgb(28 25 23 / 22%);
-}
-
-.fox-guide-rpg-shell {
-  position: relative;
-  display: grid;
-  gap: 10px;
-  padding: 14px 16px 16px;
-  max-height: calc(100dvh - 72px);
-  overflow-y: auto;
-  border: 2px solid var(--kyoto-purple);
-  border-radius: 18px;
-  background: var(--bg-washi) var(--grain);
-  box-shadow: 0 14px 36px rgb(28 25 23 / 24%);
-}
-
-.fox-guide-rpg-portrait {
-  position: absolute;
-  top: -30px;
-  left: 14px;
-  width: 68px;
-  height: 68px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--bg-washi);
-  border: 2px solid var(--kyoto-purple);
-  box-shadow: 0 4px 14px rgb(28 25 23 / 18%);
-}
-
-.fox-guide-rpg-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-left: 74px;
-  min-height: 40px;
-}
-
-.fox-guide-rpg-header h2 {
-  margin: 0;
-  font-family: "DotGothic16", var(--font-title);
-  font-size: 20px;
-  line-height: 1.25;
-  color: var(--kyoto-purple);
-}
-
-/* Variant C (?foxUi=bubble): floating speech bubble anchored near fox */
+/* Floating speech bubble anchored near fox */
 .fox-guide-bubble-layer {
   position: absolute;
   inset: 0;
@@ -1566,17 +1485,9 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .fox-guide-rpg[open] .fox-guide-rpg-shell {
-    animation: fox-guide-rise 180ms ease-out;
-  }
   .fox-guide-bubble {
     animation: fox-guide-pop 160ms ease-out;
   }
-}
-
-@keyframes fox-guide-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
 }
 
 @keyframes fox-guide-pop {

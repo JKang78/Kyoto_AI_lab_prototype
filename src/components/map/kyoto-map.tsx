@@ -8,7 +8,7 @@ import { COUPONS, GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
 import { activeBonus, activeRun, balance, circlePolygon, liveEligible, placeById, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
 import { Celebration } from "@/components/celebration";
-import { FoxGuideDialog, readFoxUiVariant } from "@/components/fox-guide-dialog";
+import { FoxGuideDialog } from "@/components/fox-guide-dialog";
 import { HelpSheet } from "@/components/help-sheet";
 import { resolveFoxContext } from "@/lib/fox-context";
 import { PREVIEW_CONTROLS } from "@/config/environment";
@@ -339,7 +339,7 @@ export function KyotoMap({
     foxActionRef.current = () => {
       haptic();
       syncFoxAnchor();
-      if (readFoxUiVariant() === "bubble" && mapRef.current) {
+      if (mapRef.current) {
         mapRef.current.easeTo({
           center: getFoxCoordinates(),
           offset: [0, 80],

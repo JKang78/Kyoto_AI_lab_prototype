@@ -9,8 +9,8 @@ import {
 import type { FoxLocationSource } from "@/lib/fox-context";
 
 const MAX_QUESTION_LENGTH = 160;
-const GEMINI_TIMEOUT_MS = 8000;
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_TIMEOUT_MS = 10000;
+const DEFAULT_GEMINI_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash"] as const;
 
 const FORBIDDEN_COORDINATE_KEYS = [
   "lat",
@@ -142,69 +142,72 @@ export async function POST(request: Request) {
 
   const packet = buildFoxGroundingPacket({ placeId, walkId, locale });
   const systemPrompt = buildFoxSystemPrompt(packet, locale);
-  const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const envModel = process.env.GEMINI_MODEL?.trim();
+  const models = envModel ? [envModel] : [...DEFAULT_GEMINI_MODELS];
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+  const payload = JSON.stringify({
+    systemInstruction: {
+      parts: [{ text: systemPrompt }],
+    },
+    contents: [
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }],
+        role: "user",
+        parts: [
+          {
+            text: JSON.stringify({
+              locale,
+              questionId: questionId ?? null,
+              question,
+            }),
           },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: JSON.stringify({
-                    locale,
-                    questionId: questionId ?? null,
-                    question,
-                  }),
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: RESPONSE_SCHEMA,
-          },
-        }),
+        ],
       },
-    );
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+    },
+  });
 
-    if (!response.ok) {
-      return NextResponse.json(fallback());
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+          body: payload,
+        },
+      );
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = (await response.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      };
+
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) continue;
+
+      const modelJson: unknown = JSON.parse(text);
+      const validated = validateFoxAnswer(modelJson, packet);
+      if (validated) {
+        return NextResponse.json(validated);
+      }
+    } catch {
+      continue;
     }
-
-    const data = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
-    };
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      return NextResponse.json(fallback());
-    }
-
-    const modelJson: unknown = JSON.parse(text);
-    const validated = validateFoxAnswer(modelJson, packet);
-    if (!validated) {
-      return NextResponse.json(fallback());
-    }
-
-    return NextResponse.json(validated);
-  } catch {
-    return NextResponse.json(fallback());
   }
+
+  return NextResponse.json(fallback());
 }
