@@ -104,6 +104,15 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 /* Floating frosted dock */
 .dock { position: fixed; z-index: 30; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(100% - 20px, 496px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px; border: 1px solid var(--border-hairline); border-radius: 22px; background: rgb(250 248 244 / 92%); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--shadow-float); }
 .dock-item { position: relative; min-width: 44px; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 2px; border-radius: 16px; color: var(--ink-muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.dock-item:active { background-color: var(--kyoto-purple-soft); opacity: .8; }
+@media (prefers-reduced-motion: no-preference) {
+  .app-main { animation: tab-enter 180ms ease-out; }
+  .dock-item:active { transform: scale(.96); }
+}
+@keyframes tab-enter {
+  from { opacity: .88; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
 .dock-item[aria-current="page"] { color: var(--kyoto-purple); background: var(--kyoto-purple-soft); }
 
 /* Explore: full-height map with floating chrome */
@@ -942,46 +951,75 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .safety-links a { min-height: 44px; display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid var(--border-hairline); border-radius: 12px; background: var(--bg-ivory); font-size: 13px; font-weight: 700; }
 .report-form { display: grid; gap: 8px; }
 
-/* Temporary local comparison using the fonts served by macadam.app/en. */
-@font-face {
-  font-family: "Macadam Satoshi";
-  src: url("/fonts/macadam-preview/satoshi.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 300 900;
-  font-display: swap;
+/* Temporary local typography comparison (?font=rpg-pixel | ?font=pixel-numbers). */
+html[data-font-preview] .home-hero-number strong,
+html[data-font-preview] .home-status-copy,
+html[data-font-preview] .settings-section h2,
+html[data-font-preview] .sheet-subtitle,
+html[data-font-preview] .walk-list-item h4,
+html[data-font-preview] .redeem-code {
+  font-family: var(--font-title);
 }
-@font-face {
-  font-family: "Macadam Yalla";
-  src: url("/fonts/macadam-preview/yalla.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
+html[data-font-preview] .kyoto-map .maplibregl-map {
+  font-family: var(--font-body);
 }
-html[data-font-preview="macadam"] {
-  --font-ui: "Macadam Satoshi";
-  --font-display: "Macadam Yalla";
-  --font-body: var(--font-ui), var(--font-ui-ja), "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  --font-title: var(--font-display), var(--font-ui-ja), sans-serif;
+
+/* 1. Cozy Kyoto RPG: DotGothic16 (EN+JA pixel headings & hero) + Zen Maru Gothic (UI/body) */
+html[data-font-preview="rpg-pixel"] {
+  --font-ui: "Zen Maru Gothic";
+  --font-display: "DotGothic16";
+  --font-body: var(--font-ui), var(--font-ui-ja), "Hiragino Kaku Gothic ProN", sans-serif;
+  --font-title: var(--font-display), var(--font-ui-ja), monospace;
   font-synthesis-weight: none;
 }
-html[data-font-preview="macadam"]:lang(ja),
-html[data-font-preview="macadam"] :lang(ja) {
-  --font-body: var(--font-ui-ja), var(--font-ui), "Hiragino Kaku Gothic ProN", sans-serif;
-  --font-title: var(--font-ui-ja), var(--font-display), sans-serif;
+html[data-font-preview="rpg-pixel"]:lang(ja),
+html[data-font-preview="rpg-pixel"] :lang(ja) {
+  --font-body: var(--font-ui), var(--font-ui-ja), sans-serif;
+  --font-title: var(--font-display), var(--font-ui-ja), monospace;
 }
-html[data-font-preview="macadam"] .home-hero-number strong,
-html[data-font-preview="macadam"] .home-status-copy,
-html[data-font-preview="macadam"] .settings-section h2,
-html[data-font-preview="macadam"] .sheet-subtitle,
-html[data-font-preview="macadam"] .walk-list-item h4,
-html[data-font-preview="macadam"] .redeem-code {
-  font-family: var(--font-title);
-  font-weight: 700;
+html[data-font-preview="rpg-pixel"] .home-hero-number strong,
+html[data-font-preview="rpg-pixel"] .home-status-copy {
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
-html[data-font-preview="macadam"] .home-hero-number strong,
-html[data-font-preview="macadam"] .home-status-copy {
-  letter-spacing: 0;
+
+/* 3. Pixel Numbers & Badges: Jersey 15 (numbers/badges) + Kaisei Decol (titles) + Zen Kaku Gothic New (UI/body) */
+html[data-font-preview="pixel-numbers"] {
+  --font-ui: "Zen Kaku Gothic New";
+  --font-display: "Kaisei Decol";
+  --font-pixel: "Jersey 15", "DotGothic16", monospace;
+  --font-body: var(--font-ui), var(--font-ui-ja), "Hiragino Kaku Gothic ProN", sans-serif;
+  --font-title: var(--font-display), "Hiragino Mincho ProN", serif;
 }
-html[data-font-preview="macadam"] .kyoto-map .maplibregl-map {
-  font-family: var(--font-body);
+html[data-font-preview="pixel-numbers"]:lang(ja),
+html[data-font-preview="pixel-numbers"] :lang(ja) {
+  --font-body: var(--font-ui), var(--font-ui-ja), sans-serif;
+  --font-title: var(--font-display), "Hiragino Mincho ProN", serif;
+}
+html[data-font-preview="pixel-numbers"] .home-hero-number strong,
+html[data-font-preview="pixel-numbers"] .home-points-pill-value,
+html[data-font-preview="pixel-numbers"] .home-status-badge,
+html[data-font-preview="pixel-numbers"] .home-track-badge,
+html[data-font-preview="pixel-numbers"] .home-track-label,
+html[data-font-preview="pixel-numbers"] .home-track-origin,
+html[data-font-preview="pixel-numbers"] .surge-rate strong,
+html[data-font-preview="pixel-numbers"] .rewards-points,
+html[data-font-preview="pixel-numbers"] .celebration-points strong,
+html[data-font-preview="pixel-numbers"] .map-place-pin-number,
+html[data-font-preview="pixel-numbers"] .stop-number,
+html[data-font-preview="pixel-numbers"] .follow-itinerary-index,
+html[data-font-preview="pixel-numbers"] .redeem-code,
+html[data-font-preview="pixel-numbers"] .ticket-cost,
+html[data-font-preview="pixel-numbers"] .log-points,
+html[data-font-preview="pixel-numbers"] .demo-badge,
+html[data-font-preview="pixel-numbers"] .reward-pill {
+  font-family: var(--font-pixel) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.03em;
+}
+html[data-font-preview="pixel-numbers"] .home-hero-number strong {
+  font-size: clamp(68px, 18vw, 88px);
+}
+html[data-font-preview="pixel-numbers"] .rewards-points {
+  font-size: 34px !important;
 }

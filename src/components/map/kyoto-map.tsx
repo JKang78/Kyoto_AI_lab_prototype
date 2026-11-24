@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { ArrowLeft, Map as MapIcon, Bike, CircleHelp, Heart, Layers, ListTree, Lock, Ticket, Users, X, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, Luggage, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, type LucideIcon } from "lucide-react";
@@ -12,7 +12,9 @@ import { HelpSheet } from "@/components/help-sheet";
 import { PREVIEW_CONTROLS } from "@/config/environment";
 import { applyPixelLook, clearPixelPatterns, pixelLookRequested } from "@/components/map/pixel-look";
 import { PlacePhoto, PlaceStory } from "@/components/place-media";
-import { glyphSvg, PlaceSeal, placeSealSvg, placeTheme } from "@/components/glyphs";
+import { glyphSvg, kyotoSeason, PlaceSeal, placeSealSvg, placeTheme } from "@/components/glyphs";
+import { applyMapPrefs, captureSymbolOriginals, type SymbolOriginal } from "@/lib/map-looks";
+import { getMapPrefsSnapshot, parseMapPrefs, subscribeMapPrefs } from "@/lib/map-prefs";
 import { act } from "@/lib/game-store";
 import { toggleSavedPlace, toggleSavedWalk, type SavedItems } from "@/lib/saved";
 import { Button, ConfirmDialog, CrowdBadge, FoxAvatar, haptic, ICON_STROKE, SnapSheet, StopBeads, type Snap } from "@/components/ui";
@@ -250,6 +252,10 @@ export function KyotoMap({
     location.mode === "demo" ? DEMO_POSITION : startPlace ? [...startPlace.location] : KYOTO_CENTER,
   );
   const standardPaintRef = useRef<Map<string, unknown>>(new Map());
+  const symbolOriginalsRef = useRef<Map<string, SymbolOriginal>>(new Map());
+  // Personal look preferences (Me screen). The stored string is stable, so this only re-renders on change.
+  const mapPrefsSnapshot = useSyncExternalStore(subscribeMapPrefs, getMapPrefsSnapshot, () => null);
+  const prefs = useMemo(() => parseMapPrefs(mapPrefsSnapshot), [mapPrefsSnapshot]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   // EXPERIMENT: `?look=pixel` in dev/preview builds only. Read once on the client; it doesn't change rendered markup.
   const [pixelLook] = useState(() => typeof window !== "undefined" && pixelLookRequested(window.location.search, PREVIEW_CONTROLS));
@@ -265,6 +271,7 @@ export function KyotoMap({
   const [view, setView] = useState<"routes" | "walk" | "place">(initialPlaceId ? "place" : selectedWalkId ? "walk" : "routes");
   const [mapAttempt, setMapAttempt] = useState(0);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(initialPlaceId);
+  const [buildingWalkId, setBuildingWalkId] = useState<string | null>(null);
   const [finishedWalkId, setFinishedWalkId] = useState<string | null>(null);
   const [celebrationRunId, setCelebrationRunId] = useState<string | null>(null);
   const [dismissedBubble, setDismissedBubble] = useState<string | null>(null);
@@ -389,6 +396,7 @@ export function KyotoMap({
           for (const [layer, property] of ILLUSTRATED_PAINTS) {
             if (map.getLayer(layer)) standardPaintRef.current.set(`${layer}:${property}`, map.getPaintProperty(layer, property));
           }
+          symbolOriginalsRef.current = captureSymbolOriginals(map);
           const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
           // Geographic 60 m fox proximity halo (docs/visuals.md): scales with zoom, hidden when no live/demo fix is active.
           map.addSource("fox-halo", { type: "geojson", data: emptyGeoJson });
@@ -500,13 +508,22 @@ export function KyotoMap({
     if (mapStyle === "illustrated") applyPixelLook(map);
     else clearPixelPatterns(map);
     // Zooming loads new tiles and can refresh the style; re-assert the pixel paints when that happens.
-    // EXPERIMENT debug hook: lets you inspect the live map from the browser console in `?look=pixel` mode.
-    (window as unknown as { __kyotoMap?: MapLibreMap }).__kyotoMap = map;
     const reassert = () => { if (mapStyle === "illustrated") applyPixelLook(map); };
     map.on("styledata", reassert);
     map.on("idle", reassert);
     return () => { map.off("styledata", reassert); map.off("idle", reassert); };
   }, [mapStyle, pixelLook, state]);
+
+  // Debug hook (preview and dev builds only): the live map, for inspecting paint and layout from the console.
+  useEffect(() => {
+    if (PREVIEW_CONTROLS && state === "ready") (window as unknown as { __kyotoMap?: MapLibreMap }).__kyotoMap = mapRef.current ?? undefined;
+  }, [state]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || state !== "ready") return;
+    applyMapPrefs(map, prefs, symbolOriginalsRef.current, { season: kyotoSeason(Date.now()), pixelLook, mapStyle });
+  }, [prefs, mapStyle, pixelLook, state]);
 
   useEffect(() => {
     if (!initialPlaceId || state !== "ready") return;
@@ -681,9 +698,16 @@ export function KyotoMap({
   }
 
   async function startWalk(demo: boolean, walk: CuratedWalk | null = selectedWalk) {
-    if (!walk) return;
+    if (!walk || buildingWalkId) return;
+    if (demo) {
+      setBuildingWalkId(walk.id);
+      await new Promise<void>(resolve => window.setTimeout(resolve, 600));
+      if (!mounted.current) return;
+    }
     const started = await act({ type: "start", id: crypto.randomUUID(), walkId: walk.id });
-    if (!started || !mounted.current) return;
+    if (!mounted.current) return;
+    if (demo) setBuildingWalkId(null);
+    if (!started) return;
     if (demo) exploreDemo(walk);
     else if (!liveTracking) requestLiveLocation();
     setFinishedWalkId(null);
@@ -792,8 +816,8 @@ export function KyotoMap({
         <div className="route-note"><strong>{t("routesResidentNote")}</strong><p>{walk.residentNotes[locale]}</p></div>
         <div className="walk-list-actions">
           {run ? <Button onClick={() => { setSelectedWalkId(run.walkId); setViewMode("map"); }}>{t("gameResume")}</Button> : <>
-            {PREVIEW_CONTROLS && <Button onClick={() => void startWalk(true, walk)}>{t("gameStartDemo")}</Button>}
-            <Button variant="secondary" onClick={() => void startWalk(false, walk)}>{t("gameStartLive")}</Button>
+            {PREVIEW_CONTROLS && <Button disabled={Boolean(buildingWalkId)} onClick={() => void startWalk(true, walk)}>{t(buildingWalkId === walk.id ? "gameBuildingDemo" : "gameStartDemo")}</Button>}
+            <Button disabled={Boolean(buildingWalkId)} variant="secondary" onClick={() => void startWalk(false, walk)}>{t("gameStartLive")}</Button>
           </>}
           <Button variant="secondary" onClick={() => { previewWalk(walk); setViewMode("map"); }}>{t("listShowOnMap")}</Button>
           <a className="handoff-link" href={googleMapsUrl(walk)} target="_blank" rel="noreferrer">{t("openGoogleMaps")}</a>
@@ -910,8 +934,8 @@ export function KyotoMap({
             <RouteDataCredit locale={locale} />
             <div className="sheet-sticky-actions">
               {run ? <Button onClick={() => { setSelectedWalkId(run.walkId); setSnap("peek"); }}>{t("gameResume")}</Button> : <>
-                {PREVIEW_CONTROLS && <Button disabled={state !== "ready"} onClick={() => void startWalk(true)}>{t("gameStartDemo")}</Button>}
-                <Button disabled={state !== "ready"} variant="secondary" onClick={() => void startWalk(false)}>{t("gameStartLive")}</Button>
+                {PREVIEW_CONTROLS && <Button disabled={state !== "ready" || Boolean(buildingWalkId)} onClick={() => void startWalk(true)}>{t(buildingWalkId && buildingWalkId === selectedWalkId ? "gameBuildingDemo" : "gameStartDemo")}</Button>}
+                <Button disabled={state !== "ready" || Boolean(buildingWalkId)} variant="secondary" onClick={() => void startWalk(false)}>{t("gameStartLive")}</Button>
               </>}
               <a className="handoff-link" href={googleMapsUrl(selectedWalk)} target="_blank" rel="noreferrer">{t("openGoogleMaps")}</a>
             </div>

@@ -17,6 +17,7 @@ import { CURATED_WALKS } from "@/data/kyoto-walks";
 import { formatKyotoDateTime, translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { INITIAL_LOCATION_STATE, locationModeText, locationStatusText, type LocationState } from "@/lib/location";
 import { clearProfile, getProfileSnapshot, readProfile, saveProfile, subscribeProfile, type Profile } from "@/lib/profile";
+import { getMapPrefsSnapshot, parseMapPrefs, saveMapPrefs, subscribeMapPrefs, type MapPrefs } from "@/lib/map-prefs";
 import { clearSaved, toggleSavedPlace, toggleSavedWalk, useSaved, type SavedItems } from "@/lib/saved";
 import type { RouteFilter } from "@/lib/route-discovery";
 
@@ -35,6 +36,22 @@ function Switch({ checked, onChange, children }: { checked: boolean; onChange: (
   return <button type="button" className="switch-row" role="switch" aria-checked={checked} onClick={() => { haptic(); onChange(!checked); }}>
     <span>{children}</span><span className="switch-track" aria-hidden="true"><span /></span>
   </button>;
+}
+
+/** Personal map look (src/lib/map-prefs.ts). Each switch is local to this browser and applies on the Explore map. */
+function MapLookSettings({ locale }: { locale: Locale }) {
+  const t = (key: MessageKey) => translate(locale, key);
+  const snapshot = useSyncExternalStore(subscribeMapPrefs, getMapPrefsSnapshot, () => null);
+  const prefs = parseMapPrefs(snapshot);
+  const set = (patch: Partial<MapPrefs>) => saveMapPrefs({ ...prefs, ...patch });
+  return <section className="settings-section">
+    <h2><Sparkles size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("mapLookHeading")}</h2>
+    <Switch checked={prefs.seasonalColours} onChange={(checked) => set({ seasonalColours: checked })}>{t("mapLookSeasonal")}</Switch>
+    <Switch checked={prefs.largerLabels} onChange={(checked) => set({ largerLabels: checked })}>{t("mapLookLargerLabels")}</Switch>
+    <Switch checked={prefs.landmarkLabelsOnly} onChange={(checked) => set({ landmarkLabelsOnly: checked })}>{t("mapLookLandmarks")}</Switch>
+    <Switch checked={prefs.flatMap} onChange={(checked) => set({ flatMap: checked })}>{t("mapLookFlat")}</Switch>
+    <p className="settings-hint">{t("mapLookHint")}</p>
+  </section>;
 }
 
 function Welcome({ locale, initialNickname = "", startPlaceId, onStartPlace, onLocale, onStart, onSkip }: {
@@ -155,6 +172,7 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onRevisitWelcome, onOpenW
       <Button type="button" variant="secondary" className="full-width" onClick={onRecenter}><LocateFixed size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("locationSettingsRecenter")}</Button>
       <p className="settings-hint">{t("locationSettingsHint")}</p>
     </section>
+    <MapLookSettings locale={locale} />
     {PREVIEW_CONTROLS && <section className="settings-section demo-controls">
       <h2><FlaskConical size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("demoControlsHeading")}</h2>
       <p className="form-label">{t("scenarioLabel")}</p>

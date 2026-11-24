@@ -1,8 +1,11 @@
-const CACHE_NAME = "kyoto-flow-shell-v1";
+const CACHE_NAME = "kyoto-flow-shell-v2";
 const SHELL_URLS = [
   "/",
   "/manifest.webmanifest",
-  "/icon.svg",
+  "/icon.png",
+  "/apple-icon.png",
+  "/icons/fox-reward-192.png",
+  "/icons/fox-reward-512.png",
   "/vendor/maplibre-gl-worker-6.19.0.mjs",
 ];
 
