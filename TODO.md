@@ -15,5 +15,16 @@
 - [x] 12. Route dotted lines are too vague & not noticeable. We want it to be more visible and to have the option to check out the route (e.g., Parks - 9 mins) to be accessible before we zoom in max. Maybe the route dotted lines should be bolder and tappable themselves, and once you tap them they lead to the route recommendation, much like what happens if we tap the "(e.g., Parks - 9 mins) " button
 - [ ] 13. In the rewards section. The activity log goes on forever. Limit it to like 6/7 and make a button that says see all activity. So it doesn’t go down forever
 - [ ] 14. Pixelated texts flicker, write quickly from beginning to end like typewriter. I don't know where though
+- [ ]On the map the its hard to see/press on the route compared to the stops. Make visibility better and more prettier
+- [ ] The search box doesnt work
+    Maybe make a feature when you start a route it highlights a way to the nearest stop to begin
+    Get rid of the number order of the stops in the routes
+    GPS mode when you begin walk it still shows the order “next stop” that you have to walk to 
+    When the GPS walk begins make sure it doesn’t lead the person to a different stop that is not nearest
+    Are The culture, riverside, parks etc icons on the top necessary? If we want to give the option for the user to look for specific routes like nature curated. We should try a different way
+
+
+
+
 
 - [ ] **iOS & Android real-device accessibility QA:** Finish EN/JA coverage for loading and install metadata; test the full map/list and check-in journey on physical iPhones and Android phones with screen readers, reduced motion, weak GPS (including heading + display smoothing), weak connectivity, and check touch targets for route labels and the receipt's *Read story* button ([docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)).

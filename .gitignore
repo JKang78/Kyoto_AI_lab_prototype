@@ -12,3 +12,5 @@ coverage/
 *.pem
 *.key
 .DS_Store
+.vercel
+.env*
