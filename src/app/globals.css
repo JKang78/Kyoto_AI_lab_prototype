@@ -1042,28 +1042,58 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 .dock-item { font-weight: 400; }
 .dock-item .fox-avatar { background: transparent; border: 0; }
 
-.figma-home { display: grid; align-content: start; padding: calc(42px + env(safe-area-inset-top)) 18px 26px; }
+.figma-home { display: grid; align-content: start; padding: calc(28px + env(safe-area-inset-top)) 18px 28px; }
 .figma-home p, .figma-home h1, .figma-home h2 { margin: 0; }
-.figma-home-hero { position: relative; height: 251px; text-align: center; }
-.figma-home-hello, .figma-home-subtitle, .figma-home-balance, .figma-home-earned { position: absolute; left: 0; width: 100%; }
-.figma-home-hello { top: 0; overflow: hidden; font: 400 24px/34px var(--font-title); text-overflow: ellipsis; white-space: nowrap; }
-.figma-home-subtitle { top: 36px; color: #57534e; font-size: 18px; line-height: 26px; }
-.figma-home-hero .fox-avatar { position: absolute; top: 69px; left: 50%; width: 106px; height: 106px; transform: translateX(-50%); image-rendering: pixelated; }
-.figma-home-balance { top: 178px; font-size: 38px; line-height: 51px; }
-.figma-home-earned { top: 230px; color: #57534e; font-size: 14px; line-height: 21px; }
-.figma-home-rewards { display: grid; align-content: start; height: 81px; margin-top: 16px; padding: 9px 15px 4px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-hero { display: grid; text-align: center; }
+.home-eyebrow { color: #782459; font-size: 11px; line-height: 17px; letter-spacing: .18em; }
+.figma-home-hello { margin-top: 3px !important; overflow-wrap: anywhere; font: 400 24px/1.4 var(--font-title); }
+.figma-home-subtitle { margin-top: 1px !important; color: #57534e; font-size: 15px; line-height: 23px; }
+.home-game-world { position: relative; height: 156px; margin-top: 13px; overflow: hidden; border: 2px solid #8eb584; border-radius: 15px 15px 4px 4px; background: linear-gradient(#dff2ec 0 62%, #b8d797 62% 77%, #7db66a 77%); image-rendering: pixelated; }
+.home-game-world::before { content: ""; position: absolute; right: 0; bottom: 28px; left: 0; height: 8px; background: repeating-linear-gradient(90deg, #6da95d 0 12px, #82bb6b 12px 24px); }
+.home-game-world::after { content: ""; position: absolute; right: 0; bottom: 0; left: 0; height: 27px; border-top: 4px solid #5e9b57; background: repeating-linear-gradient(90deg, #6ea85a 0 16px, #79b364 16px 32px); }
+.home-world-cloud { position: absolute; top: 21px; width: 28px; height: 8px; background: #fff; box-shadow: -8px 8px #fff, 8px 8px #fff, 16px 0 #fff; opacity: .9; }
+.home-world-cloud--one { left: 18%; }
+.home-world-cloud--two { top: 35px; right: 16%; transform: scale(.75); }
+.home-tree, .home-grass, .home-flower { position: absolute; z-index: 2; image-rendering: pixelated; }
+.home-tree { bottom: 23px; width: 64px; height: 80px; }
+.home-tree--left { left: 16px; }
+.home-tree--right { right: 17px; transform: scale(.86); transform-origin: bottom right; }
+.home-grass { bottom: 22px; width: 28px; height: 20px; }
+.home-grass--one { left: 88px; }
+.home-grass--two { right: 92px; }
+.home-grass--three { right: 7px; }
+.home-flower { right: 66px; bottom: 24px; }
+.home-game-world .fox-avatar { position: absolute; z-index: 3; bottom: 20px; left: 50%; transform: translateX(-50%); image-rendering: pixelated; }
+.home-world-path { position: absolute; z-index: 1; bottom: 0; left: 50%; width: 92px; height: 31px; transform: translateX(-50%); background: #d5bc8a; clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%); }
+.home-points-panel { position: relative; z-index: 4; display: grid; justify-items: center; margin: -2px 11px 0; padding: 10px 12px 12px; border: 2px solid #5e244b; border-radius: 0 0 14px 14px; background: #782459; color: #fff; box-shadow: 0 4px 0 #d6c4ce; }
+.home-points-panel > span { color: #f1d9e7; font-size: 11px; line-height: 16px; letter-spacing: .14em; }
+.home-points-panel strong { font: 400 34px/43px var(--font-title); }
+.home-points-panel strong small { font-size: 19px; }
+.home-points-panel > small { color: #f1d9e7; font-size: 12px; line-height: 17px; }
+.figma-home-section { margin-top: 21px; }
+.figma-home-section h2 { margin-bottom: 9px; font-size: 19px; line-height: 27px; }
+.home-section-heading { display: flex; align-items: center; justify-content: space-between; }
+.home-section-heading > span { margin: 0 5px 7px 0; color: #d4a748; font-size: 20px; }
+.figma-home-walk-card { display: grid; gap: 7px; padding: 15px; border: 1px solid #d9d0bc; border-radius: 14px; background: #fffdf8; box-shadow: 0 3px 0 #e9e1cf; }
+.home-quest-topline { display: flex; justify-content: space-between; gap: 8px; color: #782459; font-size: 11px; line-height: 17px; letter-spacing: .08em; }
+.home-quest-topline span:last-child { color: #57534e; white-space: nowrap; letter-spacing: 0; }
+.figma-home-walk-card > strong { font-size: 18px; font-weight: 400; line-height: 25px; }
+.figma-home-walk-card > p { color: #57534e; font-size: 13px; line-height: 19px; }
+.home-quest-progress { height: 9px; overflow: hidden; border: 1px solid #d5c5aa; border-radius: 2px; background: #f0e8d8; }
+.home-quest-progress span { display: block; height: 100%; background: repeating-linear-gradient(90deg, #71ab59 0 10px, #5a974a 10px 12px); }
+.figma-home-walk-card > button { min-height: 38px; margin-top: 2px; border: 0; border-radius: 8px; background: #782459; color: #fff; font-size: 14px; }
+.home-progress-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.home-progress-links button { display: grid; justify-items: center; min-height: 65px; padding: 7px 3px; border: 1px solid #e4dccb; border-radius: 10px; background: #fff; color: #282321; }
+.home-progress-links strong { color: #782459; font: 400 21px/26px var(--font-title); }
+.home-progress-links span { font-size: 11px; line-height: 16px; text-align: center; }
+.figma-home-rewards { display: grid; gap: 8px; margin-top: 20px; padding: 13px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-rewards > div { display: flex; align-items: center; gap: 10px; }
+.figma-home-rewards img { flex: none; image-rendering: pixelated; }
 .figma-home-rewards h2 { font-size: 16px; line-height: 23px; }
-.figma-home-rewards p { color: #57534e; font-size: 13px; line-height: 19px; }
+.figma-home-rewards p { color: #57534e; font-size: 12px; line-height: 18px; }
 .figma-home-rewards button { justify-self: start; padding: 0; color: #782459; font-size: 13px; line-height: 19px; }
-.figma-home-section { margin-top: 15px; }
-.figma-home-section h2 { margin-bottom: 5px; font-size: 19px; line-height: 28px; }
-.figma-home-section + .figma-home-section h2 { margin-bottom: 6px; }
-.figma-home-walk-card { position: relative; height: 120px; padding: 13px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
-.figma-home-walk-card strong { display: block; font-size: 17px; font-weight: 400; line-height: 23px; }
-.figma-home-walk-card p { margin-top: 6px; color: #57534e; font-size: 13px; line-height: 18px; }
-.figma-home-walk-card button { position: absolute; right: 15px; bottom: 12px; left: 15px; height: 35px; border-radius: 9px; background: #782459; color: #fff; font-size: 15px; }
-.figma-home-activity { min-height: 118px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
-.figma-home-activity > div { display: flex; justify-content: space-between; gap: 8px; height: 58px; align-items: center; padding: 9px 15px; }
+.figma-home-activity { min-height: 64px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-activity > div { display: flex; justify-content: space-between; gap: 8px; min-height: 58px; align-items: center; padding: 9px 15px; }
 .figma-home-activity > div + div { border-top: 1px solid #e8e5e2; }
 .figma-home-activity > div > span { min-width: 0; display: grid; }
 .figma-home-activity > div > span > span { overflow: hidden; font-size: 15px; line-height: 21px; text-overflow: ellipsis; white-space: nowrap; }
@@ -1071,13 +1101,7 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 .figma-home-activity strong { flex: none; color: #782459; font-size: 14px; font-weight: 400; }
 .figma-home-activity > p { padding: 15px; color: #57534e; font-size: 13px; }
 .figma-home-activity-link { justify-self: start; min-height: 26px; margin-top: 4px; padding: 0; color: #782459; font-size: 13px; line-height: 20px; }
-html:lang(ja) .figma-home-hero { display: flex; height: auto; min-height: 251px; flex-direction: column; align-items: center; }
-html:lang(ja) .figma-home-hero > * { position: static; width: auto; transform: none; }
-html:lang(ja) .figma-home-hello { white-space: normal; }
-html:lang(ja) .figma-home-subtitle { margin-top: 2px; }
-html:lang(ja) .figma-home-hero .fox-avatar { margin-top: 7px; }
-html:lang(ja) .figma-home-balance { margin-top: 3px; }
-html:lang(ja) .figma-home-earned { margin-top: 1px; }
+@media (max-width: 350px) { .home-tree--left { left: 2px; } .home-tree--right { right: 2px; } .home-grass--one { left: 65px; } .home-grass--two { right: 63px; } }
 
 .figma-page-intro { margin: -4px 0 0; color: #57534e; font-size: 14px; line-height: 1.55; }
 .figma-missions { gap: 17px; }
