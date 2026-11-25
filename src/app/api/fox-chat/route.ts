@@ -4,13 +4,26 @@ import { buildOfflineFoxAnswer } from "@/lib/fox-fallback";
 import {
   buildFoxGroundingPacket,
   buildFoxSystemPrompt,
-  validateFoxAnswer,
+  checkFoxAnswer,
 } from "@/lib/fox-grounding";
+import { clientKey, createRateLimiter } from "@/lib/rate-limit";
 import type { FoxLocationSource } from "@/lib/fox-context";
 
 const MAX_QUESTION_LENGTH = 160;
 const GEMINI_TIMEOUT_MS = 10000;
 const DEFAULT_GEMINI_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash"] as const;
+// Ten questions a minute per client is ample for the Q&A card and stops a loop from running up model costs.
+const limiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
+// Block harmful content in both directions on top of the prompt's own refusals.
+const SAFETY_SETTINGS = ["HARASSMENT", "HATE_SPEECH", "SEXUALLY_EXPLICIT", "DANGEROUS_CONTENT"].map((category) => ({
+  category: `HARM_CATEGORY_${category}`,
+  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+}));
+
+/** Server log for a skipped model answer. Never includes the question, answer text, location, or client address. */
+function logRejected(model: string, reason: string) {
+  console.warn(JSON.stringify({ event: "fox_chat_model_rejected", model, reason }));
+}
 
 const FORBIDDEN_COORDINATE_KEYS = [
   "lat",
@@ -119,6 +132,12 @@ function parseRequestBody(raw: unknown): ValidatedRequest | null {
 }
 
 export async function POST(request: Request) {
+  const rate = limiter.take(clientKey(request.headers));
+  if (!rate.allowed) {
+    // The client shows its offline answer for any non-OK response.
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
+  }
+
   let rawBody: unknown;
   try {
     rawBody = await request.json();
@@ -135,10 +154,10 @@ export async function POST(request: Request) {
   const fallback = () =>
     buildOfflineFoxAnswer({ question, questionId, locale, placeId, walkId });
 
+  // X-Fox-Source names the model that answered, or "offline", for debugging without logging content.
+  const offline = () => NextResponse.json(fallback(), { headers: { "X-Fox-Source": "offline" } });
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) {
-    return NextResponse.json(fallback());
-  }
+  if (!apiKey) return offline();
 
   const packet = buildFoxGroundingPacket({ placeId, walkId, locale });
   const systemPrompt = buildFoxSystemPrompt(packet, locale);
@@ -167,6 +186,7 @@ export async function POST(request: Request) {
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
     },
+    safetySettings: SAFETY_SETTINGS,
   });
 
   for (const model of models) {
@@ -185,29 +205,37 @@ export async function POST(request: Request) {
       );
 
       if (!response.ok) {
+        logRejected(model, `http_${response.status}`);
         continue;
       }
 
       const data = (await response.json()) as {
+        promptFeedback?: { blockReason?: string };
         candidates?: Array<{
+          finishReason?: string;
           content?: {
             parts?: Array<{ text?: string }>;
           };
         }>;
       };
 
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) continue;
-
-      const modelJson: unknown = JSON.parse(text);
-      const validated = validateFoxAnswer(modelJson, packet);
-      if (validated) {
-        return NextResponse.json(validated);
+      const candidate = data.candidates?.[0];
+      const text = candidate?.content?.parts?.[0]?.text;
+      if (!text) {
+        logRejected(model, data.promptFeedback?.blockReason ? `blocked_${data.promptFeedback.blockReason}` : `empty_${candidate?.finishReason ?? "none"}`);
+        continue;
       }
-    } catch {
+
+      const checked = checkFoxAnswer(JSON.parse(text) as unknown, packet);
+      if (checked.ok) {
+        return NextResponse.json(checked.answer, { headers: { "X-Fox-Source": model } });
+      }
+      logRejected(model, checked.reason);
+    } catch (error) {
+      logRejected(model, (error as { name?: string })?.name === "TimeoutError" ? "timeout" : "error");
       continue;
     }
   }
 
-  return NextResponse.json(fallback());
+  return offline();
 }

@@ -1,18 +1,18 @@
 # Kyoto Flow — Remaining TODOs
 
 ## 1. Next Up
+- [ ] 1. scrolling through filters in explore doesn't work for some IOS
+- [ ] 2. combine a few filters on explore
+- [x] 3. map: get rid of +/-, bc mobile users will do pinch to zoom
+- [x] 4. screen ratio breaks off when looking through app with some phones? check with audit
+- [x] 5. add in app version at bottom of Me tab
+- [x] 6. in explore screen, it doesn't show the fox mascot centered, and after pressing "recenter" it still doesn't focus on the fox as the center
+- [ ] 7. switch tab order between home & missions, have landing screen be home like it is right now. Have a bit of a protruding shape on top of home, so it has a barely noticeable triangular edge. 
+- [x] 8. on explore, it has black block that has (x / 60 pts) & progress bar. What about we get rid of that and just have it tell us how many total points we have
+- [x] 9. "Quiet-hour bonus ×2.0 Yasaka and Maruyama Park, Philosopher's Path, Arashiyama Togetsukyō & Riverside only" bleeds onto and is behind icons like "Crowd info", "recenter". Make the pop up so it doesn't overlap
+- [x] 10. "Curated Kyoto Walks" in Explore is scrollable horizonally, but it's probably much better visually to have it vertically
+- [ ] 11. "Kyoto preview" look into and see if necessary for change
+- [x] 12. Route dotted lines are too vague & not noticeable. We want it to be more visible and to have the option to check out the route (e.g., Parks - 9 mins) to be accessible before we zoom in max. Maybe the route dotted lines should be bolder and tappable themselves, and once you tap them they lead to the route recommendation, much like what happens if we tap the "(e.g., Parks - 9 mins) " button
+- [ ] 13. In the rewards section. The activity log goes on forever. Limit it to like 6/7 and make a button that says see all activity. So it doesn’t go down forever
 
-- [x] 1. **Implement [docs/fox_chatbot.md](docs/fox_chatbot.md):** Build the grounded "Ask the Fox" Guided Q&A feature on the Explore tab (tappable fox marker, Gemini API Route Handler + deterministic offline fallback, and 3 rough pop-up prototypes for `?foxUi=modal | rpg | bubble`).
-- [x] 2. **Pixelate characters from file GIFs (implement [docs/gif_ideas.md](docs/gif_ideas.md)):** Pixelate character sprites from the source GIF files (`public/assets/mascot/pixel/animated/`) to match the app's pixel-art mascot style.
-- [x] 3. **Implement [docs/refinement.md](docs/refinement.md)Get rid of "demo", "double check", etc. components:** Since this is a demo, we're just going to get rid of the components that take away from the experience. Get rid of japanese underneath rewards in "Available", ex: Hanami Tea Stand (はなみ茶房（架空）), get rid of the japanese, but keep it for the japanese language switch option. So for english language setting, only show english name of the stores & products, and on japanese language setting, show the japanese name
-- [x] 4. i think the previews for after tapping "redeem at store", "stamp book", "reset demo progress", "end this walk", "how this demo works", etc. has the pop up appear on the top left side of the screen. Make it centered. I'm sure there are multiple others that have the same problem as well, so conduct an audit to check if what i'm mentioning is real, and if there are other occurances.
-- [x] 5. in map, get rid of toggling standard/illustrated (keep at standard at all times), get rid of list, bike - pilot planned, luggage - not surveyed
-- [x] 6. **Implement [docs/music.md](docs/music.md):** Add looping background music across all tabs (`public/audio/kyoto-bgm.mp3`) with a persisted **Mute background music** switch under the **Me** tab.
-- [x] 7. **Finish [docs/routes.md](docs/routes.md):** The six new walks, their stops, stories and seals are already in. Still to do: rerun the photo download (Wikimedia rate-limited it), wire the new walks into `DEMO_SCENARIOS`, update the route-discovery tests for 9 walks, update `ROUTE_DATA.md` and `DECISIONS.md`, then run the checks and the browser review.
-
-
-## 2. Visual and Content Review (Human / Device QA)
-
-- [x] **Map label & bubble collision QA:** Check route-label and fox-bubble collisions with stop pins while panning and zooming at phone widths in both English and Japanese (including long place names).
-- [x] **Interaction polish decisions:** add swipe dismissal alongside buttons/Escape on Celebration ([src/components/celebration.tsx](src/components/celebration.tsx)), show the completion bonus separately from the walk total, and resolve the duplicate active walk card in Missions ([src/components/missions-screen.tsx](src/components/missions-screen.tsx)).
 - [ ] **iOS & Android real-device accessibility QA:** Finish EN/JA coverage for loading and install metadata; test the full map/list and check-in journey on physical iPhones and Android phones with screen readers, reduced motion, weak GPS (including heading + display smoothing), weak connectivity, and check touch targets for route labels and the receipt's *Read story* button ([docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)).

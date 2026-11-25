@@ -219,6 +219,8 @@
   "rewardPillValue": "{points} / {target}ポイント",
   "rewardPillLabel": "特典：次のバウチャーまで{target}ポイント中{points}ポイント",
   "rewardPillAll": "バウチャーをすべて交換済み",
+  "rewardPillTotal": "{points}ポイント",
+  "rewardPillTotalLabel": "所持ポイント：{points}。特典を開く",
   "hudLabel": "散歩の進み具合",
   "hudBeads": "スタンプ {total}個中{stamps}個",
   "celebrateTitle": "散歩完了！",
@@ -258,6 +260,9 @@
   "passportLabel": "スタンプパスポート",
   "passportLine": "印 {seals} · 散歩 {walks} · 使用済み {used}",
   "passportNewestSeal": "最新のスタンプ",
+  "appVersion": "バージョン {version} · ビルド {build}",
+  "rotateTitle": "スマートフォンを縦向きにしてください",
+  "rotateBody": "京都ウォークは縦向き専用です。端末を縦にしてお使いください。",
   "photoAlt": "{place}の写真",
   "photoCredit": "写真：{author}",
   "photoSource": "ウィキメディア・コモンズ",
@@ -379,5 +384,10 @@
   "foxGuideAskAnother": "ほかの質問をする",
   "foxGuideInputLabel": "きつねに質問を入力",
   "foxGuidePlaceholder": "この場所や京都について聞く…",
-  "foxGuideAsk": "聞く"
+  "foxGuideAsk": "聞く",
+  "landmarkBadge": "京都の名所ランドマーク",
+  "landmarkAskFox": "{name}についてきつねに聞く",
+  "landmarkAskFoxPrompt": "京都の{name}について、見どころやマナーを教えて。",
+  "landmarkNearbyWalks": "近くのおすすめ散歩ルート",
+  "landmarkOrientationNote": "地図上の目印ランドマークです（スタンプのチェックイン地点ではありません）。"
 }

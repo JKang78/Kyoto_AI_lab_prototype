@@ -34,6 +34,7 @@ export interface FoxGuideDialogProps {
   locale: Locale;
   foxScreenPoint?: { x: number; y: number } | null;
   containerSize?: { width: number; height: number } | null;
+  pendingQuestion?: { id: number; text: string } | null;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -47,6 +48,7 @@ export function FoxGuideDialog({
   locale,
   foxScreenPoint = null,
   containerSize = null,
+  pendingQuestion = null,
 }: FoxGuideDialogProps) {
   const [questionInput, setQuestionInput] = useState("");
   const [askedQuestion, setAskedQuestion] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export function FoxGuideDialog({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const lastPendingIdRef = useRef<number | null>(null);
   const titleId = useId();
 
   const t = useCallback(
@@ -154,6 +157,16 @@ export function FoxGuideDialog({
   const handleChipClick = (chip: FoxRecommendedQuestion) => {
     void askFox(chip[locale], chip.id);
   };
+
+  useEffect(() => {
+    if (!open || !pendingQuestion) return;
+    if (lastPendingIdRef.current === pendingQuestion.id) return;
+    lastPendingIdRef.current = pendingQuestion.id;
+    const timer = window.setTimeout(() => {
+      void askFox(pendingQuestion.text);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, pendingQuestion, askFox]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -4,6 +4,7 @@
   "description": "A Kyoto walking exploration prototype",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#FFF8F1",
   "theme_color": "#782459",
   "icons": [

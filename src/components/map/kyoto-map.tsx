@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { ArrowLeft, CircleHelp, Heart, Ticket, Users, ChevronRight, Coffee, Eye, Footprints, Landmark, Leaf, LocateFixed, MapPinned, Navigation, Search, Sparkles, Sun, Trees, Waves, type LucideIcon } from "lucide-react";
-import { COUPONS, GAME } from "@/config/game";
+import { GAME } from "@/config/game";
 import { WalkControls } from "@/components/walk-controls";
+import { KYOTO_LANDMARKS, landmarkById, type KyotoLandmark } from "@/data/kyoto-landmarks";
+import { landmarkImageId, landmarkSvgDataUrl, loadLandmarkMapImages } from "@/lib/landmark-icons";
 import { activeBonus, activeRun, balance, circlePolygon, liveEligible, placeById, scenarioByKind, walkById, walkReward, type ActiveBonus, type Game } from "@/lib/game";
 import { Celebration } from "@/components/celebration";
 import { FoxGuideDialog } from "@/components/fox-guide-dialog";
@@ -14,7 +16,7 @@ import { resolveFoxContext } from "@/lib/fox-context";
 import { PREVIEW_CONTROLS } from "@/config/environment";
 import { applyPixelLook, pixelLookRequested } from "@/components/map/pixel-look";
 import { PlacePhoto, PlaceStory } from "@/components/place-media";
-import { glyphSvg, kyotoSeason, placeSealSvg, placeTheme } from "@/components/glyphs";
+import { kyotoSeason, placeSealSvg, placeTheme } from "@/components/glyphs";
 import { applyMapPrefs, captureSymbolOriginals, type SymbolOriginal } from "@/lib/map-looks";
 import { getMapPrefsSnapshot, parseMapPrefs, subscribeMapPrefs } from "@/lib/map-prefs";
 import { act } from "@/lib/game-store";
@@ -31,6 +33,21 @@ import type { CuratedPlace, CuratedWalk, LngLat } from "@/types/routes";
 // Centred on the three curated walks so their lines, pins and labels open in view.
 const KYOTO_CENTER: [number, number] = [135.7738, 35.0052];
 const MAP_ZOOM = 13.9;
+
+/**
+ * Pixel offset that puts a target in the middle of the map area you can actually see: below the search and
+ * filter bar, above the bottom sheet or follow card. Measured live, so it holds at any screen size or sheet snap.
+ */
+function visibleMapOffset(container: HTMLElement | null): [number, number] {
+  const section = container?.parentElement;
+  if (!container || !section) return [0, -60];
+  const bounds = container.getBoundingClientRect();
+  const top = Math.max(bounds.top, section.querySelector(".map-top-ui")?.getBoundingClientRect().bottom ?? bounds.top);
+  const bottom = Math.min(bounds.bottom, section.querySelector(".snap-sheet, .follow-card")?.getBoundingClientRect().top ?? bounds.bottom);
+  // With the sheet pulled up there is too little map left to centre in; keep the old nudge instead.
+  if (bottom - top < 120) return [0, -60];
+  return [0, Math.round((top + bottom) / 2 - (bounds.top + bounds.height / 2))];
+}
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
 const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[] = [
@@ -44,20 +61,42 @@ const categories: { label: MessageKey; icon: LucideIcon; filter: RouteFilter }[]
 ];
 const themeIcons: Record<CuratedWalk["theme"], LucideIcon> = { culture: Landmark, riverside: Waves, park: Trees };
 const labelPosition: Record<CuratedWalk["theme"], number> = { culture: 0.33, riverside: 0.6, park: 0.85 };
+// If a label's usual spot collides or is off screen, try these points along its line before hiding it,
+// so "Parks · 9 min" stays reachable at wider zooms (TODO 12).
+const LABEL_FALLBACKS = [0.5, 0.2, 0.7, 0.1, 0.9, 0.3, 0.6, 0.4, 0.8, 0.15, 0.45, 0.75] as const;
+const lineWidth = (scale: number): ExpressionSpecification => ["interpolate", ["linear"], ["zoom"], 12, 3.5 * scale, 14, 5 * scale, 16, 7 * scale];
+const casingWidth = (scale: number): ExpressionSpecification => ["interpolate", ["linear"], ["zoom"], 12, 3.5 * scale + 3, 14, 5 * scale + 3, 16, 7 * scale + 4];
 const themeLabelKeys: Record<CuratedWalk["theme"], MessageKey> = { culture: "mapCategoryCulture", riverside: "mapCategoryRiverside", park: "mapCategoryPark" };
 const routeColors: Record<CuratedWalk["theme"], string> = { culture: "#a8453c", riverside: "#3d5f86", park: "#5d7a3e" };
 const reasonKeys: Record<Exclude<MatchReason, null>, MessageKey> = { place: "routesReasonPlace", theme: "routesReasonTheme", time: "routesReasonTime", available: "routesReasonAvailable" };
 const crowdKeys: Record<CrowdLevel, MessageKey> = { calm: "crowdCalm", moderate: "crowdModerate", busy: "crowdBusy", unknown: "crowdUnknown" };
 function pinMarkup(placeId: string, number: number | null, { sealed = false, next = false } = {}) {
-  const theme = placeTheme(placeId);
   const inner = number === null
-    ? glyphSvg(theme, 18)
+    ? placeSealSvg(placeId, 18, 1.75)
     : `<span class="map-place-pin-number">${number}</span>`;
   // Collected stops carry a small seal; the next stop gets an attention bubble (visuals.md E4).
   const seal = sealed ? `<span class="map-place-pin-seal" aria-hidden="true">${placeSealSvg(placeId, 12, 2)}</span>` : "";
   const bubble = next ? `<span class="map-place-pin-bubble" aria-hidden="true">!</span>` : "";
   return `<span class="map-place-pin-body">${bubble}<span class="map-place-pin-head">${inner}${seal}</span><span class="map-place-pin-tail"></span></span>`;
 }
+const LANDMARKS_GEOJSON = {
+  type: "FeatureCollection" as const,
+  features: KYOTO_LANDMARKS.map((landmark) => ({
+    type: "Feature" as const,
+    properties: {
+      id: landmark.id,
+      iconImage: landmarkImageId(landmark.iconId),
+      nameEn: landmark.name.en,
+      nameJa: landmark.name.ja,
+      minZoom: landmark.minZoom,
+      linkedPlaceId: landmark.linkedPlaceId ?? "",
+    },
+    geometry: {
+      type: "Point" as const,
+      coordinates: [landmark.location[0], landmark.location[1]],
+    },
+  })),
+};
 const FOX_HALO_METERS = 60;
 const emptyGeoJson = { type: "FeatureCollection" as const, features: [] };
 function haloGeoJson(center: LngLat | null) {
@@ -234,26 +273,50 @@ export function KyotoMap({
         if (r.width > 0 && r.height > 0) obstacles.push(r);
       }
     }
+    // The side rail is an obstacle where its buttons actually are, so labels can use the full width below it.
+    for (const node of section?.querySelectorAll(".map-rail-button > span") ?? []) {
+      const r = node.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) obstacles.push(r);
+    }
     const kept: DOMRect[] = [...obstacles];
     for (const walk of CURATED_WALKS) {
-      const label = routeLabelRefs.current.get(walk.id)?.getElement();
-      if (!label || label.style.display === "none") continue;
+      const marker = routeLabelRefs.current.get(walk.id);
+      const label = marker?.getElement();
+      if (!marker || !label || label.style.display === "none") continue;
       label.style.visibility = "";
-      const rect = label.getBoundingClientRect();
-      const offscreen = rect.left < bounds.left + 6 || rect.right > bounds.right - 68 || rect.top < minTop || rect.bottom > maxBottom;
-      const overlaps = kept.some(other => rect.left < other.right + 4 && rect.right > other.left - 4 && rect.top < other.bottom + 4 && rect.bottom > other.top - 4);
-      if (offscreen || overlaps) label.style.visibility = "hidden";
-      else kept.push(rect);
+      const coordinates = walk.geometry.coordinates;
+      let placed = false;
+      for (const fraction of new Set([labelPosition[walk.theme], ...LABEL_FALLBACKS])) {
+        const point = coordinates[Math.floor((coordinates.length - 1) * fraction)];
+        // Open towards the side of the screen with more room: labels anchor on their left edge, and those on the
+        // right half shift back across the point (CSS translate stacks with MapLibre's own transform).
+        const x = mapRef.current?.project([...point]).x ?? 0;
+        if (x < -40 || x > container.clientWidth + 40) continue;
+        marker.setLngLat([...point]);
+        // Prefer the side with more room, then try the other side of the same point.
+        for (const flip of x > container.clientWidth / 2 ? [true, false] : [false, true]) {
+          label.style.translate = flip ? "calc(-100% - 24px) 0" : "";
+          const rect = label.getBoundingClientRect();
+          const offscreen = rect.left < bounds.left + 6 || rect.right > bounds.right - 6 || rect.top < minTop || rect.bottom > maxBottom;
+          const overlaps = kept.some(other => rect.left < other.right + 4 && rect.right > other.left - 4 && rect.top < other.bottom + 4 && rect.bottom > other.top - 4);
+          if (!offscreen && !overlaps) { kept.push(rect); placed = true; break; }
+        }
+        if (placed) break;
+      }
+      if (!placed) label.style.visibility = "hidden";
     }
   }, []);
   const selectedWalkIdRef = useRef<string | null>(null);
+  // Read by map handlers registered once at load: route lines are not tappable during a walk.
+  const playingRef = useRef(false);
   const watchIdRef = useRef<number | null>(null);
   const watchVersionRef = useRef(0);
   const settingsRecenterHandledRef = useRef(false);
   const useLocationButtonRef = useRef<HTMLButtonElement>(null);
   const startPlace = startPlaceId ? placeById(startPlaceId) : undefined;
   const initialCenterRef = useRef<[number, number]>(
-    location.mode === "demo" ? DEMO_POSITION : startPlace ? [...startPlace.location] : KYOTO_CENTER,
+    // Open on the fox, which stands at DEMO_POSITION until GPS has a fix, unless a start landmark was picked.
+    location.mode === "live" && location.fix ? [location.fix.longitude, location.fix.latitude] : startPlace ? [...startPlace.location] : DEMO_POSITION,
   );
   const symbolOriginalsRef = useRef<Map<string, SymbolOriginal>>(new Map());
   // Personal look preferences (Me screen). The stored string is stable, so this only re-renders on change.
@@ -266,12 +329,14 @@ export function KyotoMap({
   const [showCrowd, setShowCrowd] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [foxGuideOpen, setFoxGuideOpen] = useState(false);
+  const [pendingFoxQuestion, setPendingFoxQuestion] = useState<{ id: number; text: string } | null>(null);
   const [foxScreenPoint, setFoxScreenPoint] = useState<{ x: number; y: number } | null>(null);
   const [foxContainerSize, setFoxContainerSize] = useState<{ width: number; height: number } | null>(null);
   const [snap, setSnap] = useState<Snap>(initialPlaceId ? "half" : selectedWalkId ? "full" : "peek");
-  const [view, setView] = useState<"routes" | "walk" | "place">(initialPlaceId ? "place" : selectedWalkId ? "walk" : "routes");
+  const [view, setView] = useState<"routes" | "walk" | "place" | "landmark">(initialPlaceId ? "place" : selectedWalkId ? "walk" : "routes");
   const [mapAttempt, setMapAttempt] = useState(0);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(initialPlaceId);
+  const [focusedLandmarkId, setFocusedLandmarkId] = useState<string | null>(null);
   const [buildingWalkId, setBuildingWalkId] = useState<string | null>(null);
   const [finishedWalkId, setFinishedWalkId] = useState<string | null>(null);
   const [celebrationRunId, setCelebrationRunId] = useState<string | null>(null);
@@ -281,9 +346,11 @@ export function KyotoMap({
   const selectedWalk = CURATED_WALKS.find((walk) => walk.id === selectedWalkId) ?? null;
   const placeOrigin = usePlaceOrigin(location);
   const focusedPlace = CURATED_PLACES.find((place) => place.id === focusedPlaceId) ?? null;
+  const focusedLandmark = focusedLandmarkId ? landmarkById(focusedLandmarkId) ?? null : null;
   const results = discoverRoutes(query, routeFilter, CURATED_WALKS, CURATED_PLACES);
   const run = activeRun(game);
   const playing = run && selectedWalkId === run.walkId;
+  useEffect(() => { playingRef.current = Boolean(playing); }, [playing]);
   // Before departure the walking fox marks the first stop. The resident-note fox sways only once that row is
   // off screen, so the sheet never shows two moving foxes (docs/gif_ideas.md).
   const beforeDeparture = !run && view === "walk" && Boolean(selectedWalk);
@@ -293,7 +360,6 @@ export function KyotoMap({
   const collectedPlaces = new Set(game.runs.flatMap(item => item.stamps.map(stamp => stamp.placeId)));
   const collectedKey = [...collectedPlaces].sort().join(",");
   const points = balance(game);
-  const nextVoucher = COUPONS.filter(coupon => !game.claims.some(claim => claim.id === coupon.id)).sort((a, b) => a.cost - b.cost)[0];
   // The fox's one contextual line (visuals.md E2). Hidden during a walk: the HUD and follow card already name the next stop.
   const bubbleText = celebrationRun || playing ? null
     : finishedWalkId ? t("foxBubbleDone")
@@ -395,11 +461,30 @@ export function KyotoMap({
 
   const openPlace = useCallback((place: CuratedPlace) => {
     setFocusedPlaceId(place.id);
+    setFocusedLandmarkId(null);
     setView("place");
     setSnap("half");
     mapRef.current?.easeTo({ center: [...place.location], zoom: 15.5, offset: [0, -90], duration: motionDuration(500) });
   }, []);
   const openPlaceRef = useRef(openPlace);
+  const openLandmark = useCallback((landmark: KyotoLandmark) => {
+    if (landmark.linkedPlaceId) {
+      const linked = placeById(landmark.linkedPlaceId);
+      if (linked) { openPlace(linked); return; }
+    }
+    setFocusedPlaceId(null);
+    setFocusedLandmarkId(landmark.id);
+    setView("landmark");
+    setSnap("half");
+    mapRef.current?.easeTo({ center: [...landmark.location], zoom: 14.5, offset: [0, -80], duration: motionDuration(500) });
+  }, [openPlace]);
+  const openLandmarkRef = useRef(openLandmark);
+  const localeRef = useRef(locale);
+  useEffect(() => {
+    openPlaceRef.current = openPlace;
+    openLandmarkRef.current = openLandmark;
+    localeRef.current = locale;
+  }, [openPlace, openLandmark, locale]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -427,7 +512,7 @@ export function KyotoMap({
           attributionControl: false,
         });
         mapRef.current = map;
-        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+        // No +/- buttons: phones pinch or double-tap to zoom, and Recenter resets the zoom (TODO: map zoom controls).
         map.addControl(new maplibregl.AttributionControl({ compact: false }), "bottom-left");
 
         const markerElement = document.createElement("div");
@@ -443,20 +528,99 @@ export function KyotoMap({
           map.addSource("fox-halo", { type: "geojson", data: emptyGeoJson });
           map.addLayer({ id: "fox-halo-fill", type: "fill", source: "fox-halo", paint: { "fill-color": "#782459", "fill-opacity": 0.12 } }, firstLabel);
           map.addLayer({ id: "fox-halo-ring", type: "line", source: "fox-halo", paint: { "line-color": "#782459", "line-opacity": 0.36, "line-width": 1.5 } }, firstLabel);
+          // Famous Kyoto landmark icons (docs/locations.md): native symbol layer with built-in collision avoidance.
+          map.addSource("kyoto-landmarks", { type: "geojson", data: LANDMARKS_GEOJSON });
+          void loadLandmarkMapImages(
+            map,
+            KYOTO_LANDMARKS.map((landmark) => landmark.iconId),
+          ).then(() => {
+            if (disposed || !mapRef.current || map.getLayer("kyoto-landmarks-layer")) return;
+            const hasGlyphs = Boolean(map.getStyle().glyphs);
+            map.addLayer({
+              id: "kyoto-landmarks-layer",
+              type: "symbol",
+              source: "kyoto-landmarks",
+              minzoom: 11.2,
+              filter: ["<=", ["get", "minZoom"], ["zoom"]],
+              layout: {
+                "icon-image": ["get", "iconImage"],
+                "icon-size": ["interpolate", ["linear"], ["zoom"], 11.5, 0.72, 13.5, 0.92, 15.5, 1.05],
+                "icon-allow-overlap": false,
+                "icon-padding": 6,
+                ...(hasGlyphs ? {
+                  "text-field": ["step", ["zoom"], "", 13.0, ["get", localeRef.current === "ja" ? "nameJa" : "nameEn"]],
+                  "text-size": 12,
+                  "text-offset": [0, 1.85],
+                  "text-anchor": "top",
+                  "text-optional": true,
+                } : {}),
+              },
+              paint: {
+                "icon-opacity": 1,
+                ...(hasGlyphs ? {
+                  "text-color": "#1c1917",
+                  "text-halo-color": "#faf8f4",
+                  "text-halo-width": 1.5,
+                } : {}),
+              },
+            }, "fox-halo-fill");
+            map.on("click", "kyoto-landmarks-layer", (event) => {
+              const featureId = event.features?.[0]?.properties?.id;
+              const landmark = typeof featureId === "string" ? landmarkById(featureId) : undefined;
+              if (landmark) openLandmarkRef.current(landmark);
+            });
+            map.on("mouseenter", "kyoto-landmarks-layer", () => {
+              map.getCanvas().style.cursor = "pointer";
+            });
+            map.on("mouseleave", "kyoto-landmarks-layer", () => {
+              map.getCanvas().style.cursor = "";
+            });
+          });
           for (const walk of CURATED_WALKS) {
             // Only the reviewed fixture geometry is passed to MapLibre. No endpoints are joined at runtime.
             map.addSource(`walk-${walk.id}`, {
               type: "geojson",
+              // Display-only smoothing per zoom: hides the few-metre sidewalk/crossing steps that made the solid line
+              // look notched when zoomed out, and keeps full detail up close. The stored route data is unchanged.
+              tolerance: 4,
               data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: walk.geometry.coordinates.map(([lng, lat]) => [lng, lat]) } },
             });
+            // A solid bold line over a light casing keeps routes visible on any base-map colour (TODO 12).
+            map.addLayer({
+              id: `walk-casing-${walk.id}`,
+              type: "line",
+              source: `walk-${walk.id}`,
+              layout: { "line-cap": "round", "line-join": "round" },
+              paint: { "line-color": "#faf8f4", "line-width": casingWidth(1), "line-opacity": 0.9 },
+            }, firstLabel);
             map.addLayer({
               id: `walk-line-${walk.id}`,
               type: "line",
               source: `walk-${walk.id}`,
               layout: { "line-cap": "round", "line-join": "round" },
-              paint: { "line-color": routeColors[walk.theme], "line-width": 4, "line-opacity": 0.78, "line-dasharray": [0.2, 1.8] },
+              paint: { "line-color": routeColors[walk.theme], "line-width": lineWidth(1), "line-opacity": 0.9 },
             }, firstLabel);
+            // Invisible, finger-wide tap target along the line; tapping opens the walk like its route label.
+            map.addLayer({
+              id: `walk-hit-${walk.id}`,
+              type: "line",
+              source: `walk-${walk.id}`,
+              layout: { "line-cap": "round", "line-join": "round" },
+              paint: { "line-color": routeColors[walk.theme], "line-width": 26, "line-opacity": 0 },
+            }, firstLabel);
+            map.on("mouseenter", `walk-hit-${walk.id}`, () => { if (!playingRef.current) map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", `walk-hit-${walk.id}`, () => { map.getCanvas().style.cursor = ""; });
           }
+          const hitLayers = CURATED_WALKS.map(walk => `walk-hit-${walk.id}`);
+          map.on("click", (event) => {
+            // Not during a walk, and landmark icons win when they sit on a route.
+            if (playingRef.current) return;
+            if (map.getLayer("kyoto-landmarks-layer") && map.queryRenderedFeatures(event.point, { layers: ["kyoto-landmarks-layer"] }).length) return;
+            const box: [[number, number], [number, number]] = [[event.point.x - 4, event.point.y - 4], [event.point.x + 4, event.point.y + 4]];
+            const hit = map.queryRenderedFeatures(box, { layers: hitLayers })[0];
+            const walk = hit && CURATED_WALKS.find(item => `walk-hit-${item.id}` === hit.layer.id);
+            if (walk) previewWalkRef.current(walk);
+          });
           for (const place of CURATED_PLACES) {
             const pin = document.createElement("button");
             pin.type = "button";
@@ -475,11 +639,10 @@ export function KyotoMap({
             label.className = `map-route-label map-route-label--${walk.theme}`;
             label.dataset.walkId = walk.id;
             label.addEventListener("click", (event) => { event.stopPropagation(); previewWalkRef.current(walk); });
-            // Each theme's label sits at a different point along its line so the three rarely collide.
+            // Each theme's label starts at a different point along its line; layoutRouteLabels picks the final
+            // point and side after every move so labels stay clear of pins, chrome and each other.
             const point = walk.geometry.coordinates[Math.floor((walk.geometry.coordinates.length - 1) * labelPosition[walk.theme])];
-            // Open towards the side of the screen with more room.
-            const onLeftHalf = map.project([...point]).x < container.clientWidth / 2;
-            routeLabels.set(walk.id, new maplibregl.Marker({ element: label, anchor: onLeftHalf ? "left" : "right", offset: [onLeftHalf ? 12 : -12, 0] }).setLngLat([...point]).addTo(map));
+            routeLabels.set(walk.id, new maplibregl.Marker({ element: label, anchor: "left", offset: [12, 0] }).setLngLat([...point]).addTo(map));
           }
           // Walk-end goal marker (visuals.md E8): where a walk's points are earned, never where a voucher is used.
           const goal = document.createElement("div");
@@ -598,9 +761,15 @@ export function KyotoMap({
     for (const walk of CURATED_WALKS) {
       const layer = `walk-line-${walk.id}`;
       if (!map.getLayer(layer)) continue;
-      map.setPaintProperty(layer, "line-color", selectedWalkId === walk.id ? "#782459" : routeColors[walk.theme]);
-      map.setPaintProperty(layer, "line-width", selectedWalkId === walk.id ? 6 : 4);
-      map.setPaintProperty(layer, "line-opacity", selectedWalkId && selectedWalkId !== walk.id ? 0.22 : 0.85);
+      const selected = selectedWalkId === walk.id;
+      const dimmed = Boolean(selectedWalkId && !selected);
+      map.setPaintProperty(layer, "line-color", selected ? "#782459" : routeColors[walk.theme]);
+      map.setPaintProperty(layer, "line-width", lineWidth(selected ? 1.4 : 1));
+      map.setPaintProperty(layer, "line-opacity", dimmed ? 0.22 : 0.9);
+      if (map.getLayer(`walk-casing-${walk.id}`)) {
+        map.setPaintProperty(`walk-casing-${walk.id}`, "line-width", casingWidth(selected ? 1.4 : 1));
+        map.setPaintProperty(`walk-casing-${walk.id}`, "line-opacity", dimmed ? 0.25 : 0.9);
+      }
     }
   }, [selectedWalkId, state]);
 
@@ -651,9 +820,33 @@ export function KyotoMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedPlaceId, locale, view, selectedWalk, state, playing, run, showCrowd, collectedKey]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || state !== "ready" || !map.getLayer("kyoto-landmarks-layer")) return;
+    const dimmed = Boolean(selectedWalk || playing);
+    map.setPaintProperty("kyoto-landmarks-layer", "icon-opacity", dimmed ? 0.3 : 1);
+    if (map.getStyle().glyphs) {
+      map.setLayoutProperty(
+        "kyoto-landmarks-layer",
+        "text-field",
+        ["step", ["zoom"], "", 13.0, ["get", locale === "ja" ? "nameJa" : "nameEn"]],
+      );
+      map.setPaintProperty("kyoto-landmarks-layer", "text-opacity", dimmed ? 0 : 1);
+    }
+  }, [locale, selectedWalk, playing, state]);
+
   const focusMap = useCallback((coordinates: [number, number]) => {
-    mapRef.current?.easeTo({ center: coordinates, offset: [0, -60], zoom: MAP_ZOOM, duration: motionDuration(550) });
+    mapRef.current?.easeTo({ center: coordinates, offset: visibleMapOffset(containerRef.current), zoom: MAP_ZOOM, duration: motionDuration(550) });
   }, []);
+
+  // Once the map is ready, settle the opening view so the fox sits in the middle of the visible map.
+  const openingCenteredRef = useRef(false);
+  useEffect(() => {
+    if (state !== "ready" || openingCenteredRef.current) return;
+    openingCenteredRef.current = true;
+    if (selectedWalkId || initialPlaceId || startPlace) return;
+    mapRef.current?.easeTo({ center: getFoxCoordinates(), offset: visibleMapOffset(containerRef.current), zoom: MAP_ZOOM, duration: 0 });
+  }, [state, selectedWalkId, initialPlaceId, startPlace, getFoxCoordinates]);
 
   useEffect(() => {
     if (state !== "ready" || !selectedWalk) return;
@@ -671,9 +864,9 @@ export function KyotoMap({
     if (state !== "ready" || !settingsRecenterRequest || settingsRecenterHandledRef.current) return;
     settingsRecenterHandledRef.current = true;
     if (location.mode === "live" && !location.fix) useLocationButtonRef.current?.focus();
-    else focusMap(location.mode === "live" && location.fix ? [location.fix.longitude, location.fix.latitude] : location.mode === "demo" ? playing ? [...demoPoint.current] : DEMO_POSITION : KYOTO_CENTER);
+    else focusMap(getFoxCoordinates());
     onSettingsRecenterHandled();
-  }, [focusMap, location, onSettingsRecenterHandled, settingsRecenterRequest, state, playing]);
+  }, [focusMap, getFoxCoordinates, location, onSettingsRecenterHandled, settingsRecenterRequest, state]);
 
   function requestLiveLocation() {
     void act({ type: "demo", enabled: false });
@@ -747,6 +940,7 @@ export function KyotoMap({
   function showRoutes() {
     setSelectedWalkId(null);
     setFocusedPlaceId(null);
+    setFocusedLandmarkId(null);
     setView("routes");
     setSnap("half");
   }
@@ -770,10 +964,10 @@ export function KyotoMap({
     setView(selectedWalk ? "walk" : "routes");
   }
 
+  // Recenter on the fox wherever it stands (the sample position used to send the map to KYOTO_CENTER instead).
   function recenter() {
-    if (location.mode === "live") {
-      if (location.fix) focusMap([location.fix.longitude, location.fix.latitude]);
-    } else focusMap(location.mode === "demo" ? playing ? [...demoPoint.current] : DEMO_POSITION : KYOTO_CENTER);
+    if (location.mode === "live" && !location.fix) return;
+    focusMap(getFoxCoordinates());
   }
 
   const busyCues = SAMPLE_CONGESTION_CUES.filter(cue => cue.level === "busy");
@@ -824,11 +1018,10 @@ export function KyotoMap({
           <button type="button" key={label} aria-pressed={routeFilter === filter} onClick={() => toggleFilter(filter)}><Icon size={16} strokeWidth={ICON_STROKE} aria-hidden="true" /><span>{t(label)}</span></button>)}
       </div>
       <div className="map-top-row">
-      <button type="button" className="reward-pill" onClick={onRewards}
-        aria-label={nextVoucher ? t("rewardPillLabel", { points: String(points), target: String(nextVoucher.cost) }) : t("rewardPillAll")}>
+      {/* Total points only (TODO 8); the next-voucher progress lives in Rewards. */}
+      <button type="button" className="reward-pill" onClick={onRewards} aria-label={t("rewardPillTotalLabel", { points: String(points) })}>
         <Ticket size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />
-        <span>{nextVoucher ? t("rewardPillValue", { points: String(Math.min(points, nextVoucher.cost)), target: String(nextVoucher.cost) }) : t("rewardPillAll")}</span>
-        {nextVoucher && <span className="reward-pill-bar" aria-hidden="true"><span style={{ transform: `scaleX(${Math.min(1, points / nextVoucher.cost)})` }} /></span>}
+        <span>{t("rewardPillTotal", { points: String(points) })}</span>
       </button>
       <BonusBanner game={game} locale={locale} />
       </div>
@@ -865,7 +1058,7 @@ export function KyotoMap({
           labels={{ expand: t("sheetExpand"), collapse: t("sheetCollapse"), region: t("sheetRegion") }}>
           {view === "routes" && <div className="sheet-section">
             <h2 className="sheet-title">{t("routesTitle")}</h2>
-            {results.suggestions.length ? <div className="route-carousel">
+            {results.suggestions.length ? <div className="route-list">
               {results.suggestions.map(({ walk, reason }) => <RouteCard key={walk.id} walk={walk} locale={locale} reason={reason} bonus={activeBonus(game, walk.id)} saved={saved.walks.includes(walk.id)} onToggleSave={() => toggleSavedWalk(walk.id)} onPreview={() => previewWalk(walk)} />)}
             </div> : <div className="route-empty"><p>{t("routesEmpty")}</p><Button variant="secondary" onClick={() => { setQuery(""); setRouteFilter(null); }}>{t("routesShowAll")}</Button></div>}
             {results.fallback && <p className="sheet-intro">{t("routesSearchFallback")}</p>}
@@ -922,6 +1115,48 @@ export function KyotoMap({
             <a className="route-place-source" href={focusedPlace.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a>
             <RouteDataCredit locale={locale} />
           </div>}
+          {view === "landmark" && focusedLandmark && <div className="sheet-section">
+            <div className="sheet-top-bar">
+              <button type="button" className="sheet-back" onClick={showRoutes}><ArrowLeft size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("routesBack")}</button>
+            </div>
+            <div className="landmark-sheet-hero">
+              <span className="landmark-sheet-icon" aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={landmarkSvgDataUrl(focusedLandmark.iconId)} alt="" />
+              </span>
+              <div className="landmark-sheet-meta">
+                <span className="match-tag">{t("landmarkBadge")}</span>
+                <h2 className="sheet-title">{focusedLandmark.name[locale]}<small lang={other}>{focusedLandmark.name[other]}</small></h2>
+              </div>
+            </div>
+            <p className="sheet-intro">{focusedLandmark.summary[locale]}</p>
+            <p className="route-community-status">{t("landmarkOrientationNote")}</p>
+            <Button className="full-width" onClick={() => {
+              setPendingFoxQuestion({
+                id: Date.now(),
+                text: t("landmarkAskFoxPrompt", { name: focusedLandmark.name[locale] }),
+              });
+              foxActionRef.current();
+            }}>
+              <Sparkles size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />
+              {t("landmarkAskFox", { name: focusedLandmark.name[locale] })}
+            </Button>
+            {focusedLandmark.nearbyWalkIds.length > 0 && <>
+              <h3 className="sheet-subtitle">{t("landmarkNearbyWalks")}</h3>
+              <div className="landmark-nearby-list">
+                {focusedLandmark.nearbyWalkIds.map((walkId) => {
+                  const walk = walkById(walkId);
+                  return walk ? <button key={walk.id} type="button" className="landmark-nearby-card" onClick={() => previewWalk(walk)}>
+                    <span><strong>{walk.name[locale]}</strong><small>{t("walkMinutes", { minutes: String(walk.estimatedMinutes) })} · {t("walkKm", { km: (walk.estimatedMeters / 1000).toFixed(1) })}</small></span>
+                    <ChevronRight size={17} strokeWidth={ICON_STROKE} aria-hidden="true" />
+                  </button> : null;
+                })}
+              </div>
+            </>}
+            <a className="route-place-source" href={focusedLandmark.osmFeatureUrl} target="_blank" rel="noreferrer">{t("placeMapSource")}</a>
+            <a className="handoff-link" href={`https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", destination: `${focusedLandmark.location[1]},${focusedLandmark.location[0]}`, travelmode: "walking" })}`} target="_blank" rel="noreferrer">{t("openGoogleMaps")}</a>
+            <RouteDataCredit locale={locale} />
+          </div>}
         </SnapSheet>}
     </div>
 
@@ -945,6 +1180,7 @@ export function KyotoMap({
       locale={locale}
       foxScreenPoint={foxScreenPoint}
       containerSize={foxContainerSize}
+      pendingQuestion={pendingFoxQuestion}
     />
 
     <ConfirmDialog open={confirmStop !== null} title={t("gameStopWalk")} closeLabel={t("close")} onClose={() => setConfirmStop(null)}>

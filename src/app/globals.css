@@ -209,9 +209,9 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .sheet-sticky-actions { position: sticky; bottom: -24px; display: grid; gap: 8px; margin: 4px -14px -24px; padding: 12px 14px calc(14px); border-top: 1px solid var(--border-hairline); background: rgb(250 248 244 / 96%); backdrop-filter: blur(10px); }
 .handoff-link { justify-self: center; min-height: 32px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; }
 
-.route-carousel { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -14px; padding: 2px 14px 6px; scrollbar-width: none; }
-.route-carousel::-webkit-scrollbar { display: none; }
-.route-card { flex: 0 0 min(82%, 320px); scroll-snap-align: start; display: grid; align-content: start; gap: 8px; padding: 14px; border: 1px solid var(--border-hairline); border-radius: var(--radius); background: var(--bg-ivory); }
+/* TODO 10: walks stack vertically at full width. */
+.route-list { display: grid; gap: 10px; padding: 2px 0 6px; }
+.route-card { display: grid; align-content: start; gap: 8px; padding: 14px; border: 1px solid var(--border-hairline); border-radius: var(--radius); background: var(--bg-ivory); }
 .route-card header, .quest-card header { display: flex; align-items: center; gap: 8px; }
 .route-card h3, .quest-card h2 { margin: 0; font: 700 17px/1.25 var(--font-title); }
 .route-card-icon { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-stone); color: var(--torii-vermilion); }
@@ -383,10 +383,11 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 /* E1 reward pill */
 .map-top-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
 .map-top-row > * { pointer-events: auto; }
-.reward-pill { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 99px; background: var(--hud-ink); color: #fff; font-size: 13px; font-weight: 700; box-shadow: var(--shadow-float); font-variant-numeric: tabular-nums; }
-.reward-pill svg { color: var(--celebration-gold); }
-.reward-pill-bar { width: 52px; height: 4px; border-radius: 4px; background: rgb(255 255 255 / 25%); overflow: hidden; }
-.reward-pill-bar span { display: block; height: 100%; background: var(--celebration-gold); transform-origin: left; }
+/* TODO 9: the bonus banner wraps within the space left of the side rail instead of running under it. */
+.map-top-row .bonus-banner, .map-follow-hud .bonus-banner { flex: 1 1 200px; min-width: 0; margin-right: 62px; }
+/* TODO 8: a light total-points chip in place of the dark progress pill. */
+.reward-pill { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 1px solid var(--border-hairline); border-radius: 99px; background: rgb(250 248 244 / 94%); color: var(--ink-sumi); font-size: 13px; font-weight: 700; box-shadow: var(--shadow-float); font-variant-numeric: tabular-nums; }
+.reward-pill svg { color: var(--kyoto-purple); }
 
 /* E2 fox speech bubble */
 .map-fox-figure { display: inline-grid; }
@@ -545,6 +546,15 @@ a { color: var(--kyoto-purple); text-underline-offset: 2px; }
 .passport > .passport-newest { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-hairline); }
 .passport-newest p { margin: 0; display: grid; gap: 2px; min-width: 0; }
 .passport-newest small { color: var(--ink-muted); font-size: 12px; }
+/* Portrait-only card for phones held sideways (see SIDEWAYS_PHONE_QUERY in prototype-app.tsx). */
+.app-shell-content { display: contents; }
+.rotate-overlay { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: center; justify-content: center; gap: 16px; padding: max(16px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); background: var(--bg-washi) var(--grain); color: var(--ink-sumi); text-align: left; }
+.rotate-overlay p { margin: 0; display: grid; gap: 6px; max-width: 420px; }
+.rotate-overlay strong { font: 400 20px/1.3 var(--font-title); }
+.rotate-overlay span { color: var(--ink-slate); font-size: 14px; line-height: 1.5; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) { body { overflow: hidden; } }
+/* Build stamp at the very end of Me. */
+.app-version { margin: 8px 0 0; color: var(--ink-muted); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
 .passport-newest strong { font-size: 15px; overflow-wrap: anywhere; }
 
 /* ---- docs/visuals.md P2 ---- */
@@ -1049,7 +1059,7 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 /* 64 px is the sprite's native size, so the pixels stay crisp; offsets keep the old 73 px box's centre. */
 .figma-home-heading .fox-avatar { position: absolute; right: 6px; top: 53px; }
 .figma-home-hello { font-size: 21px; line-height: 30px; }
-.figma-home-subtitle { max-width: 260px; min-height: 66px; color: #57534e; font-size: 17px; line-height: 23px; }
+.figma-home-subtitle { max-width: min(260px, 100% - 76px); min-height: 66px; color: #57534e; font-size: 17px; line-height: 23px; }
 .figma-home-points { display: grid; align-content: start; min-height: 190px; padding: 12px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
 .figma-home-points > p { font-size: 16px; line-height: 23px; }
 .figma-home-points > strong { font-size: 30px; line-height: 42px; font-weight: 400; }
@@ -1495,3 +1505,58 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
   to { opacity: 1; transform: none; }
 }
 /* ---- End Ask the Fox guided Q&A ---- */
+
+/* ---- Famous Kyoto Landmark sheet (docs/locations.md) ---- */
+.landmark-sheet-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landmark-sheet-icon {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+}
+
+.landmark-sheet-icon img {
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+
+.landmark-sheet-meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.landmark-nearby-list {
+  display: grid;
+  gap: 8px;
+}
+
+.landmark-nearby-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 12px;
+  background: var(--bg-ivory);
+  text-align: left;
+}
+
+.landmark-nearby-card strong {
+  display: block;
+  font-size: 14px;
+}
+
+.landmark-nearby-card small {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+/* ---- End Famous Kyoto Landmark sheet ---- */

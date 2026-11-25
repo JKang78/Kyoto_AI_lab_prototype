@@ -27,6 +27,16 @@ const ETIQUETTE_KEY = "kyoto-ai-lab.etiquette.v1";
 // The newest seal the passport has already celebrated, so the reward fox hops once per new seal.
 const PASSPORT_SEAL_KEY = "kyoto-ai-lab.passportSeal.v1";
 
+// Portrait only: a phone held sideways sees a "turn upright" card instead of the app. Browsers can't block
+// rotation in a tab, so this covers the screen; installed apps also get "orientation": "portrait" in the manifest.
+// Coarse pointer + short height targets phones; tablets, desktops and short desktop windows are unaffected.
+const SIDEWAYS_PHONE_QUERY = "(orientation: landscape) and (max-height: 500px) and (pointer: coarse)";
+function subscribeSideways(onChange: () => void) {
+  const query = window.matchMedia(SIDEWAYS_PHONE_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
 /** The most recently stamped seal; stamps from older saves without a time count in run order. */
 function newestSeal(game: Game): { key: string; placeId: string } | null {
   let newest: { key: string; placeId: string; at: number } | null = null;
@@ -244,6 +254,7 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onO
         {reportPrepared && <p className="save-message" role="status">{t("reportIssueSaved")}</p>}
       </form>
     </ConfirmDialog>
+    <p className="app-version">{t("appVersion", { version: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0", build: process.env.NEXT_PUBLIC_BUILD_COMMIT ?? "local" })}</p>
   </div>;
 }
 
@@ -379,9 +390,17 @@ export function PrototypeApp() {
     handleLocationChange(INITIAL_LOCATION_STATE);
     setActiveTab("home");
   }
+  const sideways = useSyncExternalStore(subscribeSideways, () => window.matchMedia(SIDEWAYS_PHONE_QUERY).matches, () => false);
   const hasRewardsDot = Boolean(seen && affordable.some(id => !seen.rewards.includes(id)));
   const hasMissionsDot = Boolean(seen && sealCount > seen.seals);
   return <div className="app-shell" data-tab={activeTab}>
+    {sideways && <div className="rotate-overlay" role="dialog" aria-modal="true" aria-labelledby="rotate-title" aria-describedby="rotate-body">
+      {/* The only visible fox while the card covers the app; reduced motion shows the static warning sprite. */}
+      <FoxAvatar state="warning" size={72} animated />
+      <p><strong id="rotate-title">{translate(locale, "rotateTitle")}</strong><span id="rotate-body">{translate(locale, "rotateBody")}</span></p>
+    </div>}
+    {/* Inert while the rotate card shows, so keyboard and screen-reader focus can't reach the hidden app. */}
+    <div className="app-shell-content" inert={sideways}>
     {offline && <div className="offline-banner" role="status">
       <WifiOff size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />
       <span>{translate(locale, "offlineBanner")}{cachedAt ? ` · ${translate(locale, "offlineCacheAge", { time: formatKyotoDateTime(locale, cachedAt) })}` : ""}</span>
@@ -404,5 +423,6 @@ export function PrototypeApp() {
       rewards: activeTab !== "rewards" && hasRewardsDot,
       missions: activeTab !== "missions" && hasMissionsDot,
     }} />
+    </div>
   </div>;
 }
