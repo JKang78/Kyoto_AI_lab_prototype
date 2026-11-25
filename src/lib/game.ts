@@ -11,6 +11,71 @@ export type Claim = { id: string; cost: number; at?: number; redeemedAt?: number
 /** `scenario` is the hypothetical bonus scenario a presenter has switched on, if any. It is never inferred from real data. */
 export type Game = { version: 3; demo: boolean; scenario: CampaignKind | null; runs: Run[]; claims: Claim[] };
 export const emptyGame: Game = { version: 3, demo: false, scenario: null, runs: [], claims: [] };
+
+/**
+ * Sample progress fixture used only when the presenter/reviewer turns on the Demo Showcase
+ * toggle in Settings. Produces a valid Game ledger with completed & active walks, bonus &
+ * standard check-ins, and both a redeemed voucher and an unlocked voucher ready to redeem.
+ */
+export function createDemoShowcaseGame(now = Date.now()): Game {
+  const hour = 60 * 60_000;
+  const min = 60_000;
+  const at = (offsetMs: number) => Math.max(0, now - offsetMs);
+  return {
+    version: 3,
+    demo: true,
+    scenario: null,
+    runs: [
+      {
+        id: "demo-showcase-run-1",
+        walkId: "shijo-yasaka",
+        stamps: [
+          { placeId: "shijo-kawaramachi", mode: "live", points: 10, multiplier: 1, at: at(28 * hour) },
+          { placeId: "shijo-ohashi", mode: "live", points: 10, multiplier: 1, at: at(28 * hour - 6 * min) },
+          { placeId: "yasaka-west-view", mode: "live", points: 10, multiplier: 1, at: at(28 * hour - 13 * min) },
+        ],
+        complete: true,
+        bonus: GAME.completionPoints,
+      },
+      {
+        id: "demo-showcase-run-2",
+        walkId: "shijo-yasaka",
+        stamps: [
+          { placeId: "shijo-kawaramachi", mode: "demo", points: 20, multiplier: 2, campaign: "bus_relief", at: at(5 * hour) },
+          { placeId: "shijo-ohashi", mode: "demo", points: 20, multiplier: 2, campaign: "bus_relief", at: at(5 * hour - 5 * min) },
+          { placeId: "yasaka-west-view", mode: "demo", points: 20, multiplier: 2, campaign: "bus_relief", at: at(5 * hour - 12 * min) },
+        ],
+        complete: true,
+        bonus: GAME.completionPoints,
+      },
+      {
+        id: "demo-showcase-run-3",
+        walkId: "shijo-yasaka",
+        stamps: [
+          { placeId: "shijo-kawaramachi", mode: "live", points: 10, multiplier: 1, at: at(2 * hour) },
+          { placeId: "shijo-ohashi", mode: "live", points: 10, multiplier: 1, at: at(2 * hour - 6 * min) },
+          { placeId: "yasaka-west-view", mode: "live", points: 10, multiplier: 1, at: at(2 * hour - 12 * min) },
+        ],
+        complete: true,
+        bonus: GAME.completionPoints,
+      },
+      {
+        id: "demo-showcase-run-4",
+        walkId: "kamo-riverside",
+        stamps: [
+          { placeId: "shijo-ohashi", mode: "demo", points: 10, multiplier: 1, at: at(25 * min) },
+          { placeId: "kawabata-riverside", mode: "demo", points: 10, multiplier: 1, at: at(12 * min) },
+        ],
+        complete: false,
+        bonus: 0,
+      },
+    ],
+    claims: [
+      { id: "matcha", cost: 60, at: at(20 * hour), redeemedAt: at(19 * hour) },
+      { id: "tea-latte", cost: 75, at: at(1 * hour) },
+    ],
+  };
+}
 export const walkById = (id: string) => CURATED_WALKS.find(w => w.id === id);
 export const placeById = (id: string) => CURATED_PLACES.find(p => p.id === id);
 export const couponById = (id: string) => COUPONS.find(c => c.id === id);

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { GAME, COUPONS } from '../src/config/game.ts';
 import { REWARD_MODE } from '../src/config/environment.ts';
 import { sampleWalkCrowd } from '../src/data/sample-congestion.ts';
-import { emptyGame, balance, activeRun, walkStatus, transition, liveEligible, decodeGame, placeById, walkById, activeBonus, walkReward, redemptionCode, clientMayUnlock, circlePolygon, distanceMeters, voucherProjection, isCouponExpired } from '../src/lib/game.ts';
+import { emptyGame, createDemoShowcaseGame, balance, activeRun, walkStatus, transition, liveEligible, decodeGame, placeById, walkById, activeBonus, walkReward, redemptionCode, clientMayUnlock, circlePolygon, distanceMeters, voucherProjection, isCouponExpired } from '../src/lib/game.ts';
 
 // 12:00 and 08:00 Kyoto time (UTC+9).
 const NOON = Date.UTC(2026, 10, 24, 3);
@@ -353,4 +353,31 @@ test('expired demo vouchers cannot be unlocked or redeemed past Kyoto-time expir
   const unlocked = transition(game, { type: 'unlock', id: 'matcha' }, matcha.expiresAt - 60_000);
   assert.equal(unlocked.claims.length, 1);
   assert.equal(transition(unlocked, { type: 'redeem', id: 'matcha' }, matcha.expiresAt + 1000), unlocked);
+});
+
+test('demo showcase fixture is valid, populates points/activity/rewards, and leaves emptyGame untouched', () => {
+  const showcase = createDemoShowcaseGame(NOON);
+  assert.deepEqual(decodeGame(JSON.stringify(showcase)), showcase);
+  assert.equal(emptyGame.runs.length, 0);
+  assert.equal(emptyGame.claims.length, 0);
+  assert.equal(balance(emptyGame), 0);
+
+  assert.equal(balance(showcase), 95);
+  assert.equal(showcase.runs.flatMap(r => r.stamps).length, 11);
+  assert.equal(activeRun(showcase)?.walkId, 'kamo-riverside');
+  assert.deepEqual(walkStatus(showcase, 'shijo-yasaka'), { status: 'completed', stamps: 3, completedCount: 3 });
+  assert.deepEqual(walkStatus(showcase, 'kamo-riverside'), { status: 'active', stamps: 2, completedCount: 0 });
+  assert.deepEqual(walkStatus(showcase, 'yasaka-maruyama'), { status: 'available', stamps: 0, completedCount: 0 });
+
+  const usedClaim = showcase.claims.find(c => c.id === 'matcha');
+  const unlockedClaim = showcase.claims.find(c => c.id === 'tea-latte');
+  assert.ok(usedClaim && usedClaim.redeemedAt !== undefined);
+  assert.ok(unlockedClaim && unlockedClaim.redeemedAt === undefined);
+
+  // Can finish the active walk and unlock another voucher inside the showcase state.
+  const finished = stamp(showcase, 'demo-showcase-run-4', 'sanjo-ohashi', demo, NOON + 1000);
+  assert.equal(activeRun(finished), undefined);
+  assert.equal(balance(finished), 135);
+  const unlockedMochi = transition(finished, { type: 'unlock', id: 'mochi' }, NOON + 2000);
+  assert.equal(balance(unlockedMochi), 55);
 });

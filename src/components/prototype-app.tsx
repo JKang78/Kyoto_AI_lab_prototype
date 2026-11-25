@@ -6,7 +6,7 @@ import { ExternalLink, Flag, FlaskConical, Shield, Sparkles, Trash2, UserRound, 
 import { HomeScreen } from "@/components/home-screen";
 import { Missions } from "@/components/missions-screen";
 import { Rewards } from "@/components/rewards-screen";
-import { act, useGame } from "@/lib/game-store";
+import { act, clearDemoShowcase, setDemoShowcase, useDemoShowcase, useGame } from "@/lib/game-store";
 import { activeRun, balance, placeById, walkById, type Game } from "@/lib/game";
 import { COUPONS, type CampaignKind } from "@/config/game";
 import { PREVIEW_CONTROLS } from "@/config/environment";
@@ -83,11 +83,12 @@ function MapLookSettings({ locale }: { locale: Locale }) {
   </section>;
 }
 
-function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onOpenPlace, locale, profile, location, onLocale, onSave, onDemoChange, onRecenter }: {
+function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onOpenPlace, locale, profile, location, onLocale, onSave, onDemoChange, demoShowcase, onDemoShowcaseChange, onRecenter }: {
   game: Game; saved: SavedItems; onReset: () => void; onDeleteAll: () => Promise<void>; onLogout: () => void;
   onOpenWalk: (id: string) => void; onOpenPlace: (id: string) => void;
   locale: Locale; profile: Profile; location: LocationState; onLocale: (locale: Locale) => void;
-  onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void; onRecenter: () => void;
+  onSave: (nickname: string) => void; onDemoChange: (enabled: boolean) => void;
+  demoShowcase: boolean; onDemoShowcaseChange: (enabled: boolean) => void; onRecenter: () => void;
 }) {
   const [nickname, setNickname] = useState(profile.nickname);
   const newest = newestSeal(game);
@@ -110,7 +111,7 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onO
   const [reportPrepared, setReportPrepared] = useState(false);
   const t = (key: MessageKey, values?: Record<string, string>) => translate(locale, key, values);
   return <div className="content-screen settings-screen figma-account">
-    <div className="figma-account-header"><h1>{t("navMe")}</h1><div><button type="button" aria-label={t("profileHeading")} onClick={() => setEditOpen(value => !value)}><Image src="/assets/figma/pencil-icon.svg" width={22} height={22} alt="" /></button><button type="button" aria-label={t("mapLookHeading")} onClick={() => setAdvancedOpen(value => !value)}><Image src="/assets/figma/settings-icon.svg" width={22} height={22} alt="" /></button></div></div>
+    <div className="figma-account-header"><h1>{t("navMe")}</h1><div><button type="button" aria-label={t("profileHeading")} aria-expanded={editOpen} onClick={() => setEditOpen(value => !value)}><Image src="/assets/figma/pencil-icon.svg" width={22} height={22} alt="" /></button><button type="button" aria-label={t("settingsHeading")} aria-expanded={advancedOpen} onClick={() => setAdvancedOpen(value => !value)}><Image src="/assets/figma/settings-icon.svg" width={22} height={22} alt="" /></button></div></div>
     {/* Passport header (visuals.md Me2): one sentence of progress, not a KPI grid. */}
     <section className="passport" aria-label={t("passportLabel")}>
       <FoxAvatar state="idle" size={88} still={hop} />
@@ -176,6 +177,8 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onO
     {advancedOpen && <div className="figma-advanced-settings"><MapLookSettings locale={locale} />
     {PREVIEW_CONTROLS && <section className="settings-section demo-controls">
       <h2><FlaskConical size={18} strokeWidth={ICON_STROKE} aria-hidden="true" />{t("demoControlsHeading")}</h2>
+      <Switch checked={demoShowcase} onChange={onDemoShowcaseChange}>{t("demoShowcaseSwitch")}</Switch>
+      <p className="settings-hint">{t("demoShowcaseHint")}</p>
       <p className="form-label">{t("scenarioLabel")}</p>
       <Segmented<"none" | CampaignKind> label={t("scenarioLabel")} value={game.scenario ?? "none"}
         onChange={kind => { haptic(); void act({ type: "scenario", kind: kind === "none" ? null : kind }); }} options={[
@@ -249,6 +252,7 @@ function MeScreen({ game, saved, onReset, onDeleteAll, onLogout, onOpenWalk, onO
 
 export function PrototypeApp() {
   const game = useGame();
+  const demoShowcase = useDemoShowcase();
   const saved = useSaved();
   const snapshot = useSyncExternalStore(subscribeProfile, getProfileSnapshot, () => undefined);
   const ready = snapshot !== undefined;
@@ -359,7 +363,14 @@ export function PrototypeApp() {
     setInitialPlaceId(id);
     selectTab("explore");
   }
+  function handleDemoShowcaseChange(enabled: boolean) {
+    setDemoShowcase(enabled);
+    setSelectedWalkId(undefined);
+    setSeen(null);
+    handleLocationChange(INITIAL_LOCATION_STATE);
+  }
   async function deleteAllLocalData() {
+    clearDemoShowcase();
     await act({ type: "reset" });
     clearSaved();
     clearMusicPrefs();
@@ -391,7 +402,7 @@ export function PrototypeApp() {
       {activeTab === "explore" && <KyotoMap game={game} selectedWalkId={selectedWalkId} setSelectedWalkId={setSelectedWalkId} query={query} setQuery={setQuery} routeFilter={routeFilter} setRouteFilter={setRouteFilter} locale={locale} location={location} onLocationChange={handleLocationChange} settingsRecenterRequest={settingsRecenterRequest} onSettingsRecenterHandled={() => setSettingsRecenterRequest(false)} onRewards={() => selectTab("rewards")} onStampBook={() => { selectTab("missions"); setStampBookFocus(true); }} onCelebrationChange={setCelebrating} startPlaceId={startPlaceId} setStartPlaceId={setStartPlaceId} saved={saved} initialPlaceId={initialPlaceId} onInitialPlaceHandled={() => setInitialPlaceId(null)} />}
       {activeTab === "missions" && <Missions game={game} locale={locale} onWalk={openWalk} focusStampBook={stampBookFocus} />}
       {activeTab === "rewards" && <Rewards game={game} locale={locale} />}
-      {activeTab === "me" && <MeScreen game={game} saved={saved} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} onDeleteAll={deleteAllLocalData} onLogout={() => { setGuestLocaleOverride(profile.locale); clearProfile(); selectTab("home"); }} onOpenWalk={openWalk} onOpenPlace={openPlace} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
+      {activeTab === "me" && <MeScreen game={game} saved={saved} onReset={() => { setSelectedWalkId(null); handleLocationChange(INITIAL_LOCATION_STATE); }} onDeleteAll={deleteAllLocalData} onLogout={() => { setGuestLocaleOverride(profile.locale); clearProfile(); selectTab("home"); }} onOpenWalk={openWalk} onOpenPlace={openPlace} locale={locale} profile={profile} location={location} onLocale={(next) => saveProfile({ ...profile, locale: next })} onSave={(nickname) => saveProfile({ ...profile, nickname })} onDemoChange={enabled => { handleLocationChange(INITIAL_LOCATION_STATE); void act({ type: "demo", enabled }); }} demoShowcase={demoShowcase} onDemoShowcaseChange={handleDemoShowcaseChange} onRecenter={() => { setSettingsRecenterRequest(true); selectTab("explore"); }} />}
     </main>
     {toastId && <div className="unlock-toast" role="status">
       <FoxAvatar state="reward" size={36} />

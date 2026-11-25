@@ -1042,35 +1042,42 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 .dock-item { font-weight: 400; }
 .dock-item .fox-avatar { background: transparent; border: 0; }
 
-.figma-home { display: grid; align-content: start; gap: 0; padding: calc(24px + env(safe-area-inset-top)) 18px 26px; }
+.figma-home { display: grid; align-content: start; padding: calc(42px + env(safe-area-inset-top)) 18px 26px; }
 .figma-home p, .figma-home h1, .figma-home h2 { margin: 0; }
-.figma-home-heading { position: relative; display: flex; justify-content: space-between; align-items: start; min-height: 57px; }
-.figma-home-heading h1 { font: 400 31px/1.35 var(--font-title); }
-/* 64 px is the sprite's native size, so the pixels stay crisp; offsets keep the old 73 px box's centre. */
-.figma-home-heading .fox-avatar { position: absolute; right: 6px; top: 53px; }
-.figma-home-hello { font-size: 21px; line-height: 30px; }
-.figma-home-subtitle { max-width: 260px; min-height: 66px; color: #57534e; font-size: 17px; line-height: 23px; }
-.figma-home-points { display: grid; align-content: start; min-height: 190px; padding: 12px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
-.figma-home-points > p { font-size: 16px; line-height: 23px; }
-.figma-home-points > strong { font-size: 30px; line-height: 42px; font-weight: 400; }
-.figma-home-points > strong span { font-size: inherit; }
-.figma-home-points > small { color: #57534e; font-size: 13px; line-height: 19px; }
-.figma-home-points-footer { display: grid; gap: 0; margin-top: 8px; padding-top: 7px; border-top: 1px solid #e8e5e2; }
-.figma-home-points-footer span { font-size: 16px; }
-.figma-home-points-footer small { color: #57534e; font-size: 13px; }
-.figma-home-points-footer button { justify-self: start; padding: 0; color: #782459; font-size: 13px; line-height: 21px; }
-.figma-home-section { margin-top: 16px; }
-.figma-home-section h2 { margin-bottom: 9px; font-size: 19px; line-height: 27px; }
-.figma-home-walk-card { display: grid; gap: 2px; padding: 12px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
-.figma-home-walk-card strong { font-size: 17px; font-weight: 400; }
-.figma-home-walk-card p { color: #57534e; font-size: 13px; }
-.figma-home-walk-card button { width: 100%; min-height: 35px; margin-top: 7px; border-radius: 9px; background: #782459; color: #fff; font-size: 15px; }
-.figma-home-activity { border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
-.figma-home-activity > div { display: flex; justify-content: space-between; gap: 8px; min-height: 55px; align-items: center; padding: 10px 15px; font-size: 15px; }
+.figma-home-hero { position: relative; height: 251px; text-align: center; }
+.figma-home-hello, .figma-home-subtitle, .figma-home-balance, .figma-home-earned { position: absolute; left: 0; width: 100%; }
+.figma-home-hello { top: 0; overflow: hidden; font: 400 24px/34px var(--font-title); text-overflow: ellipsis; white-space: nowrap; }
+.figma-home-subtitle { top: 36px; color: #57534e; font-size: 18px; line-height: 26px; }
+.figma-home-hero .fox-avatar { position: absolute; top: 69px; left: 50%; width: 106px; height: 106px; transform: translateX(-50%); image-rendering: pixelated; }
+.figma-home-balance { top: 178px; font-size: 38px; line-height: 51px; }
+.figma-home-earned { top: 230px; color: #57534e; font-size: 14px; line-height: 21px; }
+.figma-home-rewards { display: grid; align-content: start; height: 81px; margin-top: 16px; padding: 9px 15px 4px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-rewards h2 { font-size: 16px; line-height: 23px; }
+.figma-home-rewards p { color: #57534e; font-size: 13px; line-height: 19px; }
+.figma-home-rewards button { justify-self: start; padding: 0; color: #782459; font-size: 13px; line-height: 19px; }
+.figma-home-section { margin-top: 15px; }
+.figma-home-section h2 { margin-bottom: 5px; font-size: 19px; line-height: 28px; }
+.figma-home-section + .figma-home-section h2 { margin-bottom: 6px; }
+.figma-home-walk-card { position: relative; height: 120px; padding: 13px 15px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-walk-card strong { display: block; font-size: 17px; font-weight: 400; line-height: 23px; }
+.figma-home-walk-card p { margin-top: 6px; color: #57534e; font-size: 13px; line-height: 18px; }
+.figma-home-walk-card button { position: absolute; right: 15px; bottom: 12px; left: 15px; height: 35px; border-radius: 9px; background: #782459; color: #fff; font-size: 15px; }
+.figma-home-activity { min-height: 118px; border: 1px solid #e8e5e2; border-radius: 14px; background: #fff; }
+.figma-home-activity > div { display: flex; justify-content: space-between; gap: 8px; height: 58px; align-items: center; padding: 9px 15px; }
 .figma-home-activity > div + div { border-top: 1px solid #e8e5e2; }
+.figma-home-activity > div > span { min-width: 0; display: grid; }
+.figma-home-activity > div > span > span { overflow: hidden; font-size: 15px; line-height: 21px; text-overflow: ellipsis; white-space: nowrap; }
+.figma-home-activity small { overflow: hidden; color: #57534e; font-size: 12px; line-height: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .figma-home-activity strong { flex: none; color: #782459; font-size: 14px; font-weight: 400; }
 .figma-home-activity > p { padding: 15px; color: #57534e; font-size: 13px; }
-.figma-home-activity-link { margin-top: 7px; padding: 0; color: #782459; font-size: 13px; }
+.figma-home-activity-link { justify-self: start; min-height: 26px; margin-top: 4px; padding: 0; color: #782459; font-size: 13px; line-height: 20px; }
+html:lang(ja) .figma-home-hero { display: flex; height: auto; min-height: 251px; flex-direction: column; align-items: center; }
+html:lang(ja) .figma-home-hero > * { position: static; width: auto; transform: none; }
+html:lang(ja) .figma-home-hello { white-space: normal; }
+html:lang(ja) .figma-home-subtitle { margin-top: 2px; }
+html:lang(ja) .figma-home-hero .fox-avatar { margin-top: 7px; }
+html:lang(ja) .figma-home-balance { margin-top: 3px; }
+html:lang(ja) .figma-home-earned { margin-top: 1px; }
 
 .figma-page-intro { margin: -4px 0 0; color: #57534e; font-size: 14px; line-height: 1.55; }
 .figma-missions { gap: 17px; }
@@ -1146,6 +1153,7 @@ html[data-font-preview="rpg-pixel"] :is(h1, h2, h3, h4, h5, h6, button) { font-w
 .figma-account-actions h2 { margin: 0; font-size: 16px; }
 .figma-account-actions button { min-height: 46px; padding: 8px 18px; border: 1px solid #e8e5e2; border-radius: 10px; background: #fff; text-align: center; }
 .figma-account-actions button + button { border: 1px solid #efc9c4; color: #c83e37; }
+.figma-account .switch-row { border-color: #e8e5e2; background: #fff; font-weight: 400; }
 
 /* Compact reward coupon tickets from the updated Figma catalog. */
 .figma-rewards-catalog { gap: 16px; }
