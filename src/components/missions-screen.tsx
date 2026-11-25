@@ -108,7 +108,7 @@ export function Missions({ game, locale, onWalk, focusStampBook = false }: { gam
   }, [focusStampBook]);
   return <div className="content-screen figma-missions">
     <h1>{t("navMissions")}</h1>
-    <p className="figma-page-intro">{locale === "ja" ? "散歩を選び、3つのスポットでチェックイン。最大60 ptsを獲得できます。" : "Choose a walk, check in at its 3 stops, and earn up to 60 pts."}</p>
+    <p className="figma-page-intro">{locale === "ja" ? "散歩ルートを選び、３つのスポットでチェックイン。最大60 ptsを獲得できます。" : "Choose a walk, check in at its 3 stops, and earn up to 60 pts."}</p>
     <Segmented label={t("missionsFilterLabel")} value={segment} onChange={setSegment} options={[
       { id: "available", label: t("missionsAvailable", { count: String(count("available")) }) },
       { id: "active", label: t("missionsActive", { count: String(count("active")) }) },

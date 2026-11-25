@@ -58,7 +58,7 @@ export function HomeScreen({ game, locale, name, onExplore, onRewards, onMission
           ? locale === "ja" ? `次の立ち寄り先：${placeById(nextStopId)?.name.ja ?? nextStopId}` : `Next stop: ${placeById(nextStopId)?.name.en ?? nextStopId}`
           : locale === "ja" ? `${totalStops}か所をめぐる、約${quest.estimatedMinutes}分の散歩` : `${totalStops} stops · about ${quest.estimatedMinutes} min`}</p>
         <div className="home-quest-progress" role="progressbar" aria-label={locale === "ja" ? "散歩の進捗" : "Walk progress"} aria-valuenow={visited} aria-valuemin={0} aria-valuemax={totalStops}><span style={{ width: `${totalStops ? visited / totalStops * 100 : 0}%` }} /></div>
-        <button type="button" onClick={onExplore}>{active ? locale === "ja" ? "散歩を続ける  ›" : "Continue walk  ›" : locale === "ja" ? "散歩を探す  ›" : "Explore walks  ›"}</button>
+        <button type="button" onClick={onExplore}>{active ? locale === "ja" ? "散歩を続ける  ›" : "Continue walk  ›" : locale === "ja" ? "散歩ルートを探す  ›" : "Explore walks  ›"}</button>
       </div>
     </section>
 

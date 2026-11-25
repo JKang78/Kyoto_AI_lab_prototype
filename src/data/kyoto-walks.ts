@@ -1113,7 +1113,7 @@ export const CURATED_WALKS: readonly CuratedWalk[] = [
     },
     "description": {
       "en": "Walk on mapped public sidewalks and crossings between Shijō and Sanjō bridges.",
-      "ja": "四条大橋から三条大橋まで、地図上の歩道と横断歩道を歩きます。"
+      "ja": "四条大橋から三条大橋まで、地図上の歩道・横断歩道ルートを散策します。"
     },
     "theme": "riverside",
     "placeIds": [
@@ -1192,7 +1192,7 @@ export const CURATED_WALKS: readonly CuratedWalk[] = [
     },
     "description": {
       "en": "A short shrine-and-park walk toward the Chion-in side of Maruyama Park.",
-      "ja": "八坂神社から円山公園を通り、知恩院側へ向かう短い散歩です。"
+      "ja": "八坂神社から円山公園を通り、知恩院側へ向かう短時間の散歩です。"
     },
     "theme": "park",
     "placeIds": [
@@ -1662,7 +1662,7 @@ export const CURATED_WALKS: readonly CuratedWalk[] = [
     },
     "description": {
       "en": "From Kawai Bridge, visit the tip of the Kamogawa Delta, then walk north through Tadasu-no-Mori to Shimogamo Shrine's Rōmon gate.",
-      "ja": "河合橋から鴨川デルタの先端を訪ね、糺の森を北へ抜けて下鴨神社の楼門前へ向かいます。"
+      "ja": "河合橋から鴨川デルタの先端へ、糺の森を北へ抜けて下鴨神社の楼門前へ向かいます。"
     },
     "theme": "park",
     "placeIds": [

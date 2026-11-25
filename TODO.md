@@ -14,5 +14,6 @@
 - [ ] 11. "Kyoto preview" look into and see if necessary for change
 - [x] 12. Route dotted lines are too vague & not noticeable. We want it to be more visible and to have the option to check out the route (e.g., Parks - 9 mins) to be accessible before we zoom in max. Maybe the route dotted lines should be bolder and tappable themselves, and once you tap them they lead to the route recommendation, much like what happens if we tap the "(e.g., Parks - 9 mins) " button
 - [ ] 13. In the rewards section. The activity log goes on forever. Limit it to like 6/7 and make a button that says see all activity. So it doesn’t go down forever
+- [ ] 14. Pixelated texts flicker, write quickly from beginning to end like typewriter. I don't know where though
 
 - [ ] **iOS & Android real-device accessibility QA:** Finish EN/JA coverage for loading and install metadata; test the full map/list and check-in journey on physical iPhones and Android phones with screen readers, reduced motion, weak GPS (including heading + display smoothing), weak connectivity, and check touch targets for route labels and the receipt's *Read story* button ([docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)).
