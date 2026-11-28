@@ -1,115 +1,153 @@
-# Kyoto AI Lab prototype — walks and demo rewards
+# Kitsune Walk — Kyoto AI Lab Prototype
 
-Explore three map-checked Kyoto walks and seven places in English or Japanese. The app has four tabs: **Explore** (the map, which is also the landing view), **Missions**, **Rewards** and **Me**. On Explore, a draggable sheet rests at the bottom of the map. Its peek state shows a demo crowd snapshot (and a bonus banner only while a demo scenario is on); drag or tap the handle to see up to three route cards, then **Preview route** for the stop timeline. Try “river within 9 minutes” or “9分以内の川沿い” in the search bar. Search, filters and your chosen walk survive tab switches for this session. An active walk and its stamps survive reloads.
+**Live demo:** https://kitsunewalk.vercel.app/ // **Demo Slide Deck (Canva):** https://canva.link/fixvjuttsu1b8md
 
-MapLibre draws stored pedestrian geometry over OpenFreeMap tiles. If the basemap fails, **Browse stored walks** opens the local catalog and **Retry map** tries the basemap again. The page itself must already have loaded. Access notes and route estimates come from the fixtures. Field inspection and community review are still open. See [the route data notes](docs/ROUTE_DATA.md).
+### Demo Video
 
-## Play a mission
+<video src="public/demo_video.mp4" controls width="360">
+  Your browser does not support embedded video. <a href="public/demo_video.mp4">Watch the Kitsune Walk demo video (MP4)</a>.
+</video>
 
-Open **Missions → View on Map** and choose **Start demo walk**. The sheet gives way to a compact follow card marked **DEMO MODE**: walk to the next stop, then simulate each check-in. Each stamp shows a receipt explaining its points and whether the check-in was simulated or GPS-based (a GPS check-in shows presence near a stop, never how you travelled). A three-stop walk earns 60 points. During a walk a dark HUD at the top shows the walk and one bead per stop, map pins gain a 印 seal once collected, and the next stop shows a "!". Finishing a walk opens a celebration with the fox, the walk's seals, a demo points count-up, and links to the stamp book and Rewards. A dismissible toast and tab dots announce a newly affordable demo voucher or new seals. The reward pill on Explore shows progress toward the next voucher, and the fox's speech bubble suggests the next step.
+[Watch / download the Kitsune Walk demo video (`public/demo_video.mp4`)](public/demo_video.mp4)
 
-**Bonus scenarios.** The PRD separates two incentives: a *bus-relief* bonus (walk instead of a crowded bus) and a *quiet-hour* bonus (visit a place outside its busy hours). No real bus or crowd data exists, so neither runs on its own. A presenter can switch on one hypothetical scenario in **Me → Demo controls**; bus relief doubles check-ins on *Shijō to Yasaka* only, quiet hour on *Yasaka and Maruyama Park* only, and every surface labels it a demo scenario.
+---
 
-In **Rewards**, unlock a fictional voucher with points, then **Redeem at store** opens a **demo redemption preview** labelled `DEMO — NOT REDEEMABLE` in English and Japanese. Holding **Demo: hold to mark as used** only updates this browser. No real shop accepts these vouchers and the code is never checked.
+### Why Kitsune Walk?
 
-**QR deep links.** `/?route=<walk-id>` (for example `/?route=kamo-riverside`) opens that walk on Explore without the welcome form; nothing is saved until the visitor changes a setting. Unknown ids fall back to the normal welcome.
+Kyoto is experiencing a historic inbound tourism boom—reaching a record **62.7M total tourists in 2025**, including a **17% year-over-year increase in foreign visitors**. That surge has placed heavy strain on city transit infrastructure, especially around major sightseeing corridors: **63.8% of residents report inconvenience from crowded public transport**, a concern echoed in our interviews with Kyoto residents.
 
-Change thresholds, point awards, demo scenarios and voucher prices in [the game configuration](src/config/game.ts). A fresh replay can earn another set of stamps. Each voucher can be unlocked and marked used once per browser progress record. Merchants, vouchers, bonus scenarios and crowd levels are all labelled demo samples; walks without a crowd sample show **Unknown**, and step-free access shows **Step-free: unknown** until surveyed. The demo/production reward boundary is documented in [`src/config/environment.ts`](src/config/environment.ts). [Phase 3 review](docs/done/REVIEW_PHASE_3.md)
+**Kitsune Walk** addresses this by gamifying walking in Kyoto as a **progressive web application (PWA)**. Because it runs directly in mobile browsers like Chrome or Safari with no app-store download required, it lowers adoption friction for both visitors and residents.
 
-## Run locally
+The goal is to disperse foot traffic off crowded public buses by incentivizing people to walk: earning location-verified stamps, discovering personalized routes and lesser-known neighborhood spots, and—as the end-state vision—unlocking real coupons and local currency redeemable exclusively at local shops. By guiding visitors onto less congested walking routes and rewarding them with local spending incentives, Kitsune Walk aims to ease pressure on major hotspots while revitalizing neighborhood businesses.
+
+> **About this prototype:** Built with **Next.js 16**, **React 19**, **MapLibre GL**, and **Gemini**, this bilingual (**English / Japanese**) prototype lets visitors explore **9 curated pedestrian walks**, **33 stops**, and **15 Kyoto orientation landmarks** with an animated pixel-fox companion, stamp-collecting missions, grounded AI Q&A, and demo reward previews.
+
+---
+
+## Features
+
+- **5-tab mobile shell:**
+  - **Home:** Pixel-art Kyoto landscape hero with the animated fox, live points counter, active/suggested quest card with progress bar, quick links to Seals / Walks done / Vouchers, and recent check-in activity.
+  - **Explore:** Interactive MapLibre GL map over OpenFreeMap vector tiles with tappable route lines, 33 check-in stops, 15 Kyoto orientation landmarks with custom ink-and-washi medallion icons, natural-language search (e.g., *"river within 9 minutes"* or *"9分以内の川沿い"*), theme filters, and a draggable bottom sheet.
+  - **Missions:** Curated walk catalog, seasonal trail progress, and stamp passport (印 seals).
+  - **Rewards:** Fictional demo voucher catalog with points tracking and a clearly labelled `DEMO — NOT REDEEMABLE` redemption preview.
+  - **Account (Me):** Nickname, EN/JA language switcher, saved walks & places, background music mute toggle, map appearance preferences (seasonal park colors, larger labels, landmark-only labels, flat map), and presenter Demo controls (in dev/preview builds).
+- **Grounded AI guide (*What Does the Fox Say* / *Ask the Fox*):** Tap the fox on the Explore map or inside a landmark sheet to ask about nearby stops, walks, or Kyoto etiquette. Powered by Gemini via [`src/app/api/fox-chat/route.ts`](src/app/api/fox-chat/route.ts) with strict grounding, refusal guardrails, IP rate limiting, and an offline fixture fallback when no API key is configured.
+- **Walks, check-ins, and demo scenarios:** Each stop awards 10 points and completing a 3-stop walk awards a 30-point completion bonus (60 points total). In dev/preview builds, presenters can test simulated walks (**Demo Mode** / **体験モード**) and two hypothetical 2× bonus scenarios (*bus-relief* and *quiet-hour*).
+- **QR deep links:** `/?route=<walk-id>` (e.g., `/?route=kamo-riverside`) opens that walk directly on Explore without the onboarding form.
+- **PWA & mobile polish:** Standalone web manifest (`public/manifest.webmanifest`), offline shell service worker (`public/sw.js`), portrait orientation prompt, looping background music (`public/audio/`), and automatic build-commit versioning in Account (`next.config.ts`).
+
+---
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router, Turbopack), React 19, TypeScript 5
+- **Mapping:** MapLibre GL 6.19 + OpenFreeMap (`tiles.openfreemap.org/styles/liberty`, no API key required)
+- **AI Guide:** Gemini REST API via server route (`/api/fox-chat`) with grounding & guardrails (`src/lib/fox-grounding.ts`, `src/lib/rate-limit.ts`)
+- **Styling & Motion:** Tailwind CSS 4, custom CSS, `motion`, `lucide-react`, self-hosted fonts (`DotGothic16`, `Zen Maru Gothic`)
+- **Persistence:** Client-side `localStorage` (no external database required)
+- **Testing:** Node built-in test runner (`node --test`) + Playwright browser tests
+
+---
+
+## Run Locally
+
+Requires **Node.js >= 22.18.0**.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. The first visit asks for a language and optional nickname. Both are stored in this browser's `localStorage`; returning visits open on Explore. Settings lets you edit the nickname and language, switch Kyoto Demo Mode on or off, and return to Explore with Recenter.
+Open `http://localhost:3000`.
 
-The map needs an internet connection to load OpenFreeMap tiles. It uses no API key. Keep its on-map attribution visible. Provider tradeoffs and terms are recorded in [`docs/DECISIONS.md`](docs/DECISIONS.md).
-Location permission is requested after **Use My Location** or **Start GPS walk** is tapped. Browser GPS requires HTTPS or localhost. A live fix stays at its actual coordinates, including outside Kyoto; low accuracy and errors are shown. **Demo Mode** uses a clearly labelled simulated point near Gion-Shijo and turns GPS off. GPS also stops when Explore is left; returning requires another tap to resume. The app does not save location history.
-The MapLibre worker is served from `public/vendor/` because Next.js did not load its automatic worker URL reliably. When upgrading MapLibre, replace that worker file with the matching package version and retain its license notice.
+### Optional environment variables (`.env.local`)
 
-## Open the app on a phone
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | Optional | Enables live Gemini responses in `/api/fox-chat`. Without it, Ask the Fox uses offline grounded fixtures. |
+| `GEMINI_MODEL` | Optional | Overrides the default Gemini model used by `/api/fox-chat`. |
+| `NEXT_PUBLIC_KYOTO_FLOW_PREVIEW` | Optional | Set to `1` in production builds to enable presenter Demo Mode, simulated check-ins, and bonus scenarios. Always on in `npm run dev`. |
 
-Use two terminals on your Mac. Your phone needs internet access but does not have to share the Mac's Wi-Fi.
+### Map & location notes
+
+- The map loads OpenFreeMap vector tiles over HTTPS (no API key required; keep the on-map attribution visible). If a browser's built-in ad/tracker blocker blocks third-party `.pbf` tiles on HTTPS, disable the blocker for the site or use **List** view to browse all walks offline.
+- Real browser GPS requires **HTTPS** or `localhost`, and is only requested after tapping **Use My Location** or **Start GPS walk**. GPS pauses when leaving the Explore tab and location history is never stored.
+- The MapLibre worker is self-hosted in `public/vendor/maplibre-gl-worker-6.19.0.mjs` for reliable Next.js loading. Keep it in sync with the `maplibre-gl` version in `package.json`.
+
+---
+
+## Test on a Phone (HTTPS Tunnel)
 
 ```bash
 # Terminal 1: start the dev server
 npm run dev
 
-# Terminal 2: start an HTTPS tunnel to it
+# Terminal 2: start a temporary HTTPS tunnel
 npx cloudflared tunnel --url http://localhost:3000
 ```
 
-1. Wait for the tunnel to print a URL like `https://<random-words>.trycloudflare.com`. The first run asks `Ok to proceed? (y)`; answer `y`.
-2. Open that URL on your phone. It can take a few seconds to become reachable.
-3. Tap **Use My Location** or **Start GPS walk** to test real GPS. The tunnel is HTTPS, which browsers require for location.
+Open the printed `https://<random>.trycloudflare.com` URL on your phone to test real GPS, touch gestures, and PWA installation. `next.config.ts` already allows `*.trycloudflare.com` in dev (`allowedDevOrigins`).
 
-Notes:
+---
 
-- The URL changes every time you restart the tunnel. Copy the new one from the terminal each session.
-- `next.config.ts` sets `allowedDevOrigins: ["*.trycloudflare.com"]`. Without it Next.js blocks the tunnel hostname in dev and the phone only shows the loading screen. Restart `npm run dev` after changing that file.
-- Anyone with the URL can reach your dev server while the tunnel runs. Press Ctrl+C in Terminal 2 when you are done.
-- If the tunnel shows a 502 error, the dev server in Terminal 1 is not running on port 3000. If you started it on another port, change the port in the tunnel command.
-- To test simulated walks and check-ins on the phone from a production build, run `NEXT_PUBLIC_KYOTO_FLOW_PREVIEW=1 npm run build && npm start`, then point the tunnel at the same port (`http://localhost:3000` by default). This build needs no `allowedDevOrigins` setting.
-- Same-Wi-Fi access without a tunnel works with `npm run dev -- -H 0.0.0.0` and `http://<your-mac-ip>:3000`, but GPS is blocked because the page is not HTTPS. Add your Mac's IP to `allowedDevOrigins` if the page loads but does not respond.
+## Deploy on Vercel
 
-## Presenter vs public builds
+This app requires a Next.js server runtime (for `/api/fox-chat`) and works out of the box on **Vercel**:
 
-Demo Mode, simulated check-ins and the bonus-scenario switch appear only in development (`npm run dev`) and in builds made for presenters:
+1. Import the repository in Vercel (or deploy via `npx vercel --prod`).
+2. In **Project Settings → Environment Variables**, configure:
+   - `GEMINI_API_KEY` *(Secret)* — for live Fox guide answers.
+   - `NEXT_PUBLIC_KYOTO_FLOW_PREVIEW` *(Config, value `1`)* — if you want presenter Demo Mode enabled on the deployed URL.
+3. Redeploy after changing any `NEXT_PUBLIC_*` variable (Next.js inlines them at build time).
+
+### Presenter vs. public builds
+
+Demo Mode, simulated check-ins, and bonus-scenario switches are governed by [`src/config/environment.ts`](src/config/environment.ts):
 
 ```bash
 NEXT_PUBLIC_KYOTO_FLOW_PREVIEW=1 npm run build   # presenter / demo deployment
 npm run build                                    # public build: GPS walking only
 ```
 
-A public build removes those controls and clears any demo state a browser saved earlier. All rewards stay demo-only in both.
+All points, merchants, and vouchers remain fictional demo content in both modes.
 
-## Accessibility and etiquette
+---
 
-- **List view:** the rail's **List** button replaces the map with every walk, its stops (photo, accessibility and access notes, story), and the same actions as the map. **Map view** returns.
-- **Unavailable modes:** the **Bike · pilot planned** and **Luggage · not surveyed** chips explain why they're unavailable instead of filtering.
-- **Etiquette notice:** during a walk, three example zones (Yasaka's west gate, Maruyama Park's paths, the Kawabata riverside sidewalk) show a short, dismissible notice with the fox, at most once per zone per Kyoto day. Messages restate each walk's resident note and are labelled as example zones.
-
-## Quality checks
+## Quality Checks
 
 ```bash
-npm test
-npm run lint
-npm run typecheck
-npm run build
+npm test            # unit tests (game logic, landmarks, fox guardrails, release checks)
+npm run typecheck   # TypeScript check (tsc --noEmit)
+npm run lint        # ESLint
+npm run build       # production Next.js build
 ```
 
-With the app running at localhost:3000, run the browser checks in a second terminal. Set `PHASE3_URL` to test a different local port. The tests fix the page clock so dates in receipts and logs are stable.
+Browser tests (requires the app running on `http://localhost:3000`, or set `PHASE3_URL`):
 
 ```bash
 npx playwright install chromium
 npm run test:browser
 ```
 
-`tests/browser/public-build.mjs` checks a public build. It skips unless `PUBLIC_URL` points at one, for example `npm run build && npx next start -p 3002`, then `PUBLIC_URL=http://localhost:3002 node --test tests/browser/public-build.mjs`.
+---
 
-## Structure
+## Project Structure
 
-- `src/app/` — Next.js entry, global styles, metadata
-- `src/components/` — four-tab shell and dock, onboarding, Missions, Rewards and demo redemption screens, shared snap sheet, dialog and fox avatar
-- `public/places/` — Wikimedia Commons place photos with credits in `src/data/place-photos.json` (`python3 scripts/fetch_place_photos.py`); draft place stories with sources live in `src/data/place-stories.ts`
-- `public/fonts/` — self-hosted web fonts (SIL OFL 1.1); regenerate with `python3 scripts/fetch_fonts.py`
-- `design/mascot/originals/` — official 2048 px fox masters (source of truth); `scripts/normalize_mascot.py` derives the served copies in `public/assets/mascot/`
-- `src/locales/` — English and Japanese UI dictionaries
-- `src/lib/` — route matching, translation, location and local profile persistence
-- `src/data/` — curated geometry, place notes, source records and sample congestion cues
-- `public/assets/` — locations for original mascot and pin art when supplied
-- `references/` — visual references, retained from the starter kit
+- `src/app/` — Next.js App Router entry, global styles (`globals.css`), metadata, and `/api/fox-chat` route
+- `src/components/` — 5-tab shell & dock (`prototype-app.tsx`), Home (`home-screen.tsx`), Explore map (`map/kyoto-map.tsx`), Missions, Rewards, Fox guide dialog, and shared UI primitives
+- `src/config/` — game thresholds & demo vouchers (`game.ts`), presenter/public boundary (`environment.ts`), asset paths (`assets.ts`)
+- `src/data/` — 9 curated walks & 33 places (`kyoto-walks.ts`), 15 Kyoto landmarks (`kyoto-landmarks.ts`), place stories, photo credits, and sample congestion cues
+- `src/lib/` — game state & `localStorage` persistence, route search/matching, Fox grounding & guardrails, rate limiting, landmark SVG icons, map looks, and i18n helpers
+- `src/locales/` — English (`en.json`) and Japanese (`ja.json`) UI dictionaries
+- `public/` — PWA manifest, service worker (`sw.js`), place photos, pixel/mascot art, audio, fonts, and MapLibre worker
+- `tests/` — unit tests (`tests/*.test.mjs`) and Playwright browser checks (`tests/browser/*.mjs`)
 
-The manifest provides app identity and standalone display metadata. Install icons, service worker/offline shell, and device-level PWA testing remain in Phase 4. Vouchers, merchants and points are fictional.
+---
 
-For the verified Phase 0 scope and the starting point for Phase 1, see [`docs/done/PHASE_0_HANDOFF.md`](docs/done/PHASE_0_HANDOFF.md).
+## Documentation
 
-## Project documents
-
-- [Product specification](docs/PROJECT_SPEC.md), [build plan](docs/BUILD_PLAN.md), [architecture](docs/ARCHITECTURE.md), [design guidelines](docs/DESIGN_GUIDELINES.md), and [decision log](docs/DECISIONS.md).
-- [Open tasks](TODO.md), [known bugs](docs/BUGS.md), [test checklist](docs/TEST_CHECKLIST.md), and [route data and field checks](docs/ROUTE_DATA.md).
-- [Mascot artwork](docs/MASCOT_ASSETS.md) and [pin artwork](docs/PINS_ASSETS.md).
-- [UI and interaction backlog](docs/visuals.md) for remaining prototype, content-review and pilot work.
-- [Completed plans, handoffs, reviews, and audits](docs/done/).
+- **Specs & architecture:** [Project Spec](docs/PROJECT_SPEC.md), [Product Requirements](docs/PRODUCT_REQUIREMENTS.md), [Engineering Spec](docs/ENGINEERING_SPEC.md), [Architecture](docs/ARCHITECTURE.md), [Decision Log](docs/DECISIONS.md)
+- **Feature notes:** [Fox Chatbot](docs/fox_chatbot.md), [Kyoto Landmarks](docs/locations.md), [Route Data & Field Checks](docs/ROUTE_DATA.md), [Background Music](docs/music.md), [Design System](docs/design_system.md), [UI Backlog](docs/visuals.md)
+- **QA & tasks:** [Open Tasks](TODO.md), [Test Checklist](docs/TEST_CHECKLIST.md), [Japanese Translation Notes](docs/Japanese_Translation.md)
+- **Archive:** [Completed plans, reviews, and handoffs](docs/done/)
